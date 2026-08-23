@@ -580,14 +580,19 @@ def ensure_card_interpreter_css(index_text: str) -> str:
 
 _HEADER_MOUNT = '<div id="pydevices-site-header"></div>'
 _FOOTER_MOUNT = '<div id="pydevices-site-footer"></div>'
-_PRODUCT_MARK = "https://pydevices.github.io/assets/img/logo.svg"
+_PRODUCT_MARK = (
+    '<div class="logo-badge product-mark" style="background: linear-gradient(135deg, var(--tier-1-amber), #d97706); color: #fff;">'
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/><circle cx="17" cy="15" r="1.5"/></svg>'
+    "</div>"
+)
 _CHROME_SCRIPTS = (
     '    <script src="./site-chrome.js"></script>\n    <script src="./theme-toggle.js"></script>\n'
 )
 
 
 def ensure_site_chrome(index_text: str) -> str:
-    """Enforce shared org header/footer mounts + local chrome scripts."""
+    """Enforce shared org header/footer mounts + canonical chrome scripts."""
     text = index_text
     # Drop deferred theme script from <head> only (body scripts are managed below).
     head_end = text.find("</head>")
@@ -595,10 +600,9 @@ def ensure_site_chrome(index_text: str) -> str:
         head = text[:head_end]
         rest = text[head_end:]
         head = re.sub(
-            r'\s*<script src="\./theme-toggle\.js"[^>]*></script>\s*',
+            r'\s*<script src="[./]*theme-toggle\.js"[^>]*></script>\s*',
             "\n",
             head,
-            count=1,
         )
         text = head + rest
     text = re.sub(
@@ -616,10 +620,11 @@ def ensure_site_chrome(index_text: str) -> str:
         flags=re.DOTALL,
     )
     text = re.sub(
-        r'(<div class="logo-badge product-mark"><img src=")[^"]+(")',
-        rf"\1{_PRODUCT_MARK}\2",
+        r'<div class="logo-badge product-mark">.*?</div>',
+        _PRODUCT_MARK,
         text,
         count=1,
+        flags=re.DOTALL,
     )
     # Drop obsolete Install / MP-Py header preference script block.
     text = re.sub(
@@ -632,14 +637,14 @@ def ensure_site_chrome(index_text: str) -> str:
         count=1,
         flags=re.DOTALL,
     )
-    # Normalize trailing chrome scripts to a single ordered pair.
+    # Normalize trailing chrome scripts to single /assets/chrome/site-chrome.js
     text = re.sub(
-        r'\s*<script src="\./site-chrome\.js"></script>\s*',
+        r'\s*<script src="[./a-zA-Z_-]*site-chrome\.js"></script>\s*',
         "\n",
         text,
     )
     text = re.sub(
-        r'\s*<script src="\./theme-toggle\.js"></script>\s*',
+        r'\s*<script src="[./a-zA-Z_-]*theme-toggle\.js"></script>\s*',
         "\n",
         text,
     )

@@ -57,7 +57,7 @@ def test_bare_url_defaults_to_touch_gui():
 def test_generated_configs_split_shared_files_from_gui_manifests():
     micropython = tomllib.loads((ROOT / ".site" / "pyscript" / "micropython.toml").read_text())
     pyodide = tomllib.loads((ROOT / ".site" / "pyscript" / "pyodide.toml").read_text())
-    assert micropython == {"interpreter": "./vendor/micropython/micropython.mjs"}
+    assert micropython == {"interpreter": "/vendor/micropython/micropython.mjs"}
     assert pyodide == {"interpreter": "./vendor/pyodide/pyodide.mjs"}
 
     packages = {
