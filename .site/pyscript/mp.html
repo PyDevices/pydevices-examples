@@ -29,7 +29,8 @@
 import builtins
 import os
 import sys
-from js import document
+import asyncio
+from js import document, console
 
 try:
     os.chdir("/")
@@ -41,11 +42,13 @@ import utils.path  # noqa: F401
 import ps_loader
 
 def _log_print(*args, **kwargs):
+    sep = kwargs.get("sep", " ")
+    end = kwargs.get("end", "\n")
+    msg = sep.join(str(a) for a in args) + end
+    console.log("[#LOG]", msg.strip())
     el = document.getElementById("log")
     if el is not None:
-        sep = kwargs.get("sep", " ")
-        end = kwargs.get("end", "\n")
-        el.textContent += sep.join(str(a) for a in args) + end
+        el.textContent += msg
         el.scrollTop = el.scrollHeight
 
 builtins.print = _log_print
@@ -54,7 +57,7 @@ def _from_window(name, default=""):
     from js import window
     return str(getattr(window, name, default) or default).strip()
 
-def _run():
+async def _run():
     if _from_window("__loaderDisabled"):
         return
     modules = ps_loader.parse_names(_from_window("__loaderModules"))
@@ -68,11 +71,16 @@ def _run():
     if not entry:
         print("Missing ?modules= and/or ?manifests= in the URL.")
         return
-    ps_loader.install_micropython(modules, manifests, deps)
-    ps_loader.set_board_defaults()
-    __import__(entry)
+    try:
+        ps_loader.install_micropython(modules, manifests, deps)
+        ps_loader.set_board_defaults()
+        __import__(entry)
+    except Exception as e:
+        print("Run error:", ps_loader.describe_exception(e))
+        sys.print_exception(e)
+        raise
 
-_run()
+asyncio.create_task(_run())
 </script>
 <script type="module" src="./pyscript-config.js"></script>
 </body>

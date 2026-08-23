@@ -2,15 +2,15 @@
   "urls": [
     [
       "circuitpython/cst816.py",
-      "./lib/examples/circuitpython/cst816.py"
+      "../lib/examples/circuitpython/cst816.py"
     ],
     [
       "circuitpython/gc9a01_waveshare.py",
-      "./lib/examples/circuitpython/gc9a01_waveshare.py"
+      "../lib/examples/circuitpython/gc9a01_waveshare.py"
     ],
     [
       "circuitpython/simon_waveshare_rp2040_touch_lcd_1_28.py",
-      "./lib/examples/circuitpython/simon_waveshare_rp2040_touch_lcd_1_28.py"
+      "../lib/examples/circuitpython/simon_waveshare_rp2040_touch_lcd_1_28.py"
     ]
   ],
   "version": "0.0.1"

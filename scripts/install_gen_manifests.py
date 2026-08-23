@@ -132,7 +132,7 @@ for entry in sorted(os.listdir(examples_root)):
             if is_gitignored(full_file_path):
                 continue
             rel_from_examples = os.path.relpath(full_file_path, examples_root).replace("\\", "/")
-            src_file = "./lib/examples/" + rel_from_examples
+            src_file = "../lib/examples/" + rel_from_examples
             urls.append([rel_from_examples, src_file])
     package_file = os.path.join(output_dir, packages_dir, entry + ".json")
     if not urls:

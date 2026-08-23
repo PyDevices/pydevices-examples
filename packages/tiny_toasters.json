@@ -2,15 +2,15 @@
   "urls": [
     [
       "tiny_toasters/__init__.py",
-      "./lib/examples/tiny_toasters/__init__.py"
+      "../lib/examples/tiny_toasters/__init__.py"
     ],
     [
       "tiny_toasters/tiny_toasters.py",
-      "./lib/examples/tiny_toasters/tiny_toasters.py"
+      "../lib/examples/tiny_toasters/tiny_toasters.py"
     ],
     [
       "tiny_toasters/tiny_toasters_bitmaps.py",
-      "./lib/examples/tiny_toasters/tiny_toasters_bitmaps.py"
+      "../lib/examples/tiny_toasters/tiny_toasters_bitmaps.py"
     ]
   ],
   "version": "0.0.1"

@@ -143,11 +143,25 @@ def module_url(name):
 
 def _install_manifests_and_modules(mip_mod, modules, manifests, status=None, url_base=None):
     import os
+    import sys
 
     manifest_kw = {"target": MANIFEST_MIP_TARGET}
     if url_base is not None:
         manifest_kw["url_base"] = url_base
     for name in manifests:
+        found = False
+        for prefix in ("", "/examples/", "/lib/examples/", "lib/examples/"):
+            try:
+                os.stat(prefix + name + "/__init__.py")
+                p = (prefix + name).rsplit("/", 1)[0]
+                if p and p not in sys.path:
+                    sys.path.insert(0, p)
+                found = True
+                break
+            except OSError:
+                pass
+        if found:
+            continue
         if status:
             status("Installing manifest " + name + "…")
         _quiet_install(mip_mod, manifest_url(name), **manifest_kw)
@@ -155,6 +169,26 @@ def _install_manifests_and_modules(mip_mod, modules, manifests, status=None, url
         # Flat sibling imports are handled by package ``__init__`` / entry modules.
         _check_package_entry(name)
     for name in modules:
+        found = False
+        for prefix in (
+            "",
+            "/examples/",
+            "/lib/examples/",
+            "lib/examples/",
+            "/utils/",
+            "/lib/utils/",
+        ):
+            try:
+                os.stat(prefix + name + ".py")
+                p = (prefix + name).rsplit("/", 1)[0]
+                if p and p not in sys.path:
+                    sys.path.insert(0, p)
+                found = True
+                break
+            except OSError:
+                pass
+        if found:
+            continue
         # Skip top-level fetch when the stem already lives inside a package.
         in_pkg = False
         for m in manifests:
