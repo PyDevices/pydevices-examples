@@ -1,0 +1,17 @@
+{
+  "urls": [
+    [
+      "alien/__init__.py",
+      "../lib/examples/alien/__init__.py"
+    ],
+    [
+      "alien/alien.py",
+      "../lib/examples/alien/alien.py"
+    ],
+    [
+      "alien/alien_bitmap.py",
+      "../lib/examples/alien/alien_bitmap.py"
+    ]
+  ],
+  "version": "0.0.1"
+}

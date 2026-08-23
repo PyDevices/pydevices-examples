@@ -1,0 +1,13 @@
+{
+  "urls": [
+    [
+      "apollo/apollo.py",
+      "../lib/examples/apollo/apollo.py"
+    ],
+    [
+      "apollo/dsky.py",
+      "../lib/examples/apollo/dsky.py"
+    ]
+  ],
+  "version": "0.0.1"
+}

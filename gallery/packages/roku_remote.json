@@ -1,0 +1,37 @@
+{
+  "urls": [
+    [
+      "roku_remote/__init__.py",
+      "../lib/examples/roku_remote/__init__.py"
+    ],
+    [
+      "roku_remote/__main__.py",
+      "../lib/examples/roku_remote/__main__.py"
+    ],
+    [
+      "roku_remote/roku_engine.py",
+      "../lib/examples/roku_remote/roku_engine.py"
+    ],
+    [
+      "roku_remote/roku_graphics.py",
+      "../lib/examples/roku_remote/roku_graphics.py"
+    ],
+    [
+      "roku_remote/roku_lvgl.py",
+      "../lib/examples/roku_remote/roku_lvgl.py"
+    ],
+    [
+      "roku_remote/roku_remote.py",
+      "../lib/examples/roku_remote/roku_remote.py"
+    ],
+    [
+      "roku_remote/roku_sim.py",
+      "../lib/examples/roku_remote/roku_sim.py"
+    ],
+    [
+      "roku_remote/roku_widgets.py",
+      "../lib/examples/roku_remote/roku_widgets.py"
+    ]
+  ],
+  "version": "0.0.1"
+}

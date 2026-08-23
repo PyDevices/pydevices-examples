@@ -46,7 +46,7 @@
     '/displayif/">Native C</a>' +
     '<a href="' +
     ROOT +
-    '/pydevices-examples/pyscript/" class="nav-gallery-link">Gallery</a>' +
+    '/pydevices-examples/gallery/" class="nav-gallery-link">Gallery</a>' +
     '<a href="https://github.com/PyDevices">GitHub</a>' +
     "</nav>" +
     '<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle color theme" title="Toggle color theme">' +
@@ -325,7 +325,7 @@
 
     // Footer Links
     html += '  <div class="pydevices-nav-footer">';
-    html += '    <a href="' + ROOT + '/pydevices-examples/pyscript/" class="nav-foot-link">Interactive Gallery</a> &middot; ';
+    html += '    <a href="' + ROOT + '/pydevices-examples/gallery/" class="nav-foot-link">Interactive Gallery</a> &middot; ';
     html += '    <a href="https://PyDevices.github.io/mip" class="nav-foot-link">MIP Index</a> &middot; ';
     html += '    <a href="https://github.com/PyDevices" class="nav-foot-link">GitHub</a>';
     html += '  </div>';

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Peter Hinch GUIs — Direct MicroPython</title></head>
+<body>
+    <main>
+        <h1>Peter Hinch GUI demos</h1>
+        <p>Choose a declared MIP bundle. Each opens a compatible demo in the direct MicroPython host.</p>
+        <ul>
+            <li><a data-hinch="micropython-nano-gui,color_setup,gui.demos.tbox" href="#">Nano-GUI — text box</a></li>
+            <li><a data-hinch="micropython-micro-gui,hardware_setup,gui.demos.simple" href="#">Micro-GUI — simple</a></li>
+            <li><a data-hinch="micropython-touch,touch_setup,gui.demos.simple" href="#">MicroPython-Touch — simple</a></li>
+        </ul>
+        <a href="./index.html">Back to gallery</a>
+    </main>
+    <script>
+        for (const link of document.querySelectorAll('[data-hinch]')) {
+            const [manifest, setup, demo] = link.dataset.hinch.split(',');
+            const command = [
+                'from displaydev import env_set',
+                'env_set("PYDEVICES_WIDTH", 320)',
+                'env_set("PYDEVICES_HEIGHT", 240)',
+                `import ${setup}`,
+                `import ${demo}`,
+            ].join('\n');
+            link.href = `micropython.html?${new URLSearchParams({manifests: manifest, command})}`;
+        }
+    </script>
+</body>
+</html>
