@@ -7,7 +7,7 @@ Developer workflow only — local servers, test harnesses, and IDE typings. For 
 | Script | Purpose |
 |--------|---------|
 | [`serve.py`](serve.py) | HTTP server with Cross-Origin-Isolation headers |
-| [`pyscript.sh`](../scripts/pyscript.sh) | Open one example in the browser — `./scripts/pyscript.sh calculator` |
+| `pyscript.py` | Universal PyScript runner (on PATH from `pydevices/bin`) — `pyscript.py -m bouncing_balls` |
 | `jupyter.py` | Standalone Jupyter runner (on PATH from `pydevices/bin`) — `jupyter.py paint.py` |
 
 From repo root:
@@ -17,15 +17,11 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt   # playwright, pytest (optional)
 .venv/bin/playwright install chromium           # headless PyScript matrix
 
-python tools/serve.py
-# http://127.0.0.1:8000/web/pyscript/index.html
-# http://127.0.0.1:8000/web/pyscript/micropython.html?modules=calc_graphics,calc_engine
-
-./scripts/pyscript.sh calculator
+pyscript.py -m bouncing_balls
 jupyter.py lib/examples/paint.py
 ```
 
-See [pydevices/docs/jupyter.md](https://github.com/PyDevices/pydevices/blob/main/docs/jupyter.md).
+See [pydevices/docs/pyscript.md](https://github.com/PyDevices/pydevices/blob/main/docs/pyscript.md) and [pydevices/docs/jupyter.md](https://github.com/PyDevices/pydevices/blob/main/docs/jupyter.md).
 
 ## Input / keypad probe
 
@@ -43,23 +39,11 @@ The core displaydev/appdev probe is owned by
 
 ## PyScript headless debug (Playwright)
 
-| Script | Purpose |
-|--------|---------|
-| [`ps_debug.py`](ps_debug.py) | CDP console + network probe for a harness/load URL |
-| [`ps_shot.py`](ps_shot.py) | Timed screenshot with a hard kill if Chromium stalls |
-
-Prefer these over poking the IDE browser when a demo hangs.
-
-**Common wedge:** a sync provider's `timer.sleep_ms` (or any other blocking
-sleep) on the **main thread** often stalls `page.evaluate` and screenshots — the
-browser never yields. Prefer the app's own loop and async sleep patterns.
-Capture console/CDP output with `ps_debug.py` before assuming a gallery or
-package-map regression.
+Diagnostic probes (`ps_debug.py` and `ps_shot.py`) live in [`pydevices/tools/`](https://github.com/PyDevices/pydevices/blob/main/tools/):
 
 ```bash
-python tools/serve.py   # separate terminal
-.venv/bin/python tools/ps_debug.py \
-  'http://127.0.0.1:8000/web/pyscript/harness.html?modules=calc_graphics,calc_engine&autotest=1' 20
+python ../pydevices/tools/ps_debug.py http://127.0.0.1:8000/pydevices-examples/pyscript/harness.html?modules=bouncing_balls
+python ../pydevices/tools/ps_shot.py http://127.0.0.1:8000/pydevices-examples/pyscript/harness.html?modules=bouncing_balls 3
 ```
 
 ## Example test matrix

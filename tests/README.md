@@ -23,7 +23,7 @@ libraries.
 ## What remains here
 
 - `lib/utils/audio.py` mixer and note helpers
-- PyScript URL, loader, gallery, and PWA generation
+- PyScript URL, loader, and gallery generation
 - screenshot and recording tools
 - Peter Hinch gallery integration
 - example manifest and harness behavior

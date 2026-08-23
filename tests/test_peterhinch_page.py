@@ -8,7 +8,6 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = ROOT / ".site" / "pyscript" / "peterhinch.html"
-PWA_MANIFEST = ROOT / ".site" / "pyscript" / "peterhinch-manifest.json"
 
 
 def _source():
@@ -42,16 +41,10 @@ def test_page_selects_a_gui_specific_micropython_config_before_core_loads():
     assert "pyodide" not in source.lower()
 
 
-def test_page_has_its_own_pwa_identity():
+def test_page_loads_coi_shim_and_styles():
     source = _source()
-    manifest = json.loads(PWA_MANIFEST.read_text(encoding="utf-8"))
-    service_worker = (ROOT / ".site" / "pyscript" / "sw.js").read_text(encoding="utf-8")
-    assert '<link rel="manifest" href="./peterhinch-manifest.json">' in source
-    assert manifest["name"] == "Peter Hinch GUI Demos"
-    assert manifest["id"] == "./peterhinch"
-    assert manifest["start_url"] == "./peterhinch.html?touch"
-    assert "'./peterhinch-manifest.json'" in service_worker
-    assert "'./peterhinch.html'" in service_worker
+    assert '<script src="./mini-coi-fd.js"></script>' in source
+    assert '<link rel="stylesheet" href="./site.css">' in source
 
 
 def test_bare_url_defaults_to_touch_gui():

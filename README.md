@@ -32,13 +32,11 @@ This repo demonstrates that portability; it is not the package source of truth.
 
 ## Try it
 
-The fastest route is the installable
+The fastest route is the interactive
 **[PyScript gallery](https://PyDevices.github.io/pydevices-examples/pyscript/)**. It runs
-the real examples in a browser and can be installed as a Progressive Web App.
-Start a standalone browser app from the
-**[pyscript-template](https://github.com/PyDevices/pyscript-template)**,
-or use the [PWA guide](https://github.com/PyDevices/pyscript-template/blob/main/docs/pwa-guide.md)
-to understand and customize the full gallery shell.
+the real examples directly in a modern web browser.
+To start a standalone browser app or offline PWA, use the
+**[pyscript-template](https://github.com/PyDevices/pyscript-template)**.
 
 For a desktop clone:
 
@@ -121,7 +119,7 @@ because installing only what a board needs matters there.
 |---|---|
 | `lib/examples/` | Portable examples and complete demo applications |
 | `lib/utils/` | Example helpers and third-party GUI adapters |
-| `.site/pyscript/` | PyScript gallery and reusable PWA shell |
+| `.site/pyscript/` | PyScript gallery and browser demo runners |
 | `docs/` | Peter Hinch GUI integration, the TFT GUI stub, and screenshots |
 | `tools/` | Cross-interpreter example and LVGL test harnesses |
 | `packages/` | GitHub MIP manifests for examples and helpers |
@@ -138,7 +136,7 @@ because installing only what a board needs matters there.
   [palettes](https://github.com/PyDevices/palettes), and
   [pdwidgets](https://github.com/PyDevices/pdwidgets) — companion packages
 - [android-template](https://github.com/PyDevices/android-template) — Android application packaging
-- [pyscript-template](https://github.com/PyDevices/pyscript-template) — standalone installable PyScript PWA starter
+- [pyscript-template](https://github.com/PyDevices/pyscript-template) — standalone PyScript application template
 
 ## Development
 

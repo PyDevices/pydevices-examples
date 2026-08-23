@@ -68,6 +68,7 @@ class DemoRequestHandler(SimpleHTTPRequestHandler):
     # Keep pages fresh while editing.
     def end_headers(self) -> None:  # noqa: D401 - http.server hook
         self.send_header("Cache-Control", "no-store, must-revalidate")
+        self.send_header("X-PyDevices-Server", "examples")
         if self.coi_enabled:
             self.send_header("Cross-Origin-Opener-Policy", "same-origin")
             self.send_header("Cross-Origin-Embedder-Policy", "require-corp")

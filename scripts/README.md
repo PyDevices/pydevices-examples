@@ -1,7 +1,7 @@
 # pydevices-examples scripts
 
 These scripts maintain the examples, utility manifests, documentation, and
-PyScript/PWA gallery. Product publishing scripts live in sibling
+PyScript gallery. Product publishing scripts live in sibling
 `pydevices`.
 
 ## GitHub Actions
@@ -43,7 +43,7 @@ examples.
 | Prefix | Scripts | Purpose |
 |---|---|---|
 | `install_` | `install_gen_manifests.py`, `install_refresh_manifests.sh` | Example/helper manifests and gallery mounts |
-| `pyscript_` | cache/version helpers | Build the deployable PWA |
+| `gallery_` | `gallery_generator.py` | Generate and maintain browser gallery |
 | `mkdocs_` | reference/notebook generators | Build pydevices-examples integration docs |
 | `gen_` | `gen_package_pyi.sh` | Generate editor stubs from canonical sibling product sources |
 

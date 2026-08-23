@@ -46,7 +46,7 @@ class TestPyScriptTomlConfigs(unittest.TestCase):
     def test_static_interpreter_headers(self):
         mp = tomllib.loads((ROOT / ".site" / "pyscript" / "micropython.toml").read_text())
         py = tomllib.loads((ROOT / ".site" / "pyscript" / "pyodide.toml").read_text())
-        self.assertEqual(mp.get("interpreter"), "./vendor/micropython/micropython.mjs")
+        self.assertEqual(mp.get("interpreter"), "/vendor/micropython/micropython.mjs")
         self.assertEqual(py.get("interpreter"), "./vendor/pyodide/pyodide.mjs")
 
     def test_peterhinch_toml_configs(self):

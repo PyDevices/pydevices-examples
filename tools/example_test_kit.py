@@ -778,7 +778,7 @@ def run_pyscript_case(
     ensure_pyscript_server(port)
     query = pyscript_harness_query(example_id, example_meta)
     url = (
-        f"http://127.0.0.1:{port}/.site/pyscript/harness.html?{query}"
+        f"http://127.0.0.1:{port}/pydevices-examples/pyscript/harness.html?{query}"
         f"&autotest=1&duration={int(duration)}&timeout={int(timeout)}"
     )
 

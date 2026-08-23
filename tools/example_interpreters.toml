@@ -70,9 +70,9 @@ display_backend = "PSDisplay"
 available_on = ["linux", "wsl", "macos", "windows"]
 kind = "pyscript"
 status = "active"
-command_template = ["./scripts/pyscript.sh", "-m", "{example}", "--no-open"]
+command_template = ["pyscript.py", "-m", "{example}", "--no-open"]
 cwd = "."
-setup_notes = "Requires tools/serve.py on port 8000. Autotest uses harness.html?autotest=1. Headless: .venv/bin/pip install -r requirements-dev.txt && .venv/bin/playwright install chromium"
+setup_notes = "Requires portal server or local fallback on port 8000. Host tool: pyscript.py (on PATH)."
 
 [interpreters.jupyter]
 platform = "jupyter"

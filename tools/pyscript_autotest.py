@@ -9,7 +9,7 @@ Flow:
   5. Wait for ``EXAMPLE_RESULT=`` (harness emits it from ``app.before_quit``)
 
 Python ``print`` on harness goes to the page ``#log`` panel (not always the
-browser console). When ``stream_log=True`` (CLI / ``pyscript.sh --autotest``),
+browser console). When ``stream_log=True`` (CLI / ``pyscript.py --autotest``),
 new ``#log`` lines are mirrored to stdout in real time.
 
 Usage:
@@ -122,7 +122,7 @@ def run_autotest(
 ) -> dict[str, Any]:
     """Return an EXAMPLE_RESULT-compatible dict (always has status).
 
-    ``stream_log``: when True (``pyscript.sh --autotest`` / CLI), mirror ``#log``
+    ``stream_log``: when True (``pyscript.py --autotest`` / CLI), mirror ``#log``
     lines to stdout as they appear.
     """
     try:
@@ -400,7 +400,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"unknown arg: {argv[i]}", file=sys.stderr)
             return 2
 
-    # CLI / pyscript.sh --autotest: always stream #log to stdout.
+    # CLI / pyscript.py --autotest: always stream #log to stdout.
     result = run_autotest(url, duration_s=duration, timeout_s=timeout, stream_log=True)
     print("EXAMPLE_RESULT=" + json.dumps(result, separators=(",", ":")))
     return 0 if result.get("status") == "ok" else 1
