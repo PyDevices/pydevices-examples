@@ -17,7 +17,11 @@ from lv_encoder_emu import EncoderEmu
 emu = EncoderEmu(app, title="Encoder")
 
 # Primary: focusable widgets navigated by the encoder indev.
-scr = lv.screen_active()
+scr = (
+    display_driver._drivers[0].lv_display.get_screen_active()
+    if getattr(display_driver, "_drivers", None)
+    else lv.screen_active()
+)
 group = lv.group_get_default()
 
 status = lv.label(scr)
