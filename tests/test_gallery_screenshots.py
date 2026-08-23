@@ -17,6 +17,11 @@ import gallery_generator as gallery  # noqa: E402
 
 
 class TestGalleryScreenshots(unittest.TestCase):
+    def test_direct_stage_excludes_generated_gui_cache(self):
+        utilities = gallery.tracked_utility_files()
+        self.assertIn("utils/tft_config.py", utilities)
+        self.assertFalse(any(path.startswith("utils/gui/") for path in utilities))
+
     def test_card_uses_existing_thumbnail(self):
         example = gallery.Example("demo", "demo.py", "module")
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(

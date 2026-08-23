@@ -578,6 +578,22 @@ def gallery_example_files() -> list[str]:
     return sorted(files)
 
 
+def tracked_utility_files() -> list[str]:
+    """Return committed utility Python paths, excluding generated/ignored caches."""
+    result = subprocess.run(
+        ["git", "ls-files", "-z", "--", "lib/utils"],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+    )
+    prefix = "lib/"
+    return sorted(
+        path.removeprefix(prefix)
+        for path in result.stdout.decode().split("\0")
+        if path.endswith(".py")
+    )
+
+
 def copy_gallery_examples(dest: Path) -> int:
     n = 0
     for rel in gallery_example_files():
@@ -731,10 +747,7 @@ def main(argv: list[str] | None = None) -> int:
     index_text = replace_block(index_text, "demos", render_cards(examples))
     write(INDEX, index_text)
     python_files = gallery_example_files()
-    python_files.extend(
-        f"utils/{path.relative_to(REPO_ROOT / 'lib' / 'utils').as_posix()}"
-        for path in sorted((REPO_ROOT / "lib" / "utils").rglob("*.py"))
-    )
+    python_files.extend(tracked_utility_files())
     write(PYTHON_FILES, json.dumps(sorted(set(python_files)), indent=2) + "\n")
 
     n_module = sum(1 for ex in examples if ex.kind == "module" and ex.in_gallery)
