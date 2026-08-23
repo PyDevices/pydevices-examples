@@ -43,23 +43,19 @@ class TestPyScriptTomlConfigs(unittest.TestCase):
             link.resolve(),
         )
 
-    def test_static_interpreter_headers(self):
-        mp = tomllib.loads((ROOT / ".site" / "pyscript" / "micropython.toml").read_text())
+    def test_pyodide_interpreter_header(self):
         py = tomllib.loads((ROOT / ".site" / "pyscript" / "pyodide.toml").read_text())
-        self.assertEqual(mp.get("interpreter"), "/vendor/micropython/micropython.mjs")
         self.assertEqual(py.get("interpreter"), "./vendor/pyodide/pyodide.mjs")
 
-    def test_peterhinch_toml_configs(self):
+    def test_retired_micropython_pyscript_paths_are_absent(self):
+        retired = ("micropython.html", "micropython.toml", "mp.html", "repl.html")
+        for name in retired:
+            self.assertFalse((ROOT / ".site" / "pyscript" / name).exists())
+
+    def test_peterhinch_moved_to_direct_gallery(self):
+        self.assertTrue((ROOT / ".site" / "gallery" / "peterhinch.html").is_file())
         for gui in ("nano", "micro", "touch"):
-            path = ROOT / ".site" / "pyscript" / f"peterhinch-{gui}.toml"
-            self.assertTrue(path.is_file(), f"{path} must exist")
-            data = tomllib.loads(path.read_text(encoding="utf-8"))
-            self.assertIn("files", data)
-            self.assertTrue(len(data["files"]) > 0)
-            for dest in data["files"].values():
-                self.assertTrue(
-                    dest.startswith("/utils/"), f"Destination {dest} must mount to /utils/"
-                )
+            self.assertFalse((ROOT / ".site" / "pyscript" / f"peterhinch-{gui}.toml").exists())
 
 
 if __name__ == "__main__":

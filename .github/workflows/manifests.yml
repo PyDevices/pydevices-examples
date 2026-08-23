@@ -8,6 +8,7 @@ on:
       - 'lib/**'
       - 'packages/**'
       - '.site/pyscript/**'
+      - '.site/gallery/**'
       - 'pydevices-examples.toml'
       - 'scripts/install_*'
       - 'scripts/gallery_generator.py'
@@ -18,6 +19,7 @@ on:
       - 'lib/**'
       - 'packages/**'
       - '.site/pyscript/**'
+      - '.site/gallery/**'
       - 'pydevices-examples.toml'
       - 'scripts/install_*'
       - 'scripts/gallery_generator.py'
@@ -39,6 +41,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout shared browser URL policy
+        uses: actions/checkout@v4
+        with:
+          repository: PyDevices/pydevices
+          path: pydevices
+          sparse-checkout: tools/_browser_url.py
+          sparse-checkout-cone-mode: false
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -49,7 +59,7 @@ jobs:
       - name: Audit install manifests
         run: ./scripts/install_refresh_manifests.sh --audit
 
-      - name: Check PyScript gallery and example JSON
+      - name: Check WebAssembly gallery and example JSON
         run: python scripts/gallery_generator.py --check
 
       - name: Audit CP/MP board_config pairs

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PyDevices direct WebAssembly contract fixture</title>
+  <style>
+    canvas { width: 80px; height: 40px; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <canvas id="display_canvas" aria-label="WebAssembly display"></canvas>
+  <script>
+    window.__wasmContract = {phase: "loading", errors: [], stdout: [], stderr: []};
+    addEventListener("error", event => window.__wasmContract.errors.push(String(event.error || event.message)));
+    addEventListener("unhandledrejection", event => window.__wasmContract.errors.push(String(event.reason)));
+    class FakeAudioBuffer {
+      constructor(channels, frames, rate) {
+        this.numberOfChannels = channels;
+        this.length = frames;
+        this.sampleRate = rate;
+        this.data = Array.from({length: channels}, () => new Float32Array(frames));
+      }
+      copyToChannel(source, channel) { this.data[channel].set(source); }
+      getChannelData(channel) { return this.data[channel]; }
+    }
+    class FakeAudioSource {
+      constructor(context) { this.context = context; this.onended = null; this.buffer = null; }
+      connect() {}
+      start(when) {
+        this.context.starts.push({when, buffer: this.buffer});
+        queueMicrotask(() => { if (this.onended) this.onended(); });
+      }
+      stop() { if (this.onended) this.onended(); }
+    }
+    class FakeAudioContext {
+      constructor() {
+        this.state = "suspended";
+        this.currentTime = 0;
+        this.destination = {};
+        this.starts = [];
+        window.__audioContext = this;
+      }
+      async resume() { this.state = "running"; }
+      createBuffer(channels, frames, rate) { return new FakeAudioBuffer(channels, frames, rate); }
+      createBufferSource() { return new FakeAudioSource(this); }
+    }
+    window.AudioContext = FakeAudioContext;
+    const nativeFetch = globalThis.fetch.bind(globalThis);
+    window.__retryFetchAttempts = 0;
+    globalThis.fetch = (input, init) => {
+      if (String(input).endsWith('/retry-fixture')) {
+        window.__retryFetchAttempts++;
+        if (window.__retryFetchAttempts < 3) return Promise.reject(new TypeError('fixture transport failure'));
+        return Promise.resolve(new Response(new Uint8Array([114, 101, 116, 114, 121]), {status: 200}));
+      }
+      return nativeFetch(input, init);
+    };
+    window.__gamepads = [];
+    try {
+      Object.defineProperty(navigator, "getGamepads", {configurable:true, value: () => window.__gamepads});
+    } catch (error) {
+      window.__wasmContract.errors.push(`Unable to install gamepad fixture: ${error}`);
+    }
+  </script>
+  <script type="module">
+    import {loadMicroPython} from "/pydevices/bin/micropython.mjs";
+
+    const contract = window.__wasmContract;
+    try {
+      const mp = await loadMicroPython({
+        stdout: line => contract.stdout.push(line),
+        stderr: line => contract.stderr.push(line),
+      });
+      contract.mp = mp;
+      await mp.runPythonAsync(`
+from displaydev.wasmdisplay import WasmDisplay
+display = WasmDisplay(4, 2, quiet=True)
+display.init()
+display._framebuffer[:] = bytes((
+    0x00, 0xf8, 0xe0, 0x07, 0x1f, 0x00, 0xff, 0xff,
+    0x00, 0x00, 0x10, 0x84, 0xef, 0x7b, 0x00, 0xf8,
+))
+`);
+      contract.phase = "ready";
+    } catch (error) {
+      contract.errors.push(String(error && (error.stack || error)));
+      contract.phase = "failed";
+    }
+  </script>
+</body>
+</html>

@@ -9,7 +9,8 @@ on:
       - 'lib/examples/**'
       - 'tests/**'
       - 'scripts/**'
-      - 'web/pyscript/**'
+      - '.site/pyscript/**'
+      - '.site/gallery/**'
       - '.github/workflows/tests.yml'
   pull_request:
     paths:
@@ -17,7 +18,8 @@ on:
       - 'lib/examples/**'
       - 'tests/**'
       - 'scripts/**'
-      - 'web/pyscript/**'
+      - '.site/pyscript/**'
+      - '.site/gallery/**'
       - '.github/workflows/tests.yml'
   workflow_dispatch:
 
@@ -37,6 +39,7 @@ jobs:
             lib/audiodev
             lib
             utils
+            tools/_browser_url.py
           sparse-checkout-cone-mode: false
 
       - uses: actions/setup-python@v5

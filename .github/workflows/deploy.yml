@@ -24,6 +24,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout shared browser URL policy
+        uses: actions/checkout@v4
+        with:
+          repository: PyDevices/pydevices
+          path: pydevices
+          sparse-checkout: tools/_browser_url.py
+          sparse-checkout-cone-mode: false
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -38,13 +46,19 @@ jobs:
         run: |
           mkdir -p _site
           cp -r .site/* _site/
-          # Replace symlinks inside _site/pyscript with real trees for GitHub Pages
+          # Replace symlinks inside _site/pyscript with real trees for GitHub Pages.
           rm -rf _site/pyscript/lib _site/pyscript/packages _site/pyscript/pydevices-examples.toml
           mkdir -p _site/pyscript/lib _site/pyscript/packages
           cp -r lib/utils _site/pyscript/lib/
           python scripts/gallery_generator.py --copy-examples _site/pyscript/lib/examples
           cp -r packages/* _site/pyscript/packages/
           cp pydevices-examples.toml _site/pyscript/pydevices-examples.toml
+          # Direct MicroPython stages only generated Python paths. Additional
+          # assets are fetched through the declared package manifests.
+          mkdir -p _site/gallery/lib _site/gallery/packages
+          cp -r lib/utils _site/gallery/lib/
+          python scripts/gallery_generator.py --copy-examples _site/gallery/lib/examples
+          cp -r packages/* _site/gallery/packages/
           cp pydevices-examples.toml _site/pydevices-examples.toml
           touch _site/.nojekyll
 

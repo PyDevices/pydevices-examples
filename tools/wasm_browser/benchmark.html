@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Direct WASM / MicroPython-PyScript benchmark</title>
+  <style>canvas { width: 320px; height: 480px; }</style>
+</head>
+<body>
+  <canvas id="display_canvas"></canvas>
+  <script>
+    window.__benchmark = {phase:"loading", errors:[]};
+    addEventListener("error", event => __benchmark.errors.push(String(event.error || event.message)));
+    addEventListener("unhandledrejection", event => __benchmark.errors.push(String(event.reason)));
+    class FakeAudioBuffer {
+      constructor(channels, frames, rate) {
+        this.numberOfChannels=channels; this.length=frames; this.sampleRate=rate;
+        this.data=Array.from({length:channels},()=>new Float32Array(frames));
+      }
+      copyToChannel(source, channel) { this.data[channel].set(source); }
+      getChannelData(channel) { return this.data[channel]; }
+    }
+    class FakeAudioSource {
+      constructor(context) { this.context=context; this.buffer=null; this.onended=null; }
+      connect() {}
+      start(when) { this.context.starts.push({when,buffer:this.buffer}); }
+      stop() { if(this.onended)this.onended(); }
+    }
+    class FakeAudioContext {
+      constructor() { this.state="running"; this.currentTime=0; this.destination={}; this.starts=[]; }
+      static new() { return new FakeAudioContext(); }
+      async resume() { this.state="running"; }
+      createBuffer(channels,frames,rate) { return new FakeAudioBuffer(channels,frames,rate); }
+      createBufferSource() { return new FakeAudioSource(this); }
+      close() {}
+    }
+    window.AudioContext=FakeAudioContext;
+  </script>
+  <script type="module">
+    const backend=new URLSearchParams(location.search).get("backend");
+    const runtime=backend === "direct"
+      ? "/pydevices/bin/micropython.mjs"
+      : "/cmods/micropython/ports/webassembly/build-pyscript/micropython.mjs";
+    try {
+      const {loadMicroPython}=await import(runtime);
+      const mp=await loadMicroPython();
+      __benchmark.mp=mp;
+      __benchmark.backend=backend;
+      if(backend === "pyscript") {
+        for(const [path,source] of Object.entries(window.__sourceFiles || {})) {
+          const slash=path.lastIndexOf("/");
+          mp.FS.mkdirTree(path.slice(0,slash));
+          mp.FS.writeFile(path,source);
+        }
+        mp.FS.mkdirTree("/lib/pyscript");
+        mp.FS.writeFile("/lib/pyscript/__init__.py", "");
+        mp.FS.writeFile("/lib/pyscript/ffi.py", "def create_proxy(value): return value\n");
+        await mp.runPythonAsync(`
+import sys
+sys.path.insert(0, '/lib')
+from displaydev.psdisplay import PSDisplay
+display = PSDisplay('display_canvas', 320, 480, quiet=True)
+def bench_read():
+    display.get_events()
+`);
+      } else {
+        await mp.runPythonAsync(`
+from displaydev.wasmdisplay import WasmDisplay
+display = WasmDisplay(320, 480, quiet=True)
+display.init()
+def bench_read():
+    display.get_events()
+`);
+        await Module.pydevicesBridge.enableAudio(false);
+      }
+      __benchmark.phase="ready";
+    } catch(error) {
+      __benchmark.errors.push(String(error && (error.stack || error)));
+      __benchmark.phase="failed";
+    }
+  </script>
+</body>
+</html>

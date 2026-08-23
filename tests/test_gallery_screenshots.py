@@ -24,7 +24,7 @@ class TestGalleryScreenshots(unittest.TestCase):
         ):
             (Path(tmp) / "demo.png").write_bytes(b"png")
             icon = gallery.render_card_icon(example)
-        self.assertIn('src="thumbnails/demo.png"', icon)
+        self.assertIn('src="../pyscript/thumbnails/demo.png"', icon)
         self.assertIn("<img ", icon)
 
     def test_card_falls_back_when_thumbnail_is_missing(self):

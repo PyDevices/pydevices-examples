@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-gallery_generator.py — refresh the pydevices-examples PyScript browser gallery.
+gallery_generator.py — refresh the pydevices-examples direct-WASM browser gallery.
 
 Default-includes every example **entry point** under ``lib/examples/``:
 
@@ -17,8 +17,8 @@ Optional headers (first 10 lines), one line per namespace::
   # gallery: featured|skip|binaries|nochrome
 
 MIP manifests for package examples live in ``packages/<name>.json`` (generated
-by ``scripts/install_gen_manifests.py``). PyScript loads them via the
-``.site/pyscript/packages`` symlink as ``?manifests=<name>``.
+by ``scripts/install_gen_manifests.py``). The direct host loads them from the
+deployed gallery tree as ``?manifests=<name>``.
 
 ``# gallery: nochrome`` keeps the demo in the gallery but links the minimal
 ``mp.html`` / ``py.html`` shells (no gallery chrome) — useful for
@@ -26,12 +26,13 @@ large landscape demos.
 
 Then:
 
-  - Updates gallery cards in ``.site/pyscript/index.html`` (``GEN:demos`` markers)
+  - Updates gallery cards in ``.site/gallery/index.html`` (``GEN:demos`` markers)
+  - Writes ``.site/gallery/python-files.json`` for explicit Python-only staging
   - Enforces shared org chrome mounts via ``ensure_site_chrome``
-  - Deletes stale ``.site/pyscript/*.html`` from the old per-demo page generator
+  - Deletes stale ``.site/gallery/*.html`` from the old per-demo page generator
 
-Each card links both interpreters (MicroPython + Pyodide) with filtered queries
-from ``url_maker``. Hinch GUIs are not listed in headers — ``fetch_ph_gui``
+Each card links direct MicroPython first and retained Pyodide second with
+queries from pydevices' shared private URL policy. Hinch GUIs are not listed in headers — ``fetch_ph_gui``
 installs them at runtime via color/hardware/touch setup.
 
     python scripts/gallery_generator.py
@@ -53,13 +54,24 @@ _scripts = Path(__file__).resolve().parent
 if str(_scripts) not in sys.path:
     sys.path.insert(0, str(_scripts))
 from personal_examples import PERSONAL_EXAMPLE_DIRS  # noqa: E402
-from url_maker import urls_from_deps  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+_browser_tools = next(
+    path
+    for path in (
+        REPO_ROOT.parent / "pydevices" / "tools",
+        REPO_ROOT / "pydevices" / "tools",
+    )
+    if (path / "_browser_url.py").is_file()
+)
+sys.path.insert(0, str(_browser_tools))
+from _browser_url import query as browser_query  # noqa: E402
+
 EXAMPLES_DIR = REPO_ROOT / "lib" / "examples"
-PYSCRIPT_DIR = REPO_ROOT / ".site" / "pyscript"
-INDEX = PYSCRIPT_DIR / "index.html"
-THUMBNAILS_DIR = PYSCRIPT_DIR / "thumbnails"
+GALLERY_DIR = REPO_ROOT / ".site" / "gallery"
+INDEX = GALLERY_DIR / "index.html"
+THUMBNAILS_DIR = REPO_ROOT / ".site" / "pyscript" / "thumbnails"
+PYTHON_FILES = GALLERY_DIR / "python-files.json"
 SCREENSHOT_TOOL = REPO_ROOT / "tools" / "screenshot.py"
 
 KEEP_HTML = frozenset(
@@ -147,23 +159,25 @@ class Example:
         return tuple(names)
 
     def loader_queries(self) -> dict[str, str]:
-        return urls_from_deps(
-            modules=self._modules_for_query(),
-            manifests=self._manifests_for_query(),
-            deps=self.deps,
-            interpreter=None,
-        )
+        values = {
+            "modules": self._modules_for_query(),
+            "manifests": self._manifests_for_query(),
+            "deps": self.deps,
+        }
+        return {
+            runtime: browser_query(runtime=runtime, **values) for runtime in ("wasm", "pyodide")
+        }
 
     def loader_hrefs(self) -> dict[str, str]:
         queries = self.loader_queries()
         if self.nochrome:
             return {
-                "micropython": f"mp.html{queries['micropython']}",
-                "pyodide": f"py.html{queries['pyodide']}",
+                "micropython": f"mp.html{queries['wasm']}",
+                "pyodide": f"../pyscript/py.html{queries['pyodide']}",
             }
         return {
-            "micropython": f"micropython.html{queries['micropython']}",
-            "pyodide": f"pyodide.html{queries['pyodide']}",
+            "micropython": f"micropython.html{queries['wasm']}",
+            "pyodide": f"../pyscript/pyodide.html{queries['pyodide']}",
         }
 
 
@@ -467,7 +481,7 @@ def generate_missing_thumbnails(examples: list[Example]) -> tuple[int, int]:
 
 def render_card_icon(ex: Example) -> str:
     if thumbnail_path(ex).exists():
-        return f'<img src="thumbnails/{ex.name}.png" alt="" loading="lazy">'
+        return f'<img src="../pyscript/thumbnails/{ex.name}.png" alt="" loading="lazy">'
     return GENERIC_ICON
 
 
@@ -491,7 +505,7 @@ def render_card(ex: Example) -> str:
                     <h3>{ex.title}</h3>
                     <p>{ex.blurb}</p>
                     <div class="card-interpreters">
-                        <a class="go" href="{hrefs["micropython"]}"{link_attrs}>MicroPython {ARROW}</a>
+                        <a class="go" href="{hrefs["micropython"]}"{link_attrs}>Direct MicroPython {ARROW}</a>
                         <a class="go" href="{hrefs["pyodide"]}"{link_attrs}>Pyodide {ARROW}</a>
                     </div>
                 </article>'''
@@ -512,7 +526,7 @@ def replace_block(text: str, key: str, payload: str) -> str:
 
 
 def remove_stale_demo_html(stale: list[str], check: bool) -> None:
-    for path in PYSCRIPT_DIR.glob("*.html"):
+    for path in GALLERY_DIR.glob("*.html"):
         if path.stem in KEEP_HTML:
             continue
         rel = str(path.relative_to(REPO_ROOT))
@@ -524,20 +538,22 @@ def remove_stale_demo_html(stale: list[str], check: bool) -> None:
 
 
 def remove_stale_example_json(stale: list[str], check: bool) -> None:
-    """Remove leftover .site/pyscript/<example>.json (now generated under packages/)."""
+    """Remove leftover .site/gallery/<example>.json (now generated under packages/)."""
     keep = {"manifest"}  # PWA web app manifest
-    for path in PYSCRIPT_DIR.glob("*.json"):
+    for path in GALLERY_DIR.glob("*.json"):
         if path.stem in keep:
             continue
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
+        if not isinstance(data, dict):
+            continue
         urls = data.get("urls")
         if not isinstance(urls, list) or not urls:
             continue
         first = urls[0]
-        # Legacy .site/pyscript/<example>.json used ./lib/examples/; ignore others.
+        # Legacy per-example JSON used ./lib/examples/; ignore other JSON files.
         url = str(first[1])
         if not (
             isinstance(first, list)
@@ -587,7 +603,8 @@ _PRODUCT_MARK = (
     "</div>"
 )
 _CHROME_SCRIPTS = (
-    '    <script src="./site-chrome.js"></script>\n    <script src="./theme-toggle.js"></script>\n'
+    '    <script src="../pyscript/site-chrome.js"></script>\n'
+    '    <script src="../pyscript/theme-toggle.js"></script>\n'
 )
 
 
@@ -713,6 +730,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     index_text = replace_block(index_text, "demos", render_cards(examples))
     write(INDEX, index_text)
+    python_files = gallery_example_files()
+    python_files.extend(
+        f"utils/{path.relative_to(REPO_ROOT / 'lib' / 'utils').as_posix()}"
+        for path in sorted((REPO_ROOT / "lib" / "utils").rglob("*.py"))
+    )
+    write(PYTHON_FILES, json.dumps(sorted(set(python_files)), indent=2) + "\n")
 
     n_module = sum(1 for ex in examples if ex.kind == "module" and ex.in_gallery)
     n_manifest = sum(1 for ex in examples if ex.kind == "manifest" and ex.in_gallery)

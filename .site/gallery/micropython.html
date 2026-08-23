@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Direct MicroPython — pydevices-examples</title>
+    <meta name="description" content="Run a PyDevices application with direct MicroPython WebAssembly.">
+    <link rel="icon" href="https://pydevices.github.io/assets/img/logo.svg">
+    <link rel="stylesheet" href="/assets/chrome/site.css">
+    <link rel="stylesheet" href="../pyscript/site.css">
+    <link rel="stylesheet" href="../pyscript/demo.css">
+</head>
+<body data-runtime-state="loading">
+    <div id="pydevices-site-header"></div>
+    <main class="wrap loader-main">
+        <nav class="crumbs"><a href="./index.html">Gallery</a><span class="sep">/</span><span>Direct MicroPython</span></nav>
+        <div class="loader-head">
+            <h1 id="loader-title">Direct MicroPython WebAssembly</h1>
+            <div class="actions">
+                <button class="btn" id="enable-audio" type="button">Enable Audio</button>
+                <button class="btn" id="enable-microphone" type="button">Enable Microphone</button>
+                <button class="btn" id="reset-runtime" type="button">Reset</button>
+                <a class="btn" id="pyodide-link" href="../pyscript/pyodide.html">Pyodide alternative</a>
+            </div>
+        </div>
+        <p class="loader-lede">The application runs on the main thread through the compiled <code>_wasm_bridge</code>.</p>
+        <div class="play-area">
+            <div class="display-column">
+                <div class="device">
+                    <canvas id="display_canvas" width="320" height="480" tabindex="0" aria-label="Application display"></canvas>
+                    <canvas id="aux_canvas" width="1" height="1" tabindex="0" hidden></canvas>
+                </div>
+            </div>
+            <section class="console-panel" aria-label="Console output">
+                <h2 class="console-label">Console output</h2>
+                <pre id="log" class="log" aria-live="polite"></pre>
+            </section>
+        </div>
+    </main>
+    <div id="pydevices-site-footer"></div>
+    <script>
+        const alternative = document.getElementById('pyodide-link');
+        alternative.href += location.search;
+        const params = new URLSearchParams(location.search);
+        const entry = (params.get('modules') || params.get('manifests') || '').split(',')[0];
+        if (entry) {
+            document.getElementById('loader-title').textContent = entry.replaceAll('_', ' ');
+            document.title = `${entry} — Direct MicroPython`;
+        }
+    </script>
+    <script type="module" src="./runtime-host.js"></script>
+    <script src="../pyscript/site-chrome.js"></script>
+    <script src="../pyscript/theme-toggle.js"></script>
+</body>
+</html>
