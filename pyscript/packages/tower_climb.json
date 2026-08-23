@@ -2,31 +2,31 @@
   "urls": [
     [
       "tower_climb/__init__.py",
-      "./lib/examples/tower_climb/__init__.py"
+      "../lib/examples/tower_climb/__init__.py"
     ],
     [
       "tower_climb/_cfg.py",
-      "./lib/examples/tower_climb/_cfg.py"
+      "../lib/examples/tower_climb/_cfg.py"
     ],
     [
       "tower_climb/_paths.py",
-      "./lib/examples/tower_climb/_paths.py"
+      "../lib/examples/tower_climb/_paths.py"
     ],
     [
       "tower_climb/tower_climb.py",
-      "./lib/examples/tower_climb/tower_climb.py"
+      "../lib/examples/tower_climb/tower_climb.py"
     ],
     [
       "tower_climb/tower_climb_trace.py",
-      "./lib/examples/tower_climb/tower_climb_trace.py"
+      "../lib/examples/tower_climb/tower_climb_trace.py"
     ],
     [
       "tower_climb/assets/gen_tower_assets.py",
-      "./lib/examples/tower_climb/assets/gen_tower_assets.py"
+      "../lib/examples/tower_climb/assets/gen_tower_assets.py"
     ],
     [
       "tower_climb/tools/playtest.py",
-      "./lib/examples/tower_climb/tools/playtest.py"
+      "../lib/examples/tower_climb/tools/playtest.py"
     ]
   ],
   "version": "0.0.1"

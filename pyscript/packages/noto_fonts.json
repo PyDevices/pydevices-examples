@@ -2,23 +2,23 @@
   "urls": [
     [
       "noto_fonts/NotoSansMono_32.py",
-      "./lib/examples/noto_fonts/NotoSansMono_32.py"
+      "../lib/examples/noto_fonts/NotoSansMono_32.py"
     ],
     [
       "noto_fonts/NotoSans_32.py",
-      "./lib/examples/noto_fonts/NotoSans_32.py"
+      "../lib/examples/noto_fonts/NotoSans_32.py"
     ],
     [
       "noto_fonts/NotoSerif_32.py",
-      "./lib/examples/noto_fonts/NotoSerif_32.py"
+      "../lib/examples/noto_fonts/NotoSerif_32.py"
     ],
     [
       "noto_fonts/__init__.py",
-      "./lib/examples/noto_fonts/__init__.py"
+      "../lib/examples/noto_fonts/__init__.py"
     ],
     [
       "noto_fonts/noto_fonts.py",
-      "./lib/examples/noto_fonts/noto_fonts.py"
+      "../lib/examples/noto_fonts/noto_fonts.py"
     ]
   ],
   "version": "0.0.1"
