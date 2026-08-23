@@ -218,6 +218,10 @@ class EncoderEmu:
         if display not in app.displays:
             app.add_display(display)
 
+        primary_disp = target_lv_display
+        if primary_disp is None and getattr(display_driver, "_drivers", None):
+            primary_disp = display_driver._drivers[0].lv_display
+
         self._display = display
         self._soft = soft if soft is not None else SoftEncoder()
         self._device = app.add_encoder(
@@ -226,11 +230,13 @@ class EncoderEmu:
             button=button,
         )
         self._bridge = display_driver.attach(display, host_devs)
-        display_driver.attach_devices([self._device], lv_display=target_lv_display)
+        display_driver.attach_devices([self._device], lv_display=primary_disp)
         # Private group so ←/Enter/→ never join the app's default encoder group.
         self._group = lv.group_create()
         self._bind_surface_indevs(lv)
         self._root = self._build_ui(lv)
+        if primary_disp is not None and hasattr(primary_disp, "set_default"):
+            primary_disp.set_default()
 
     @property
     def soft(self):
