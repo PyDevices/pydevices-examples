@@ -53,19 +53,13 @@ _scripts = Path(__file__).resolve().parent
 if str(_scripts) not in sys.path:
     sys.path.insert(0, str(_scripts))
 from personal_examples import PERSONAL_EXAMPLE_DIRS  # noqa: E402
+from url_maker import urls_from_deps  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-_pydevices_bin = REPO_ROOT.parent / "pydevices" / "bin"
-if str(_pydevices_bin) not in sys.path:
-    sys.path.insert(0, str(_pydevices_bin))
-from urllib.parse import urlparse  # noqa: E402
-
-from wasm import build_wasm_url  # noqa: E402
-
 EXAMPLES_DIR = REPO_ROOT / "lib" / "examples"
-GALLERY_DIR = REPO_ROOT / ".site" / "gallery"
-INDEX = GALLERY_DIR / "index.html"
-THUMBNAILS_DIR = GALLERY_DIR / "thumbnails"
+PYSCRIPT_DIR = REPO_ROOT / ".site" / "pyscript"
+INDEX = PYSCRIPT_DIR / "index.html"
+THUMBNAILS_DIR = PYSCRIPT_DIR / "thumbnails"
 SCREENSHOT_TOOL = REPO_ROOT / "tools" / "screenshot.py"
 
 KEEP_HTML = frozenset(
@@ -153,20 +147,12 @@ class Example:
         return tuple(names)
 
     def loader_queries(self) -> dict[str, str]:
-        queries = {}
-        for interpreter in ("micropython", "pyodide"):
-            url = build_wasm_url(
-                target_name="",
-                interpreter=interpreter,
-                shell="dummy.html",
-                extra_modules=list(self._modules_for_query()),
-                extra_manifests=list(self._manifests_for_query()),
-                extra_deps=self.deps,
-                base_url="http://dummy",
-            )
-            q = urlparse(url).query
-            queries[interpreter] = "?" + q if q else "?"
-        return queries
+        return urls_from_deps(
+            modules=self._modules_for_query(),
+            manifests=self._manifests_for_query(),
+            deps=self.deps,
+            interpreter=None,
+        )
 
     def loader_hrefs(self) -> dict[str, str]:
         queries = self.loader_queries()
@@ -526,7 +512,7 @@ def replace_block(text: str, key: str, payload: str) -> str:
 
 
 def remove_stale_demo_html(stale: list[str], check: bool) -> None:
-    for path in GALLERY_DIR.glob("*.html"):
+    for path in PYSCRIPT_DIR.glob("*.html"):
         if path.stem in KEEP_HTML:
             continue
         rel = str(path.relative_to(REPO_ROOT))
@@ -538,9 +524,9 @@ def remove_stale_demo_html(stale: list[str], check: bool) -> None:
 
 
 def remove_stale_example_json(stale: list[str], check: bool) -> None:
-    """Remove leftover gallery/<example>.json (now generated under packages/)."""
+    """Remove leftover .site/pyscript/<example>.json (now generated under packages/)."""
     keep = {"manifest"}  # PWA web app manifest
-    for path in GALLERY_DIR.glob("*.json"):
+    for path in PYSCRIPT_DIR.glob("*.json"):
         if path.stem in keep:
             continue
         try:
