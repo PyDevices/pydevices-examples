@@ -235,11 +235,10 @@ def _check_package_entry(name):
 def _install_index_deps_micropython(mip_mod, names, status):
     if not names:
         return
-    index_url = _page_base() + "mip/" if _use_same_origin() else MIP_LIB_INDEX
     for which in names:
         if status:
             status("Installing " + which + "…")
-        _quiet_install(mip_mod, which, index=index_url)
+        _quiet_install(mip_mod, which, index=MIP_LIB_INDEX)
 
 
 def _ensure_cwd():
@@ -328,8 +327,7 @@ def _ensure_board_config(mip_mod, status=None, url_base=None):
         return
     if status:
         status("Installing board_config (desktop)…")
-    index_url = _page_base() + "mip/" if _use_same_origin() else MIP_LIB_INDEX
-    kwargs = {"target": MANIFEST_MIP_TARGET, "index": index_url}
+    kwargs = {"target": MANIFEST_MIP_TARGET, "index": MIP_LIB_INDEX}
     if url_base is not None:
         kwargs["url_base"] = url_base
     _quiet_install(mip_mod, DESKTOP_BOARD_CONFIG_PACKAGE, **kwargs)
