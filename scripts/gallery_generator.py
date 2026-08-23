@@ -580,7 +580,7 @@ def ensure_card_interpreter_css(index_text: str) -> str:
 
 _HEADER_MOUNT = '<div id="pydevices-site-header"></div>'
 _FOOTER_MOUNT = '<div id="pydevices-site-footer"></div>'
-_PRODUCT_MARK = "https://pydevices.github.io/img/logo.svg"
+_PRODUCT_MARK = "https://pydevices.github.io/assets/img/logo.svg"
 _CHROME_SCRIPTS = (
     '    <script src="./site-chrome.js"></script>\n    <script src="./theme-toggle.js"></script>\n'
 )
