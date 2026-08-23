@@ -8,10 +8,8 @@
     <meta name="description" content="PyScript Gallery — the same PyDevices examples as MCUs and CPython, in the browser with MicroPython or Pyodide.">
     <link rel="icon" type="image/svg+xml" href="https://pydevices.github.io/assets/img/logo.svg">
     <script src="./mini-coi-fd.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
-    <link rel="stylesheet" href="site.css">
+    <link rel="stylesheet" href="/assets/chrome/site.css">
+    <link rel="stylesheet" href="gallery.css">
 </head>
 <body>
     <div id="pydevices-site-header"></div>
@@ -19,8 +17,8 @@
     <section class="hero wrap">
         <div class="hero-lead">
             <div class="hero-brand">
-                <div class="logo-badge product-mark"><img src="https://pydevices.github.io/assets/img/logo.svg" alt="PyScript Gallery" width="112" height="112"></div>
-                <span class="eyebrow">PyDevices / pydevices-examples · PyScript Gallery</span>
+                <div class="logo-badge product-mark" style="background: linear-gradient(135deg, var(--tier-1-amber), #d97706); color: #fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/><circle cx="17" cy="15" r="1.5"/></svg></div>
+                <span class="eyebrow" style="color: var(--tier-1-amber);">PyDevices / pydevices-examples · PyScript Gallery</span>
             </div>
             <h1>PyScript Gallery</h1>
         </div>
@@ -1194,7 +1192,7 @@
             syncWorkspaceHeight();
         })();
     </script>
-    <script src="./site-chrome.js"></script>
-    <script src="./theme-toggle.js"></script>
+    <div id="pydevices-site-footer"></div>
+    <script src="/assets/chrome/site-chrome.js"></script>
 </body>
 </html>
