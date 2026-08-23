@@ -38,6 +38,8 @@ class SoftEncoder:
     def __init__(self, pos=0):
         self.pos = int(pos)
         self.pressed = False
+        self._latch_press = False
+        self._latch_release = False
 
     def inc(self, n=1):
         self.pos += int(n)
@@ -47,9 +49,11 @@ class SoftEncoder:
 
     def push(self):
         self.pressed = True
+        self._latch_press = True
 
     def release(self):
         self.pressed = False
+        self._latch_release = True
 
     def read_pos(self):
         """Zero-arg callable for ``app.add_encoder(read=...)``."""
@@ -57,6 +61,12 @@ class SoftEncoder:
 
     def read_button(self):
         """Zero-arg callable for ``app.add_encoder(button_read=...)``."""
+        if self._latch_press:
+            self._latch_press = False
+            return True
+        if self._latch_release:
+            self._latch_release = False
+            return False
         return self.pressed
 
 
@@ -150,7 +160,7 @@ def _mk_emu_button(parent, symbol, group, *, on_short=None, on_repeat=None, pres
     else:
         if on_short is not None:
             cb = on_short
-            b.add_event_cb(lambda e, c=cb: c(), lv.EVENT.SHORT_CLICKED, None)
+            b.add_event_cb(lambda e, c=cb: c(), lv.EVENT.CLICKED, None)
         if on_repeat is not None:
             cb = on_repeat
             b.add_event_cb(lambda e, c=cb: c(), lv.EVENT.LONG_PRESSED_REPEAT, None)
