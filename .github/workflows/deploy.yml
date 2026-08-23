@@ -28,7 +28,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: PyDevices/pydevices
-          path: ../pydevices
+          path: pydevices
+
+      - name: Link pydevices to parent directory
+        run: ln -s $PWD/pydevices ../pydevices
 
       - uses: actions/setup-python@v5
         with:
