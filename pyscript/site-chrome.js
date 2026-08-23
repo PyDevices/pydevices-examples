@@ -12,12 +12,15 @@
   'use strict';
 
   var chromeScript = document.querySelector('script[src*="site-chrome.js"]');
-  var chromeBase = chromeScript
-    ? chromeScript.src.replace(/\/site-chrome\.js.*$/, '')
-    : '/assets/chrome';
-  var ROOT = chromeBase.startsWith('http')
-    ? chromeBase.replace(/\/assets\/chrome.*$/, '')
-    : '';
+  var ROOT = '';
+  if (chromeScript && chromeScript.src.startsWith('http')) {
+    try {
+      var scriptUrl = new URL(chromeScript.src);
+      if (scriptUrl.origin !== window.location.origin) {
+        ROOT = scriptUrl.origin;
+      }
+    } catch (e) {}
+  }
   var LOGO = (ROOT || '') + '/assets/img/logo.svg';
 
   var HEADER =
