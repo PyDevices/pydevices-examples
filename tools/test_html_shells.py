@@ -38,7 +38,7 @@ def test_http_and_configs(base_url: str):
     print("=" * 70)
 
     for title, path in PAGES_TO_TEST:
-        full_url = f"{base_url}/.site/pyscript/{path}"
+        full_url = f"{base_url}/.site/gallery/{path}"
         req = urllib.request.Request(full_url, headers={"User-Agent": "PyScript-Test"})
         with urllib.request.urlopen(req, timeout=5) as resp:
             content = resp.read().decode("utf-8")
@@ -46,8 +46,8 @@ def test_http_and_configs(base_url: str):
             assert status == 200, f"{path} returned HTTP {status}"
             assert "<!DOCTYPE html>" in content or "<html>" in content
 
-            # Check that pyscript-config.js is loaded (not pyscript-json-config.js)
-            assert 'src="./pyscript-config.js"' in content, f"{path} must load pyscript-config.js"
+            # Check that wasm-config.js is loaded
+            assert 'src="./wasm-config.js"' in content, f"{path} must load wasm-config.js"
             assert "pyscript-json-config.js" not in content, (
                 f"{path} contains obsolete JSON loader"
             )
@@ -59,7 +59,7 @@ def test_http_and_configs(base_url: str):
                     assert not cfg.endswith(".json"), f"{path} references .json config: {cfg}"
                     assert cfg.endswith(".toml"), f"{path} references non-toml config: {cfg}"
                     if not cfg.startswith("http"):
-                        cfg_url = f"{base_url}/.site/pyscript/{cfg}"
+                        cfg_url = f"{base_url}/.site/gallery/{cfg}"
                         with urllib.request.urlopen(cfg_url, timeout=5) as c_resp:
                             c_text = c_resp.read().decode("utf-8")
                             parsed = tomllib.loads(c_text)
@@ -98,7 +98,7 @@ async def test_with_playwright(base_url: str):
         for title, rel_path in PAGES_TO_TEST:
             console_messages.clear()
             errors.clear()
-            url = f"{base_url}/.site/pyscript/{rel_path}"
+            url = f"{base_url}/.site/gallery/{rel_path}"
             print(f"\nTesting: {title} ({url})")
 
             try:

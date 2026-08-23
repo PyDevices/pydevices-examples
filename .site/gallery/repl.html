@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>REPL</title>
+        <script src="./mini-coi-fd.js"></script>
+    </head>
+    <body>
+        <script type="text/python" id="mpy-script">
+            import utils.path
+            from pyscript import document
+            term = document.querySelector('script[terminal]').terminal
+            term.resize(99, 24)
+            import code
+            code.interact(local=globals())
+        </script>
+        <canvas id="display_canvas" width="1" height="1" style="background-color: black; border:2px solid black;"></canvas>
+        <script type="module" src="./wasm-config.js"></script>
+    </body>
+</html>

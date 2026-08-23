@@ -3,7 +3,7 @@
 Three of [Peter Hinch](https://github.com/peterhinch)'s MicroPython GUI
 libraries run unchanged on PyDevices hardware, which makes them the clearest
 demonstration of the stack's portability. Each is showcased on its own gallery
-page: [peterhinch.html](https://PyDevices.github.io/pydevices-examples/pyscript/peterhinch.html).
+page: [peterhinch.html](https://PyDevices.github.io/pydevices-examples/gallery/peterhinch.html).
 
 | GUI | Input style | Setup module |
 |---|---|---|
@@ -61,9 +61,9 @@ loader that fetches the GUI through its setup module:
 
 | GUI | Example | Gallery |
 |---|---|---|
-| Nano-GUI | [`nano_gui_simpletest.py`](https://github.com/PyDevices/pydevices-examples/blob/main/lib/examples/nano_gui_simpletest.py) | [loader](https://PyDevices.github.io/pydevices-examples/pyscript/micropython.html?modules=nano_gui_simpletest) |
-| Micro-GUI | [`micro_gui_simpletest.py`](https://github.com/PyDevices/pydevices-examples/blob/main/lib/examples/micro_gui_simpletest.py) | [loader](https://PyDevices.github.io/pydevices-examples/pyscript/micropython.html?modules=micro_gui_simpletest) |
-| MicroPython-Touch | [`touch_gui_simpletest.py`](https://github.com/PyDevices/pydevices-examples/blob/main/lib/examples/touch_gui_simpletest.py) | [loader](https://PyDevices.github.io/pydevices-examples/pyscript/micropython.html?modules=touch_gui_simpletest) |
+| Nano-GUI | [`nano_gui_simpletest.py`](https://github.com/PyDevices/pydevices-examples/blob/main/lib/examples/nano_gui_simpletest.py) | [loader](https://PyDevices.github.io/pydevices-examples/gallery/micropython.html?modules=nano_gui_simpletest) |
+| Micro-GUI | [`micro_gui_simpletest.py`](https://github.com/PyDevices/pydevices-examples/blob/main/lib/examples/micro_gui_simpletest.py) | [loader](https://PyDevices.github.io/pydevices-examples/gallery/micropython.html?modules=micro_gui_simpletest) |
+| MicroPython-Touch | [`touch_gui_simpletest.py`](https://github.com/PyDevices/pydevices-examples/blob/main/lib/examples/touch_gui_simpletest.py) | [loader](https://PyDevices.github.io/pydevices-examples/gallery/micropython.html?modules=touch_gui_simpletest) |
 
 ```bash
 cd pydevices-examples/lib

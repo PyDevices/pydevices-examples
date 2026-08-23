@@ -42,8 +42,8 @@ The core displaydev/appdev probe is owned by
 Diagnostic probes (`ps_debug.py` and `ps_shot.py`) live in [`pydevices/tools/`](https://github.com/PyDevices/pydevices/blob/main/tools/):
 
 ```bash
-python ../pydevices/tools/ps_debug.py http://127.0.0.1:8000/pydevices-examples/pyscript/harness.html?modules=bouncing_balls
-python ../pydevices/tools/ps_shot.py http://127.0.0.1:8000/pydevices-examples/pyscript/harness.html?modules=bouncing_balls 3
+python ../pydevices/tools/ps_debug.py http://127.0.0.1:8000/pydevices-examples/gallery/harness.html?modules=bouncing_balls
+python ../pydevices/tools/ps_shot.py http://127.0.0.1:8000/pydevices-examples/gallery/harness.html?modules=bouncing_balls 3
 ```
 
 ## Example test matrix

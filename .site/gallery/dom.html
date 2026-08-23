@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>DOM</title>
+        <script src="./mini-coi-fd.js"></script>
+    </head>
+    <body>
+        <p>
+            <button id="next_color" type="button">Next color</button>
+            <span id="status">Click the button — Python handles the DOM event.</span>
+        </p>
+        <canvas id="display_canvas" width="1" height="1" style="background-color: black; border:2px solid black;"></canvas>
+        <script type="text/python" id="mpy-script">
+            import utils.path
+            from board_config import display_drv
+            from js import document
+            from pyscript.ffi import create_proxy
+
+            colors = [0xF800, 0x07E0, 0x001F, 0xFFE0, 0xF81F, 0x07FF]
+            index = [0]
+
+            def on_click(_event):
+                index[0] = (index[0] + 1) % len(colors)
+                color = colors[index[0]]
+                display_drv.fill(color)
+                display_drv.show()
+                document.getElementById("status").textContent = (
+                    "fill = 0x%04X (Python set this text)" % color
+                )
+
+            btn = document.getElementById("next_color")
+            btn.addEventListener("click", create_proxy(on_click))
+            on_click(None)
+        </script>
+        <script type="module" src="./wasm-config.js"></script>
+    </body>
+</html>

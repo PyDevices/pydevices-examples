@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/PyDevices/pydevices/tree/main/docs">Documentation</a> •
-  <a href="https://PyDevices.github.io/pydevices-examples/pyscript/">PyScript gallery</a> •
+  <a href="https://PyDevices.github.io/pydevices-examples/gallery/">PyScript gallery</a> •
   <a href="https://pydevices.github.io/pydevices/">Product packages</a> •
   <a href="docs/screenshots/README.md">Screenshots</a>
 </p>
@@ -33,7 +33,7 @@ This repo demonstrates that portability; it is not the package source of truth.
 ## Try it
 
 The fastest route is the interactive
-**[PyScript gallery](https://PyDevices.github.io/pydevices-examples/pyscript/)**. It runs
+**[PyScript gallery](https://PyDevices.github.io/pydevices-examples/gallery/)**. It runs
 the real examples directly in a modern web browser.
 To start a standalone browser app or offline PWA, use the
 **[pyscript-template](https://github.com/PyDevices/pyscript-template)**.

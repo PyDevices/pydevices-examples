@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Cache invalidation: 2026-08-18 -->
+    <meta charset="utf-8">
+    <script>try{if(localStorage.getItem('pydevices-theme')==='light'){document.documentElement.setAttribute('data-theme','light');}}catch(e){}</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Peter Hinch demos — pydevices-examples MicroPython</title>
+    <meta name="description" content="Discover and run Peter Hinch GUI demos in the browser with pydevices-examples and MicroPython.">
+    <link rel="icon" type="image/svg+xml" href="https://pydevices.github.io/assets/img/logo.svg">
+    <script src="./mini-coi-fd.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
+    <link rel="stylesheet" href="./site.css">
+    <link rel="stylesheet" href="./demo.css">
+    <link rel="stylesheet" href="./vendor/core.css">
+    <style>
+        .gui-picker {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 22px;
+        }
+        .gui-picker .btn[aria-current="page"] {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .hinch-layout {
+            display: grid;
+            /* Demo column width is capped to the canvas via syncCardLayout. */
+            grid-template-columns: max-content max-content;
+            gap: 14px;
+            justify-content: center;
+            align-items: start;
+        }
+        .demo-panel {
+            position: sticky;
+            top: 18px;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+        .demo-panel h2 {
+            margin-top: 0;
+        }
+        .demo-list {
+            display: grid;
+            gap: 6px;
+            min-height: 0;
+            overflow: auto;
+        }
+        .demo-link {
+            display: block;
+            padding: 9px 11px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--ink-soft);
+            overflow-wrap: anywhere;
+        }
+        .demo-link:hover,
+        .demo-link[aria-current="page"] {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: color-mix(in srgb, var(--accent) 7%, transparent);
+        }
+        .hinch-stage .play-area {
+            grid-template-columns: auto;
+            grid-template-rows: auto auto auto;
+            justify-content: center;
+            margin-bottom: 0;
+        }
+        .hinch-stage .play-area > .stage-controls,
+        .hinch-stage .play-area > .display-column,
+        .hinch-stage .play-area > .console-panel {
+            grid-column: 1;
+        }
+        .hinch-stage .play-area > .stage-controls {
+            grid-row: 1;
+        }
+        .hinch-stage .play-area > .display-column {
+            grid-row: 2;
+        }
+        .hinch-stage .play-area > .console-panel {
+            grid-row: 3;
+        }
+        .status-error {
+            color: #c53b2c;
+        }
+        @media (max-width: 880px) {
+            .hinch-layout {
+                grid-template-columns: max-content;
+                justify-content: center;
+            }
+            .demo-panel {
+                position: static;
+                height: auto !important;
+            }
+            .demo-list {
+                max-height: 320px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="pydevices-site-header"></div>
+
+    <main class="wrap loader-main">
+        <nav class="crumbs">
+            <a href="./index.html">Demos</a>
+            <span class="sep">/</span>
+            <span>Peter Hinch GUIs</span>
+        </nav>
+
+        <div class="loader-head">
+            <h1 id="page-title">Peter Hinch GUI demos</h1>
+        </div>
+        <p class="loader-lede" id="page-lede">
+            Demos are discovered live from the installed
+            <a id="package-link" href="#">GUI</a> package.
+        </p>
+
+        <nav class="gui-picker" aria-label="Peter Hinch GUI">
+            <a class="btn" data-gui="touch" href="?touch">MicroPython-Touch</a>
+            <a class="btn" data-gui="micro" href="?micro">Micro-GUI</a>
+            <a class="btn" data-gui="nano" href="?nano">Nano-GUI</a>
+        </nav>
+
+        <div id="query-error" class="panel" hidden>
+            <h2>Choose a GUI</h2>
+            <p id="query-error-text">Use one of the GUI links above.</p>
+        </div>
+
+        <div class="hinch-layout" id="hinch-layout" hidden>
+            <aside class="panel demo-panel">
+                <h2>Demos</h2>
+                <p id="demo-count">Discovering demos…</p>
+                <p id="control-hint" hidden>
+                    Use the arrow keys to navigate and adjust. Press Space to select.
+                </p>
+                <div class="demo-list" id="demo-list" aria-live="polite"></div>
+            </aside>
+
+            <section class="hinch-stage">
+                <div class="play-area">
+                    <div class="stage-controls">
+                        <div class="loading" id="loading">
+                            <span class="spinner" id="spinner"></span>
+                            <span id="status">Loading MicroPython interpreter…</span>
+                        </div>
+                    </div>
+                    <div class="display-column">
+                        <div class="device">
+                            <canvas id="display_canvas" width="320" height="240" tabindex="0"></canvas>
+                            <canvas id="aux_canvas" width="1" height="1" tabindex="0"></canvas>
+                        </div>
+                    </div>
+                    <section class="console-panel" aria-label="Console output">
+                        <h2 class="console-label">Console output</h2>
+                        <div id="log" class="log"></div>
+                    </section>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="pydevices-site-footer"></div>
+
+    <script src="./site-chrome.js"></script>
+    <script src="./theme-toggle.js"></script>
+    <script>
+        (function () {
+            var params = new URLSearchParams(window.location.search);
+            var selectors = ['nano', 'micro', 'touch'].filter(function (name) {
+                return params.has(name);
+            });
+            var unknownBare = [];
+            params.forEach(function (value, key) {
+                if (value === '' && key !== 'nano' && key !== 'micro' && key !== 'touch') {
+                    unknownBare.push(key);
+                }
+            });
+
+            var gui = '';
+            if (selectors.length === 1 && unknownBare.length === 0) {
+                gui = selectors[0];
+            } else if (selectors.length === 0 && unknownBare.length === 0) {
+                // Bare URL (or only ?demo=…): same as ?touch
+                gui = 'touch';
+            }
+            var demo = params.get('demo') || '';
+            window.__hinchGui = gui;
+            window.__hinchDemo = demo;
+            window.__hinchDemoSignature = '';
+            if (gui) {
+                const cacheKey = 'peterhinch-demos-' + gui;
+                const cached = window.sessionStorage.getItem(cacheKey) || '';
+                const names = cached ? cached.split('\n').filter(Boolean) : [];
+                if (names.length) {
+                    const list = document.getElementById('demo-list');
+                    list.replaceChildren();
+                    names.forEach(function (name) {
+                        const link = document.createElement('a');
+                        link.className = 'demo-link';
+                        link.textContent = name;
+                        link.href = '?' + gui + '&demo=' + encodeURIComponent(name);
+                        if (name === demo) {
+                            link.setAttribute('aria-current', 'page');
+                        }
+                        list.appendChild(link);
+                    });
+                    document.getElementById('demo-count').textContent =
+                        names.length + ' compatible demo' +
+                        (names.length === 1 ? '' : 's') + ' found.';
+                    window.__hinchDemoSignature = cached;
+                }
+            }
+            if (gui && demo) {
+                document.getElementById('status').textContent =
+                    'Starting ' + demo + '…';
+            }
+
+            document.querySelectorAll('[data-gui]').forEach(function (link) {
+                if (link.dataset.gui === gui) {
+                    link.setAttribute('aria-current', 'page');
+                }
+            });
+
+            if (!gui) {
+                var error = document.getElementById('query-error');
+                var text = document.getElementById('query-error-text');
+                error.hidden = false;
+                text.textContent = 'Unsupported or ambiguous selector. Use ?nano, ?micro, or ?touch.';
+                return;
+            }
+
+            var labels = {
+                nano: 'Nano-GUI',
+                micro: 'Micro-GUI',
+                touch: 'MicroPython-Touch'
+            };
+            var repositories = {
+                nano: 'https://github.com/peterhinch/micropython-nano-gui',
+                micro: 'https://github.com/peterhinch/micropython-micro-gui',
+                touch: 'https://github.com/peterhinch/micropython-touch'
+            };
+            document.getElementById('hinch-layout').hidden = false;
+            document.getElementById('control-hint').hidden = gui !== 'micro';
+            document.getElementById('page-title').textContent = labels[gui] + ' demos';
+            var packageLink = document.getElementById('package-link');
+            packageLink.textContent = labels[gui];
+            packageLink.href = repositories[gui];
+            document.title = labels[gui] + ' demos — pydevices-examples MicroPython';
+        })();
+    </script>
+
+    <script id="hinch-interpreter" type="text/plain" output="log">
+import asyncio
+import builtins
+import os
+import sys
+from js import document, window
+
+try:
+    os.chdir("/")
+except OSError:
+    pass
+if "/" not in sys.path:
+    sys.path.insert(0, "/")
+import utils.path  # noqa: F401
+
+from displaydev import env_set
+
+# Hinch demos use 320x240 (gallery default is 320x480).
+env_set("PYDEVICES_WIDTH", 320)
+env_set("PYDEVICES_HEIGHT", 240)
+
+import ps_loader
+
+# Gallery wasm does not freeze displaydev; desktop board_config mip does.
+# Install after env_set, and before any import of board_config.
+ps_loader.ensure_board_config()
+
+
+def _log_print(*args, **kwargs):
+    el = document.getElementById("log")
+    if el is not None:
+        sep = kwargs.get("sep", " ")
+        end = kwargs.get("end", "\n")
+        el.textContent += sep.join(str(arg) for arg in args) + end
+        el.scrollTop = el.scrollHeight
+
+
+builtins.print = _log_print
+_status = document.getElementById("status")
+_spinner = document.getElementById("spinner")
+_demo_list = document.getElementById("demo-list")
+_demo_count = document.getElementById("demo-count")
+
+
+def _set_status(message, error=False, busy=True):
+    if _status is not None:
+        _status.textContent = message
+        if error:
+            _status.classList.add("status-error")
+        else:
+            _status.classList.remove("status-error")
+    if _spinner is not None:
+        _spinner.hidden = not busy
+
+
+def _scroll_to_demo_panel():
+    panel = document.querySelector(".demo-panel")
+    header = document.querySelector(".site-header")
+    if panel is None or header is None:
+        return
+    target = (
+        window.scrollY
+        + panel.getBoundingClientRect().top
+        - header.getBoundingClientRect().height
+        - 8
+    )
+    window.scrollTo(0, max(0, int(target)))
+
+
+def _gui_value(name):
+    return str(getattr(window, name, "") or "").strip()
+
+
+def _discover_demos():
+    names = []
+    for filename in os.listdir("/utils/gui/demos"):
+        if filename.endswith(".py") and filename != "__init__.py":
+            names.append(filename[:-3])
+    names.sort()
+    return names
+
+
+_EXCLUDED_DEMOS = {
+    "nano": {
+        # Synchronous demos block the browser's MicroPython main thread.
+        "aclock",
+        "aclock_large",
+        "alevel",
+        "clock_batt",
+        "clocktest",
+        "color15",
+        "color96",
+        "fpt",
+        "mono_test",
+        "sharptest",
+        # Physical Pyboard or network/RTC hardware dependencies.
+        "aclock_ttgo",
+        "asnano",
+        "asnano_sync",
+    },
+    "micro": {
+        # Hardware/resources not supplied by the browser display.
+        "audio",
+        "bitmap",
+        "qrcode",
+        # Upstream helper module, not a standalone demo.
+        "date",
+    },
+    "touch": {
+        # Hardware/resources not supplied by the browser display.
+        "audio",
+        "bitmap",
+        "qrcode",
+        # Upstream helper module, not a standalone demo.
+        "date",
+    },
+}
+
+
+def _supported_demos(gui, discovered):
+    excluded = _EXCLUDED_DEMOS.get(gui, ())
+    return [name for name in discovered if name not in excluded]
+
+
+def _render_demos(gui, selected, names):
+    _demo_list.replaceChildren()
+    for name in names:
+        link = document.createElement("a")
+        link.className = "demo-link"
+        link.textContent = name
+        link.href = "?{}&demo={}".format(gui, name)
+        if name == selected:
+            link.setAttribute("aria-current", "page")
+        _demo_list.appendChild(link)
+    _demo_count.textContent = "{} compatible demo{} found.".format(
+        len(names), "" if len(names) == 1 else "s"
+    )
+    signature = "\n".join(names)
+    window.sessionStorage.setItem("peterhinch-demos-" + gui, signature)
+    window.__hinchDemoSignature = signature
+
+
+async def _boot():
+    gui = _gui_value("__hinchGui")
+    selected = _gui_value("__hinchDemo")
+    if not gui:
+        return
+
+    setup_modules = {
+        "nano": "color_setup",
+        "micro": "hardware_setup",
+        "touch": "touch_setup",
+    }
+    setup = setup_modules.get(gui)
+    if setup is None:
+        return
+
+    await asyncio.sleep(0)
+    try:
+        if selected:
+            _set_status("Starting {}…".format(selected))
+        else:
+            _set_status("Initializing GUI…")
+        # color_setup / hardware_setup / touch_setup import board_config —
+        # same desktop package as harness.html / gallery loaders.
+        ps_loader.ensure_board_config(status=_set_status)
+        print("Loading", setup)
+        __import__(setup)
+
+        if not selected:
+            _set_status("Discovering demos…")
+        discovered = _discover_demos()
+        names = _supported_demos(gui, discovered)
+        if _gui_value("__hinchDemoSignature") != "\n".join(names):
+            _render_demos(gui, selected, names)
+
+        if selected:
+            if selected not in names:
+                if selected in discovered:
+                    raise ValueError(
+                        "Demo is not compatible with the browser interpreter: " + selected
+                    )
+                raise ValueError("Unknown demo: " + selected)
+            await asyncio.sleep(0)
+            _scroll_to_demo_panel()
+            _set_status("Running {}…".format(selected))
+            await asyncio.sleep(0)
+            __import__("gui.demos." + selected)
+            _set_status("Running {}".format(selected), busy=False)
+        else:
+            _set_status("Choose a demo.", busy=False)
+            print("Discovered", len(names), "demos. Choose one from the list.")
+    except Exception as exc:
+        _set_status("Error — see console.", error=True, busy=False)
+        print("Peter Hinch demo browser failed:", type(exc).__name__ + ":", exc)
+        if hasattr(sys, "print_exception"):
+            sys.print_exception(exc)
+
+
+asyncio.create_task(_boot())
+    </script>
+
+    <script>
+        (function () {
+            const gui = window.__hinchGui;
+            if (!gui) return;
+            const interpreter = document.getElementById('hinch-interpreter');
+            interpreter.type = 'mpy';
+            interpreter.dataset.configs = [
+                './micropython.toml',
+                'https://raw.githubusercontent.com/PyDevices/pydevices/main/pydevices-desktop.toml',
+                './pydevices-examples.toml',
+                './peterhinch-' + gui + '.toml'
+            ].join(' ');
+        })();
+    </script>
+    <script type="module" src="./wasm-config.js"></script>
+
+    <script>
+        (function () {
+            const device = document.querySelector('.play-area .device');
+            const stage = document.querySelector('.hinch-stage');
+            const panel = document.querySelector('.play-area .console-panel');
+            const demoPanel = document.querySelector('.demo-panel');
+            const log = document.getElementById('log');
+            if (!device || !stage || !panel || !demoPanel || !log) return;
+            function syncCardLayout() {
+                const rect = device.getBoundingClientRect();
+                if (rect.width > 0) {
+                    const width = rect.width + 'px';
+                    stage.style.width = width;
+                    panel.style.width = width;
+                    // Demos list must never be wider than canvas / console.
+                    demoPanel.style.width = width;
+                    demoPanel.style.maxWidth = width;
+                }
+                if (rect.height > 0) panel.style.height = rect.height + 'px';
+                if (window.innerWidth <= 880) {
+                    demoPanel.style.height = '';
+                    return;
+                }
+                const demoTop = demoPanel.getBoundingClientRect().top;
+                const consoleBottom = panel.getBoundingClientRect().bottom;
+                if (consoleBottom > demoTop) {
+                    demoPanel.style.height = consoleBottom - demoTop + 'px';
+                }
+            }
+            syncCardLayout();
+            window.addEventListener('resize', syncCardLayout);
+            if (typeof ResizeObserver !== 'undefined') {
+                new ResizeObserver(syncCardLayout).observe(device);
+            }
+        })();
+    </script>
+</body>
+</html>
