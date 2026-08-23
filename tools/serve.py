@@ -71,8 +71,9 @@ class DemoRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("X-PyDevices-Server", "examples")
         if self.coi_enabled:
             self.send_header("Cross-Origin-Opener-Policy", "same-origin")
-            self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+            self.send_header("Cross-Origin-Embedder-Policy", "credentialless")
             self.send_header("Cross-Origin-Resource-Policy", "cross-origin")
+            self.send_header("Access-Control-Allow-Origin", "*")
         super().end_headers()
 
     def _is_debug(self) -> bool:
