@@ -1,1 +1,1 @@
-interpreter = "./vendor/micropython/micropython.mjs"
+interpreter = "/vendor/micropython/micropython.mjs"
