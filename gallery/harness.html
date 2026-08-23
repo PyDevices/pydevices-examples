@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="./mini-coi-fd.js"></script>
+    <script src="./loader-query.js"></script>
+    <link rel="stylesheet" href="./vendor/core.css">
+</head>
+
+<body>
+    <canvas id="display_canvas" width="320" height="480" tabindex="0"></canvas>
+    <canvas id="aux_canvas" width="240" height="80" tabindex="0" style="display:block;margin-top:8px;"></canvas>
+    <div id="log"
+        style="display:none;white-space:pre-wrap;overflow:auto;max-height:40vh;border:1px solid #888;padding:8px;margin-top:8px;font-family:monospace;font-size:12px">
+    </div>
+    <script>
+        (function () {
+            var Q = window.LoaderQuery;
+            var plan = Q.parse(window.location.search);
+            if (Q.invalidNames(plan).length) {
+                window.__loaderDisabled = true;
+                return;
+            }
+
+            var log = document.getElementById('log');
+            if (plan.debug) {
+                log.style.display = 'block';
+            }
+
+            Q.publish(plan);
+
+            // Safety-net only: if MicroPython never emits EXAMPLE_RESULT (import hang),
+            // report timeout — never status=ok (that masked missing-dep ImportErrors).
+            // Prefer ``timeout=`` from the kit (manifest timeout_s) so cold mip /
+            // PH GUI installs (nano/micro/touch) are not cut off at 60s.
+            if (plan.autotest && plan.entryName) {
+                var safetyMs = Math.max(plan.autotestDuration * 1000 + 45000, 60000);
+                if (plan.autotestTimeout != null) {
+                    safetyMs = Math.max(safetyMs, plan.autotestTimeout * 1000);
+                }
+                setTimeout(function () {
+                    if (window.__loaderExampleResultSent) {
+                        return;
+                    }
+                    window.__loaderExampleResultSent = true;
+                    var payload = {
+                        example: plan.entryName,
+                        status: 'error',
+                        error: 'autotest timeout (no Python EXAMPLE_RESULT)',
+                        interpreter: 'pyscript',
+                        duration_s: plan.autotestDuration,
+                        smoke: 'js_timeout'
+                    };
+                    console.log('EXAMPLE_RESULT=' + JSON.stringify(payload));
+                }, safetyMs);
+            }
+        })();
+    </script>
+    <script type="text/python" id="mpy-script">
+import builtins
+from js import document
+import os
+import sys
+
+# Loader trace: emits `MARK:<step>` console lines for debugging the PyScript
+# bootstrap (mip install, imports, entry). Opt-in only — no-op unless the page
+# is loaded with `?debug=1`, so normal gallery visitors see no console noise.
+def _mark(step, **data):
+    try:
+        from js import window, console
+
+        flag = str(getattr(window, "__loaderDebug", "") or "").strip().lower()
+        if flag not in ("1", "true", "yes"):
+            return
+        extra = "" if not data else " " + " ".join("%s=%s" % (k, v) for k, v in data.items())
+        console.log("MARK:" + step + extra)
+    except Exception:
+        pass
+
+
+_mark("mpy_top")
+
+MANIFEST_MIP_TARGET = "."
+# Index packages install here instead of the cwd, which sys.path searches first.
+# board_config's deps (displaydev, and through it appdev and multimer) are
+# published copies of libraries this page already maps from the working tree —
+# installed into the cwd they shadow it, so the harness would silently test
+# released code instead of the tree under development.
+DEPENDENCY_MIP_TARGET = "/mip"
+
+def _log_print(*args, **kwargs):
+    el = document.getElementById("log")
+    if el is not None:
+        sep = kwargs.get("sep", " ")
+        end = kwargs.get("end", "\n")
+        el.textContent += sep.join(str(a) for a in args) + end
+        el.scrollTop = el.scrollHeight
+
+builtins.print = _log_print
+
+def _from_window(name, default=""):
+    from js import window
+    return str(getattr(window, name, default) or default).strip()
+
+def _autotest_enabled():
+    return _from_window("__loaderAutotest") in ("1", "true", "yes")
+
+_autotest_sent = [False]
+_import_error = [None]
+
+
+def _autotest_duration_s():
+    try:
+        return int(_from_window("__loaderAutotestDuration", "5"))
+    except ValueError:
+        return 5
+
+
+def _post_debug(payload):
+    # Best-effort; Playwright / kit read console EXAMPLE_RESULT, not this POST.
+    try:
+        from js import JSON, fetch
+
+        fetch(
+            "/__debug/example_autotest",
+            method="POST",
+            body=JSON.stringify(payload),
+        )
+    except Exception:
+        pass
+
+
+def _print_example_result(payload):
+    import json
+
+    try:
+        from js import window
+
+        window.__loaderExampleResultSent = True
+    except Exception:
+        pass
+
+    line = "EXAMPLE_RESULT=" + json.dumps(payload, separators=(",", ":"))
+    print(line)
+    try:
+        from js import console
+
+        console.log(line)
+    except Exception:
+        pass
+
+
+def _finish_autotest(entry, *, status="ok", error=None, quit_injected=False):
+    if _autotest_sent[0]:
+        return
+    _autotest_sent[0] = True
+
+    duration = _autotest_duration_s()
+    if status == "ok" and _import_error[0] is not None:
+        status = "error"
+        error = _import_error[0]
+    try:
+        from board_config import display_drv
+
+        backend = type(display_drv).__name__
+    except Exception as exc:
+        backend = "error:{!r}".format(exc)
+        if status == "ok":
+            status = "error"
+            error = repr(exc)
+    result = {
+        "example": entry,
+        "status": status,
+        "backend": backend,
+        "duration_s": duration,
+        "quit_injected": bool(quit_injected),
+        "interpreter": "pyscript",
+    }
+    if error:
+        result["error"] = error
+    _print_example_result(result)
+    _post_debug(result)
+
+
+def _autotest_app(ensure_app_setup=False):
+    """Return the appdev App used for quit (LVGL display_driver or hardware_setup).
+
+    Oneshot demos often only touch ``board_config.display_drv`` and never import
+    ``hardware_setup``. After the demo returns, pass ``ensure_app_setup=True`` so
+    autotest can still hook BrowserBack → ``before_quit``. Do not force that
+    import before the demo: LVGL entries use ``display_driver.app`` instead.
+
+    Most demos build their own ``appdev.App(board_config)`` and import neither
+    module -- every roku_* entry does. Those used to leave the quit chord
+    unhooked, so BrowserBack landed on nothing and the run ended with
+    "no EXAMPLE_RESULT after Ctrl+Q quit chord". ``App.current()`` is the
+    library's own accessor for the live instance, so ask it first and keep the
+    module lookups as the fallback for anything that predates it.
+    """
+    try:
+        import appdev
+
+        current = appdev.App.current()
+        if current is not None:
+            return current
+    except Exception:
+        pass
+
+    for module_name in ("display_driver", "hardware_setup"):
+        module = sys.modules.get(module_name)
+        candidate = getattr(module, "app", None) if module is not None else None
+        if candidate is not None:
+            return candidate
+    if not ensure_app_setup:
+        return None
+    try:
+        import hardware_setup  # noqa: F401
+    except Exception as exc:
+        print("autotest: hardware_setup import failed:", exc)
+        return None
+    module = sys.modules.get("hardware_setup")
+    return getattr(module, "app", None) if module is not None else None
+
+
+def _arm_autotest_on_quit(entry, ensure_app_setup=False):
+    """Emit EXAMPLE_RESULT when the app processes quit (e.g. BrowserBack chord)."""
+    app = _autotest_app(ensure_app_setup=ensure_app_setup)
+    if app is None:
+        return None
+    prev = getattr(app, "before_quit", None)
+
+    def _hook():
+        if callable(prev):
+            try:
+                prev()
+            except Exception:
+                pass
+        _finish_autotest(entry, quit_injected=True)
+
+    app.before_quit = _hook
+    try:
+        from js import console
+
+        console.log("AUTOTEST_READY=" + str(entry))
+        # Which devices can deliver the quit chord. A run that ends in
+        # "no EXAMPLE_RESULT after Ctrl+Q quit chord" is almost always an app
+        # with no HOST device, or one whose HOST device is never polled, and
+        # without this the console gives no way to tell those apart.
+        try:
+            devs = ",".join(
+                "%s/%s" % (type(d).__name__, getattr(d, "type", "?")) for d in app.devices
+            )
+        except Exception:
+            devs = "?"
+        console.log("AUTOTEST_DEVICES=" + (devs or "none"))
+    except Exception:
+        pass
+    return app
+
+
+def _arm_autotest_host_pump(app):
+    """Drain the app's HOST devices on the browser event loop during autotest.
+
+    The quit chord is delivered by appdev's HostEventsDevice, which only sees
+    the key when something calls ``app.poll()``. Demos that call ``app.run()``
+    get that for free, but LVGL entries hand the loop to LVGL and drive the
+    app through display_driver's own pump -- which is not armed in the harness,
+    so BrowserBack reached a registered HOST device that nobody read and every
+    LVGL cell ended in "no EXAMPLE_RESULT after Ctrl+Q quit chord".
+
+    An asyncio task polls independently of whichever loop the demo chose. It is
+    autotest-only and stops as soon as quit is requested.
+    """
+    if app is None:
+        return
+
+    def _poll(*_args):
+        try:
+            app.poll()
+        except Exception:
+            pass
+        # Automation fallback. Under LVGL the indev read_cb drains PSDisplay's
+        # event queue before app.poll() can see it, so the BrowserBack chord
+        # never reaches HostEventsDevice and no amount of polling produces a
+        # quit. The chord stays the primary path -- it is what exercises real
+        # input -- and this flag only gives Playwright a way through when the
+        # queue already has another consumer.
+        try:
+            from js import window
+
+            if getattr(window, "__pydevices_autotest_quit", False):
+                app.request_quit()
+        except Exception:
+            pass
+
+    # LVGL entries hand the loop to LVGL: the asyncio scheduler never gets a
+    # turn, so an asyncio task would be created and never run. LVGL's own timer
+    # is the loop that is demonstrably running (it is what renders), so use it.
+    if "display_driver" in sys.modules:
+        try:
+            import lvgl as lv
+
+            lv.timer_create(_poll, 20, None)
+            print("autotest: host pump armed on an LVGL timer")
+            return
+        except Exception as exc:
+            print("autotest: LVGL host pump unavailable:", exc)
+
+    try:
+        import asyncio
+    except ImportError:
+        return
+
+    async def _pump():
+        while not getattr(app, "quit_requested", False):
+            _poll()
+            await asyncio.sleep(0.02)
+
+    try:
+        asyncio.ensure_future(_pump())
+        print("autotest: host pump armed on asyncio")
+    except Exception as exc:
+        print("autotest: host pump not armed:", exc)
+
+
+def _pump_autotest_app(app):
+    """Keep draining display events after oneshots so the quit chord can land.
+
+    Loop/async demos call ``app.run()`` themselves. Oneshots that only
+    blit and return leave PSDisplay's key queue unread unless we arm the pump.
+    """
+    if app is None:
+        return
+    try:
+        app.run()
+    except Exception as exc:
+        print("autotest: app.run failed:", exc)
+
+
+def _schedule_pyscript_autotest(entry):
+    """After import: wait for external Ctrl+Q (or request_quit); do not auto-ok on a timer."""
+    app = _arm_autotest_on_quit(entry, ensure_app_setup=True)
+    _arm_autotest_host_pump(app)
+    _pump_autotest_app(app)
+
+
+def _install_test_mode():
+    if not _autotest_enabled():
+        return
+
+    class _PyDevicesTestMode:
+        pass
+
+    mode = _PyDevicesTestMode()
+    mode.ENABLED = True
+    # Soak is driven by Playwright; do not auto-quit via deadline hook.
+    mode.DURATION_S = 86400
+    mode._start_s = None
+    mode._deadline_fired = False
+    sys.modules["pydevices_test_mode"] = mode
+
+def _parse_comma(raw):
+    names = []
+    for part in str(raw).split(","):
+        name = part.strip()
+        if name.lower().endswith(".py"):
+            name = name[:-3]
+        if name:
+            names.append(name)
+    return names
+
+def _loader_plan():
+    modules = _parse_comma(_from_window("__loaderModules"))
+    manifests = _parse_comma(_from_window("__loaderManifests"))
+    packages = _parse_comma(_from_window("__loaderPackages"))
+    deps = _parse_comma(_from_window("__loaderDeps"))
+    entry = _from_window("__loaderEntry")
+    if not entry and modules:
+        entry = modules[0]
+    elif not entry and manifests:
+        entry = manifests[0]
+    return modules, manifests, packages, deps, entry
+
+MIP_LIB_INDEX = "https://PyDevices.github.io/mip"
+DESKTOP_BOARD_CONFIG_PACKAGE = "github:PyDevices/pydevices/board_configs/desktop/package.json"
+
+def _same_origin_base():
+    path = document.location.pathname
+    return document.location.origin + (path[: path.rfind("/") + 1] if "/" in path else "/")
+
+def _use_same_origin():
+    host = document.location.hostname
+    return host in ("127.0.0.1", "localhost") or host.endswith(".github.io")
+
+def _manifest_url(name):
+    if _use_same_origin():
+        return _same_origin_base() + "packages/" + name + ".json"
+    return "github:PyDevices/pydevices-examples/packages/" + name + ".json"
+
+def _module_url(name):
+    if _use_same_origin():
+        # Pages/local tree keeps the browser path web/pyscript/lib/examples/
+        # (symlink → repo lib/). GitHub MIP URLs use the repo lib/ path.
+        return _same_origin_base() + "lib/examples/" + name + ".py"
+    return "github:PyDevices/pydevices-examples/lib/examples/" + name + ".py"
+
+def _packages_from_entry(entry):
+    for path in ("examples/" + entry + ".py", entry + ".py"):
+        try:
+            with open(path) as f:
+                for i, line in enumerate(f):
+                    if i >= 10:
+                        break
+                    s = line.strip()
+                    if s.startswith("# pyscript packages:"):
+                        body = s.split(":", 1)[1].strip()
+                        return [p.strip() for p in body.split(",") if p.strip()]
+        except OSError:
+            continue
+    return []
+
+def _deps_from_entry(entry):
+    for path in ("examples/" + entry + ".py", entry + ".py"):
+        try:
+            with open(path) as f:
+                for i, line in enumerate(f):
+                    if i >= 10:
+                        break
+                    s = line.strip()
+                    if s.startswith("# deps:"):
+                        body = s.split(":", 1)[1].strip()
+                        return [p.strip() for p in body.split(",") if p.strip()]
+        except OSError:
+            continue
+    return []
+
+def _built_in(name):
+    """True when the interpreter already provides ``name`` (native or frozen module)."""
+    try:
+        __import__(name)
+    except Exception:
+        return False
+    return True
+
+
+def _install_deps(names):
+    if not names:
+        return
+    import mip
+
+    for which in names:
+        # Native modules compiled into the wasm build (lvgl) have no MIP package,
+        # so installing one can only 404. Frozen pure-Python deps are equally
+        # already present. Either way the interpreter's copy is the authoritative one.
+        if _built_in(which):
+            print("MIP skip (provided by interpreter):", which)
+            continue
+        print("MIP install:", which)
+        mip.install(which, index=MIP_LIB_INDEX)
+
+
+def _dependency_target():
+    """Return :data:`DEPENDENCY_MIP_TARGET`, on sys.path behind the mapped tree."""
+    import sys
+
+    if DEPENDENCY_MIP_TARGET not in sys.path:
+        sys.path.append(DEPENDENCY_MIP_TARGET)
+    return DEPENDENCY_MIP_TARGET
+
+
+def _ensure_board_config(mip_mod):
+    try:
+        import board_config  # noqa: F401
+        return
+    except ImportError:
+        pass
+    print("MIP install: board_config (desktop)")
+    # deps (displaydev → …) need the PyDevices index; default is micropython.org/pi/v2.
+    mip_mod.install(
+        DESKTOP_BOARD_CONFIG_PACKAGE,
+        target=_dependency_target(),
+        index=MIP_LIB_INDEX,
+    )
+
+def _install_packages(packages):
+    if not packages:
+        return
+    import sys
+
+    if "/utils" not in sys.path:
+        sys.path.insert(0, "/utils")
+    from fetch_ph_gui import fetch_ph_gui
+
+    for which in packages:
+        print("Installing package:", which)
+        # Pre-seed only — patches need SSD from color_setup / hardware_setup / touch_setup.
+        if not fetch_ph_gui(which, apply_patches=False):
+            raise RuntimeError("Failed to install " + which)
+
+def _run():
+    # #region loader trace
+    _mark("run_start")
+    # #endregion
+    if _from_window("__loaderDisabled"):
+        return
+    modules, manifests, packages, deps, entry = _loader_plan()
+    if not entry:
+        return
+    # #region loader trace
+    _mark("plan", entry=entry, modules=",".join(modules), manifests=",".join(manifests), packages=",".join(packages), deps=",".join(deps))
+    _mark("before_import_mip")
+    # #endregion
+    import mip
+    # #region loader trace
+    _mark("after_import_mip")
+    # #endregion
+    for name in manifests:
+        # #region loader trace
+        _mark("before_mip_manifest", name=name)
+        # #endregion
+        mip.install(_manifest_url(name), target=MANIFEST_MIP_TARGET)
+        # Package at ./<name>/; cwd/``/`` on sys.path → ``import name``.
+        # #region loader trace
+        _mark("after_mip_manifest", name=name)
+        # #endregion
+    for name in modules:
+        in_pkg = False
+        for m in manifests:
+            try:
+                os.stat(m + "/" + name + ".py")
+                in_pkg = True
+                break
+            except OSError:
+                pass
+        if in_pkg:
+            continue
+        # #region loader trace
+        _mark("before_mip_module", name=name)
+        # #endregion
+        mip.install(_module_url(name), target=MANIFEST_MIP_TARGET)
+        # #region loader trace
+        _mark("after_mip_module", name=name)
+        # #endregion
+    # #region loader trace
+    _mark("before_import_lib_path")
+    # #endregion
+    import utils.path  # utils on path before fetch_ph_gui / packages
+    # #region loader trace
+    _mark("after_import_lib_path")
+    # #endregion
+    _ensure_board_config(mip)
+    if not deps:
+        deps = _deps_from_entry(entry)
+    if deps:
+        _install_deps(deps)
+    if not packages:
+        packages = _packages_from_entry(entry)
+    if packages:
+        # #region loader trace
+        _mark("before_install_packages", packages=",".join(packages))
+        # #endregion
+        _install_packages(packages)
+        # #region loader trace
+        _mark("after_install_packages")
+        # #endregion
+    if _autotest_enabled():
+        _install_test_mode()
+        # Preload board_config and arm before_quit *before* importing the demo.
+        # Many demos call app.run() at import time and never return.
+        try:
+            import board_config  # noqa: F401
+        except Exception as exc:
+            _import_error[0] = "{}: {}".format(type(exc).__name__, exc)
+            _finish_autotest(entry, status="error", error=_import_error[0])
+            raise
+        # Prefer hardware_setup so oneshots (display_drv only) still get a quit hook
+        # before demos that never return from import.
+        _arm_autotest_on_quit(entry)
+    # Nested package examples (e.g. modules=roku_lvgl&manifests=roku_remote)
+    # install as ``roku_remote/roku_lvgl.py`` — import the dotted path, not the bare stem.
+    import_name = entry
+    for m in manifests:
+        try:
+            os.stat(m + "/" + entry + ".py")
+            import_name = m + "." + entry
+            break
+        except OSError:
+            pass
+    # #region loader trace
+    _mark("before_import_entry", entry=entry, import_name=import_name)
+    # #endregion
+    try:
+        __import__(import_name)
+    except Exception as exc:
+        _import_error[0] = "{}: {}".format(type(exc).__name__, exc)
+        # #region loader trace
+        _mark("import_entry_failed", entry=entry, import_name=import_name, error=_import_error[0])
+        # #endregion
+        if _autotest_enabled():
+            _finish_autotest(entry, status="error", error=_import_error[0])
+        raise
+    # #region loader trace
+    _mark("after_import_entry", entry=entry)
+    # #endregion
+    if _autotest_enabled() and not _autotest_sent[0]:
+        # Oneshot demos that return from import still need a quit path + event pump.
+        _app = _arm_autotest_on_quit(entry, ensure_app_setup=True)
+        _arm_autotest_host_pump(_app)
+        _pump_autotest_app(_app)
+
+_run()
+</script>
+    <script type="module" src="./wasm-config.js"></script>
+</body>
+
+</html>
