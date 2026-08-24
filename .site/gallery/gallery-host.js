@@ -83,17 +83,17 @@ async function installPackages(mp, plan) {
     const index = "https://PyDevices.github.io/mip";
     await mp.runPythonAsync(`
 import mip
-mip.install("pydevices-desktop", index=${pythonLiteral(index)}, target="/lib")
+mip.install("pydevices-desktop", index=${pythonLiteral(index)}, target="lib")
 `);
     for (const dependency of plan.deps) {
         await mp.runPythonAsync(
-            `mip.install(${pythonLiteral(dependency)}, index=${pythonLiteral(index)}, target="/lib")`
+            `mip.install(${pythonLiteral(dependency)}, index=${pythonLiteral(index)}, target="lib")`
         );
     }
     for (const manifest of plan.manifests) {
         const url = new URL(`./packages/${manifest}.json`, location.href).href;
         await mp.runPythonAsync(
-            `mip.install(${pythonLiteral(url)}, index=${pythonLiteral(index)}, target="/lib")`
+            `mip.install(${pythonLiteral(url)}, index=${pythonLiteral(index)}, target="lib")`
         );
     }
 }
@@ -102,9 +102,7 @@ async function executePlan(mp, plan) {
     await mp.runPythonAsync(`
 import os, sys
 os.chdir("/")
-for _path in ("/lib", "/examples", "/utils"):
-    if _path not in sys.path:
-        sys.path.insert(0, _path)
+sys.path[:] = [".", ".frozen", "lib", "utils", "examples"]
 `);
     if (plan.command !== null) {
         await mp.runPythonAsync(plan.command);
@@ -187,5 +185,19 @@ const microphoneButton = document.getElementById("enable-microphone");
 audioButton?.addEventListener("click", () => enableFromControl(audioButton, false));
 microphoneButton?.addEventListener("click", () => enableFromControl(microphoneButton, true));
 document.getElementById("reset-runtime")?.addEventListener("click", () => state.reset());
+
+// The bare interpreter-page layout has no visible "Enable Audio" control, so
+// unlock the AudioContext on the page's first gesture instead — matching
+// web_audio.py's _arm_resume_on_gesture behavior for the PSDisplay backend.
+// Output-only: never requests the microphone without an explicit button.
+let audioGestureArmed = false;
+function armAudioGesture() {
+    if (audioGestureArmed) return;
+    audioGestureArmed = true;
+    const tryEnable = () => { state.enableAudio(false).catch(() => {}); };
+    document.addEventListener("pointerdown", tryEnable, {once: true});
+    document.addEventListener("keydown", tryEnable, {once: true});
+}
+armAudioGesture();
 
 await boot();

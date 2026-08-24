@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="../pyscript/site.css">
     <link rel="stylesheet" href="../pyscript/demo.css">
 </head>
-<body data-runtime-state="loading">
+<body class="interpreter-page" data-loader-interpreter="mp" data-runtime-state="loading">
     <div id="pydevices-site-header"></div>
     <main class="wrap loader-main">
         <nav class="crumbs"><a href="./index.html">Gallery</a><span class="sep">/</span><span>Direct MicroPython</span></nav>
@@ -29,6 +29,9 @@
                 <div class="device">
                     <canvas id="display_canvas" width="320" height="480" tabindex="0" aria-label="Application display"></canvas>
                     <canvas id="aux_canvas" width="1" height="1" tabindex="0" hidden></canvas>
+                    <div class="device-footer">
+                        <button type="button" class="console-toggle" aria-expanded="false">Show console</button>
+                    </div>
                 </div>
             </div>
             <section class="console-panel" aria-label="Console output">
@@ -48,8 +51,8 @@
             document.title = `${entry} — Direct MicroPython`;
         }
     </script>
-    <script type="module" src="./runtime-host.js"></script>
-    <script src="../pyscript/site-chrome.js"></script>
+    <script type="module" src="./gallery-host.js"></script>
     <script src="../pyscript/theme-toggle.js"></script>
+    <script src="../pyscript/interpreter-layout.js"></script>
 </body>
 </html>

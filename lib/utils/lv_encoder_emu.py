@@ -137,6 +137,16 @@ def make_emu_display(
         dd.get_events()
         host = HostInput(host_read=dd.get_events, display=dd)
         return dd, [host]
+    if name == "WasmDisplay":
+        from display_driver import HostInput
+
+        from displaydev.wasmdisplay import WasmDisplay
+
+        # Per-canvas drain (WasmDisplay owns WasmDevices), same shape as PSDisplay.
+        cid = canvas_id if canvas_id is not None else "aux_canvas"
+        dd = WasmDisplay(width, height, canvas_id=cid, quiet=True)
+        host = HostInput(host_read=dd.get_events, display=dd)
+        return dd, [host]
     raise ValueError(f"lv_encoder_emu: unsupported backend {name!r}")
 
 

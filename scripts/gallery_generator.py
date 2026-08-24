@@ -31,8 +31,8 @@ Then:
   - Enforces shared org chrome mounts via ``ensure_site_chrome``
   - Deletes stale ``.site/gallery/*.html`` from the old per-demo page generator
 
-Each card links direct MicroPython first and retained Pyodide second with
-queries from pydevices' shared private URL policy. Hinch GUIs are not listed in headers — ``fetch_ph_gui``
+Each card links direct MicroPython only (the gallery's one supported runtime)
+with queries from pydevices' shared private URL policy. Hinch GUIs are not listed in headers — ``fetch_ph_gui``
 installs them at runtime via color/hardware/touch setup.
 
     python scripts/gallery_generator.py
@@ -70,7 +70,9 @@ from _browser_url import query as browser_query  # noqa: E402
 EXAMPLES_DIR = REPO_ROOT / "lib" / "examples"
 GALLERY_DIR = REPO_ROOT / ".site" / "gallery"
 INDEX = GALLERY_DIR / "index.html"
-THUMBNAILS_DIR = REPO_ROOT / ".site" / "pyscript" / "thumbnails"
+PYSCRIPT_DIR = REPO_ROOT / ".site" / "pyscript"
+PYSCRIPT_INDEX = PYSCRIPT_DIR / "index.html"
+THUMBNAILS_DIR = PYSCRIPT_DIR / "thumbnails"
 PYTHON_FILES = GALLERY_DIR / "python-files.json"
 SCREENSHOT_TOOL = REPO_ROOT / "tools" / "screenshot.py"
 
@@ -88,11 +90,6 @@ KEEP_HTML = frozenset(
         "py",
         "peterhinch",
     }
-)
-
-ARROW = (
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
-    'stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'
 )
 
 GENERIC_ICON = (
@@ -418,13 +415,38 @@ def discover() -> list[Example]:
     return found
 
 
+# Package deps that are also top-level PyDevices org repos get that repo's
+# real ecosystem tier (see .site/pyscript/site-chrome.js ECOSYSTEM_DATA).
+# appdev and multimer ship inside pydevices' own lib/, so they take its tier.
+_DEP_TIER = {
+    "pygraphics": 2,
+    "pdwidgets": 2,
+    "palettes": 2,
+    "lvgl": 3,
+    "appdev": 1,
+    "multimer": 1,
+}
+
+
+def _badge_tier(name: str) -> int:
+    """A stable tier (1-5) for a badge, reusing the org's tier color palette.
+
+    Deps that map to a real org repo get that repo's tier; everything else
+    (utils modules, unknown deps) gets a deterministic pick across the same
+    five tier colors so each distinct tag still keeps its own color.
+    """
+    if name in _DEP_TIER:
+        return _DEP_TIER[name]
+    return sum(map(ord, name)) % 5 + 1
+
+
 def _render_badges(ex: Example) -> str:
     """Render deps and utils as colored badge spans next to the card tag."""
     parts: list[str] = []
     for dep in ex.deps:
-        parts.append(f'<span class="badge dep">{dep}</span>')
-    for ao in ex.utils:
-        parts.append(f'<span class="badge add-on">{ao}</span>')
+        parts.append(f'<span class="badge dep tag-tier-{_badge_tier(dep)}">{dep}</span>')
+    for util in ex.utils:
+        parts.append(f'<span class="badge util tag-tier-{_badge_tier(util)}">{util}</span>')
     if not parts:
         return ""
     return "\n                        " + "\n                        ".join(parts)
@@ -485,7 +507,7 @@ def render_card_icon(ex: Example) -> str:
     return GENERIC_ICON
 
 
-def render_card(ex: Example) -> str:
+def render_card(ex: Example, *, runtime: str = "micropython") -> str:
     if ex.featured:
         tag = '\n                        <span class="tag featured">featured</span>'
     elif ex.nochrome:
@@ -496,7 +518,7 @@ def render_card(ex: Example) -> str:
     hrefs = ex.loader_hrefs()
     icon = render_card_icon(ex)
     link_attrs = ' target="_blank" rel="noopener"' if ex.nochrome else ""
-    return f'''                <article class="card">
+    return f'''                <a class="card" href="{hrefs[runtime]}"{link_attrs}>
                     <div class="card-top">
                         <span class="card-icon">{icon}</span>
                         <span class="card-badges">{tag}{badges}
@@ -504,15 +526,11 @@ def render_card(ex: Example) -> str:
                     </div>
                     <h3>{ex.title}</h3>
                     <p>{ex.blurb}</p>
-                    <div class="card-interpreters">
-                        <a class="go" href="{hrefs["micropython"]}"{link_attrs}>Direct MicroPython {ARROW}</a>
-                        <a class="go" href="{hrefs["pyodide"]}"{link_attrs}>Pyodide {ARROW}</a>
-                    </div>
-                </article>'''
+                </a>'''
 
 
-def render_cards(examples: list[Example]) -> str:
-    return "\n".join(render_card(ex) for ex in examples if ex.in_gallery)
+def render_cards(examples: list[Example], *, runtime: str = "micropython") -> str:
+    return "\n".join(render_card(ex, runtime=runtime) for ex in examples if ex.in_gallery)
 
 
 def replace_block(text: str, key: str, payload: str) -> str:
@@ -731,21 +749,25 @@ def main(argv: list[str] | None = None) -> int:
     remove_stale_example_json(stale, args.check)
     remove_stale_demo_html(stale, args.check)
 
-    index_text = INDEX.read_text(encoding="utf-8")
-    if "<!-- GEN:demos:start -->" not in index_text:
-        raise SystemExit(
-            f"{INDEX.name} is missing <!-- GEN:demos:start --> "
-            "(collapse async/all sections before regenerating)"
+    def regenerate_index(path: Path, runtime: str) -> None:
+        index_text = path.read_text(encoding="utf-8")
+        if "<!-- GEN:demos:start -->" not in index_text:
+            raise SystemExit(
+                f"{path.name} is missing <!-- GEN:demos:start --> "
+                "(collapse async/all sections before regenerating)"
+            )
+        index_text = ensure_card_interpreter_css(index_text)
+        index_text = ensure_site_chrome(index_text)
+        # Update hint text for new headers.
+        index_text = index_text.replace(
+            "# pyscript skip: gallery",
+            "# gallery: skip",
         )
-    index_text = ensure_card_interpreter_css(index_text)
-    index_text = ensure_site_chrome(index_text)
-    # Update hint text for new headers.
-    index_text = index_text.replace(
-        "# pyscript skip: gallery",
-        "# gallery: skip",
-    )
-    index_text = replace_block(index_text, "demos", render_cards(examples))
-    write(INDEX, index_text)
+        index_text = replace_block(index_text, "demos", render_cards(examples, runtime=runtime))
+        write(path, index_text)
+
+    regenerate_index(INDEX, "micropython")
+    regenerate_index(PYSCRIPT_INDEX, "pyodide")
     python_files = gallery_example_files()
     python_files.extend(tracked_utility_files())
     write(PYTHON_FILES, json.dumps(sorted(set(python_files)), indent=2) + "\n")
