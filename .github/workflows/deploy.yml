@@ -55,6 +55,8 @@ jobs:
           cp pydevices-examples.toml _site/pyscript/pydevices-examples.toml
           # Direct MicroPython stages only generated Python paths. Additional
           # assets are fetched through the declared package manifests.
+          # Replace symlinks inside _site/gallery with real trees for GitHub Pages.
+          rm -rf _site/gallery/lib _site/gallery/packages
           mkdir -p _site/gallery/lib _site/gallery/packages
           cp -r lib/utils _site/gallery/lib/
           python scripts/gallery_generator.py --copy-examples _site/gallery/lib/examples
