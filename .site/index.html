@@ -34,7 +34,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-1-2.6c3-.3 6-1.5 6-6.5a5 5 0 0 0-1.4-3.5 4.6 4.6 0 0 0-.1-3.5s-1.1-.3-3.5 1.3a12 12 0 0 0-6 0C6.6 1.7 5.5 2 5.5 2a4.6 4.6 0 0 0-.1 3.5A5 5 0 0 0 4 9c0 5 3 6.2 6 6.5a3.4 3.4 0 0 0-1 2.6V22"/></svg>
         GitHub Repo
       </a>
-      <a class="btn" style="border-color: var(--tier-1-amber); color: var(--tier-1-amber);" href="https://pydevices.github.io/pydevices-examples/gallery/">WebAssembly Gallery</a>
+      <a class="btn" style="border-color: var(--tier-1-amber); color: var(--tier-1-amber);" href="https://pydevices.github.io/pydevices-examples/gallery/">Gallery</a>
       <a class="btn" style="border-color: var(--tier-1-amber); color: var(--tier-1-amber);" href="https://PyDevices.github.io/mip">MIP Index</a>
       <a class="btn" style="border-color: var(--tier-1-amber); color: var(--tier-1-amber);" href="https://pydevices.github.io/pydevices/">pydevices Core</a>
       </div>
@@ -57,9 +57,13 @@
             <span class="hint">board_config + Interpreter — one idiom everywhere</span>
         </div>
         <div class="install-block">
-            <pre><code>from board_config import display_drv, app
+            <pre><code>import board_config
+from board_config import display_drv
+import appdev
+import events
 
-app.on(app.events.MOUSEBUTTONDOWN, on_click)
+app = appdev.App(board_config)
+app.on(events.MOUSEBUTTONDOWN, on_click)
 app.run()</code></pre>
         </div>
         <p class="prose" style="margin-top: 14px;">

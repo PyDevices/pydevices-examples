@@ -4,35 +4,32 @@
     <meta charset="utf-8">
     <script>try{if(localStorage.getItem('pydevices-theme')==='light'){document.documentElement.setAttribute('data-theme','light');}}catch(e){}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>pydevices-examples — WebAssembly Gallery</title>
-    <meta name="description" content="Direct MicroPython WebAssembly gallery of PyDevices examples.">
-    <link rel="icon" type="image/svg+xml" href="https://pydevices.github.io/assets/img/logo.svg">
+  <!-- PYDEVICES-HEAD-TAGS: START -->
+  <title>pydevices-examples — WebAssembly Gallery</title>
+  <meta name="description" content="Direct MicroPython WebAssembly demos that run the same PyDevices examples as MCUs and CPython. Explore drawing, input, widgets, and LVGL without flashing a board first.">
+  <link rel="icon" type="image/svg+xml" href="/assets/img/logo.svg">
+  <!-- PYDEVICES-HEAD-TAGS: END -->
     <script src="../pyscript/mini-coi-fd.js"></script>
     <link rel="stylesheet" href="/assets/chrome/site.css">
     <link rel="stylesheet" href="../pyscript/gallery.css">
 </head>
 <body>
-    <div id="pydevices-site-header"></div>
+  <!-- PYDEVICES-ABOVE-THE-FOLD: START -->
+  <div id="pydevices-site-header"></div>
 
-    <section class="hero wrap">
-        <div class="hero-lead">
-            <div class="hero-brand">
-                <div class="logo-badge product-mark" style="background: linear-gradient(135deg, var(--tier-1-amber), #d97706); color: #fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/><circle cx="17" cy="15" r="1.5"/></svg></div>
-                <span class="eyebrow" style="color: var(--tier-1-amber);">PyDevices / pydevices-examples · WebAssembly Gallery</span>
-            </div>
-            <h1>WebAssembly Gallery</h1>
-        </div>
-        <p>
-            Direct MicroPython WebAssembly demos that run the same PyDevices
-            examples as MCUs and CPython. Explore drawing, input, widgets,
-            and LVGL without flashing a board first.
-        </p>
-        <p>
-            Click a card to launch the app. The first load may take a few
-            seconds while the interpreter downloads; featured demos stay
-            pinned at the top.
-        </p>
-    </section>
+  <!-- Hero Banner -->
+  <section class="hero wrap">
+    <div class="hero-lead">
+      <div class="hero-brand">
+        <div class="logo-badge product-mark" style="background: linear-gradient(135deg, var(--tier-1-amber), #d97706); color: #fff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/><circle cx="17" cy="15" r="1.5"/></svg></div>
+        <span class="eyebrow" style="color: var(--tier-1-amber);">PyDevices / pydevices-examples · WebAssembly Gallery</span>
+      </div>
+      <h1>WebAssembly Gallery</h1>
+    </div>
+    <p>Direct MicroPython WebAssembly demos that run the same PyDevices examples as MCUs and CPython. Explore drawing, input, widgets, and LVGL without flashing a board first.</p>
+    <p>Click a card to launch the app. The first load may take a few seconds while the interpreter downloads; featured demos stay pinned at the top.</p>
+  </section>
+  <!-- PYDEVICES-ABOVE-THE-FOLD: END -->
 
     <main class="wrap gallery-main">
         <section class="section" id="demos">
@@ -46,6 +43,9 @@
                 >Select</button>
                 <h2>Apps</h2>
                 <span class="hint">a curated list from <code>lib/examples/</code></span>
+                <a class="gallery-collection-link" href="../pyscript/index.html">
+                    PyScript Gallery (Pyodide) <span aria-hidden="true">→</span>
+                </a>
                 <a class="gallery-collection-link" href="./peterhinch.html?touch">
                     Peter Hinch GUI demos <span aria-hidden="true">→</span>
                 </a>
@@ -671,7 +671,6 @@
 
     </main>
 
-    <div id="pydevices-site-footer"></div>
 
     <script>
         (function () {
