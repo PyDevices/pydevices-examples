@@ -147,7 +147,9 @@
 
   .gallery-drawer-scrim {
     position: fixed;
-    z-index: 39;
+    /* Above the org nav sidebar's peeking tab (z-index: 90) so the drawer's
+       left edge isn't cut off by it on narrow viewports. */
+    z-index: 91;
     inset: 0;
     display: block;
     border: 0;
@@ -165,7 +167,7 @@
 
   .gallery-sidebar {
     position: fixed;
-    z-index: 40;
+    z-index: 96;
     top: 64px;
     bottom: 12px;
     left: 0;

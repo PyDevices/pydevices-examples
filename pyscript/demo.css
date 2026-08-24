@@ -110,7 +110,7 @@ html {
 }
 
 .interpreter-page .device {
-  padding: 6px 8px 16px;
+  padding: 16px 8px 16px;
 }
 
 .interpreter-page .console-panel {
@@ -259,6 +259,10 @@ html {
   border-radius: 10px;
   background-color: #000;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  /* Multi-touch gestures (pinch, 2-finger pan) go to the app, not the
+     browser's native zoom/scroll — preventDefault() on pointer events alone
+     isn't reliable against native touch-action handling. */
+  touch-action: none;
 }
 
 /* Starts 1×1; PSDisplay (lv_multi_display / EncoderEmu) resizes when used. */

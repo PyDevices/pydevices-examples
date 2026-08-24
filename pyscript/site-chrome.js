@@ -27,7 +27,7 @@
     '<header class="site-header">' +
     '<div class="wrap">' +
     '<a class="brand" href="' +
-    (ROOT || '/') +
+    ROOT +
     '/">' +
     '<span class="logo"><img src="' +
     LOGO +
@@ -35,19 +35,19 @@
     "PyDevices" +
     "</a>" +
     '<nav class="nav">' +
+    '<a href="https://github.com/PyDevices">GitHub</a>' +
     '<a href="' +
     ROOT +
     '/pydevices/">Core Stack</a>' +
     '<a href="' +
     ROOT +
+    '/displayif/">DisplayIF</a>' +
+    '<a href="' +
+    ROOT +
     '/simulator/">Simulator</a>' +
     '<a href="' +
     ROOT +
-    '/displayif/">Native C</a>' +
-    '<a href="' +
-    ROOT +
     '/pydevices-examples/gallery/" class="nav-gallery-link">Gallery</a>' +
-    '<a href="https://github.com/PyDevices">GitHub</a>' +
     "</nav>" +
     '<button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle color theme" title="Toggle color theme">' +
     '<svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>' +
@@ -262,7 +262,7 @@
     // 1. Peeking Handle (visible on screens <= 1400px when collapsed)
     html += '<div class="pydevices-nav-peeking-tab" id="pydevices-nav-peeking-tab" title="Click to browse PyDevices Ecosystem">';
     html += '  <img src="' + LOGO + '" alt="" class="peeking-logo" width="22" height="22">';
-    html += '  <span class="peeking-title">PYDEVICES</span>';
+    html += '  <span class="peeking-title">ECOSYSTEM</span>';
     html += '  <svg class="peeking-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>';
     html += '</div>';
 

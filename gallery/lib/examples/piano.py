@@ -147,15 +147,24 @@ class Piano:
         # early taps do not queue up and play late when the stream catches up.
         self._status = "Starting audio…"
         self._draw_all()
+        self._open_audio()
+        self._draw_all()
+
+    def _open_audio(self):
+        # The host only unlocks the AudioContext on the page's first
+        # gesture, so the very first attempt here (at __init__, before any
+        # click) is expected to fail; _press() retries on every tap until
+        # it succeeds once.
         try:
             self.eng.open()
             self._audio_ready = True
             self._status = "Tap keys  |  Z-/  Q-P"
+            return True
         except Exception as exc:
             self._audio_ready = False
             self._status = "Audio not available"
-            print("piano: audio open failed: %r" % (exc,), flush=True)
-        self._draw_all()
+            print("piano: audio open failed: %r" % (exc,))
+            return False
 
     def _build_geometry(self):
         y = self.kb_y
@@ -188,11 +197,9 @@ class Piano:
     def _press(self, source, midi):
         if midi is None:
             return
-        if not self._audio_ready:
-            if self._status != "Audio not available":
-                self._status = "Starting audio…"
-                self._draw_header()
-                display_drv.show()
+        if not self._audio_ready and not self._open_audio():
+            self._draw_header()
+            display_drv.show()
             return
         prev = self._sources.get(source)
         if prev == midi:

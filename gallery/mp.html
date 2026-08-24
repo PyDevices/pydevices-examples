@@ -5,17 +5,11 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Direct MicroPython</title>
     <style>
-        html,body{margin:0;background:#111;color:#eee;font:14px system-ui}main{display:grid;grid-template-columns:auto 1fr;gap:1rem;padding:1rem}canvas{max-width:100%;height:auto;image-rendering:pixelated;background:#000}pre{white-space:pre-wrap}button{margin:.2rem;padding:.5rem}
+        html,body{margin:0;background:#111;color:#eee;font:14px system-ui;display:grid;place-items:center;height:100%}canvas{max-width:100%;height:auto;image-rendering:pixelated;background:#000;touch-action:none}
     </style>
 </head>
 <body data-runtime-state="loading">
-    <main>
-        <div>
-            <canvas id="display_canvas" width="320" height="480" tabindex="0"></canvas>
-            <div><button id="enable-audio">Enable Audio</button><button id="enable-microphone">Enable Microphone</button><button id="reset-runtime">Reset</button></div>
-        </div>
-        <pre id="log"></pre>
-    </main>
-    <script type="module" src="./runtime-host.js"></script>
+    <canvas id="display_canvas" width="320" height="480" tabindex="0"></canvas>
+    <script type="module" src="./gallery-host.js"></script>
 </body>
 </html>

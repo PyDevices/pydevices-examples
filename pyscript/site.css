@@ -1858,6 +1858,18 @@ body.pydevices-drawer-open {
   color: var(--accent-strong);
 }
 
+.badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.18em 0.55em;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--ink-soft);
+  background: var(--panel-2);
+}
+
 @media (max-width: 760px) {
   .gallery-main {
     width: min(1080px, 92vw);
