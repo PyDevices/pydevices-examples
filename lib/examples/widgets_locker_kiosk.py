@@ -54,7 +54,11 @@ ERROR = pal.color565(0x9B, 0x22, 0x26)
 
 eng = None
 try:
-    audio_out = board_config.audio_out
+    # board_config.audio_out is now an audiodev.sample_out.AudioOut (a
+    # synthio-shaped sample player, see examples/piano.py); AudioEngine
+    # wants the raw PCMOutput transport underneath it for its own simple
+    # PCM mixer, not the sample player itself.
+    audio_out = board_config.audio_out.transport
     eng = AudioEngine(audio_out, chunk_ms=40, master=0.45, wave="sine")
     eng.attach(app)
 except Exception:

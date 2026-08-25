@@ -1,15 +1,15 @@
 # gallery: featured
 # deps: pygraphics
-# utils: audio
 """Two-octave landscape piano (480x320) with polyphonic touch and chords.
 
-Uses ``utils.audio.AudioEngine``. Touch or click keys to play; hold for
+Plays real ``synthio.Note``\\ s through ``board_peripherals.audio_out()`` --
+an ``audiodev.sample_out.AudioOut`` -- the same CircuitPython-shaped
+`play(sample)`/``attach(app)`` contract a CircuitPython board's native
+``audiobusio.I2SOut`` speaks natively. Touch or click keys to play; hold for
 sustain; multiple keys (and the computer keyboard) sound together. Rotates a
 portrait panel 90 degrees into landscape.
 """
 
-from audio import AudioEngine, midi_to_hz
-import board_config
 import board_config
 import appdev
 
@@ -17,6 +17,8 @@ app = appdev.App(board_config)
 import board_peripherals
 
 import keys
+import synthio
+import ulab.numpy as np
 from pygraphics import Draw
 
 display_drv = board_config.display_drv
@@ -24,6 +26,32 @@ display_drv = board_config.display_drv
 # interactive profile: the default is buffered for throughput, which a synth
 # writing at realtime pays as note-to-sound delay.
 audio_out = board_peripherals.audio_out(latency="low")
+
+# One additive waveform (fundamental + 2 harmonics), shared by every voice --
+# same shape as the old utils.audio.AudioEngine's built-in "piano" oscillator.
+# Coefficients sum to 1.0, so the peak can never exceed `_WAVE_VOLUME`
+# regardless of phase (triangle inequality) -- no separate normalization pass
+# needed.
+_WAVE_SIZE = 256
+_WAVE_VOLUME = 27000
+
+
+def _piano_wave():
+    t = np.linspace(0, 2 * np.pi, num=_WAVE_SIZE, endpoint=False)
+    wave = 0.70 * np.sin(t) + 0.22 * np.sin(t * 2) + 0.08 * np.sin(t * 3)
+    return np.array(wave * _WAVE_VOLUME, dtype=np.int16)
+
+
+_PIANO_WAVE = _piano_wave()
+
+synth = synthio.Synthesizer(
+    sample_rate=audio_out.format.rate,
+    channel_count=audio_out.format.channels,
+    waveform=_PIANO_WAVE,
+    envelope=synthio.Envelope(
+        attack_time=0.005, decay_time=0.15, release_time=0.35, sustain_level=0.65
+    ),
+)
 
 # Landscape keyboard target.
 if display_drv.width < display_drv.height:
@@ -116,8 +144,9 @@ def _note_label(midi):
 class Piano:
     def __init__(self):
         self.draw = Draw(display_drv)
-        self.eng = AudioEngine(audio_out, chunk_ms=40, master=0.5, wave="piano")
-        self.eng.attach(app)
+        # midi -> synthio.Note currently sounding
+        self._notes = {}
+        audio_out.attach(app)
 
         self.header_h = max(36, HEIGHT // 8)
         self.pad = max(4, min(WIDTH, HEIGHT) // 64)
@@ -154,9 +183,10 @@ class Piano:
         # The host only unlocks the AudioContext on the page's first
         # gesture, so the very first attempt here (at __init__, before any
         # click) is expected to fail; _press() retries on every tap until
-        # it succeeds once.
+        # it succeeds once. play() opens the transport as a side effect, so
+        # a failure to unlock raises here exactly like a bare open() would.
         try:
-            self.eng.open()
+            audio_out.play(synth)
             self._audio_ready = True
             self._status = "Tap keys  |  Z-/  Q-P"
             return True
@@ -209,7 +239,9 @@ class Piano:
         self._sources[source] = midi
         self._held[midi] = self._held.get(midi, 0) + 1
         if self._held[midi] == 1:
-            self.eng.note_on(midi, midi_to_hz(midi), amp=0.55, wave="piano")
+            note = synthio.Note(synthio.midi_to_hz(midi))
+            self._notes[midi] = note
+            synth.press(note)
         self._status = self._chord_status()
         self._draw_all()
 
@@ -220,7 +252,9 @@ class Piano:
         count = self._held.get(midi, 0) - 1
         if count <= 0:
             self._held.pop(midi, None)
-            self.eng.note_off(midi)
+            note = self._notes.pop(midi, None)
+            if note is not None:
+                synth.release(note)
         else:
             self._held[midi] = count
         self._status = self._chord_status()
@@ -359,7 +393,7 @@ def _on_key(e):
 
 
 def _on_quit(_e=None):
-    piano.eng.close()
+    audio_out.close()
     display_drv.quit()
 
 

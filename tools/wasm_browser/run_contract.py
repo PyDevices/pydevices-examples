@@ -16,6 +16,7 @@ from playwright.async_api import Browser, Page, async_playwright
 
 WORKSPACE = Path(__file__).resolve().parents[3]
 FIXTURE_PATH = "/pydevices-examples/tools/wasm_browser/fixture.html"
+AUDIO_SILENCE_THRESHOLD = 0.01
 
 
 class QuietHandler(SimpleHTTPRequestHandler):
@@ -265,6 +266,82 @@ __contract_result = json.dumps({'count': count, 'samples': samples})""",
     return {"formats": len(starts), "capture": captured}
 
 
+async def check_audio_out(page: Page) -> dict:
+    """A real synthio.Synthesizer, played through audiodev.sample_out.AudioOut
+    over the wasm_audio transport -- the same CircuitPython-shaped
+    play()/service() contract every host backend speaks (see
+    pydevices/docs/audio.md). Confirms the whole pull-the-graph/push-the-bytes
+    chain (synthio -> AudioOut -> WasmPCMOutput -> Web Audio) actually
+    produces real, non-silent PCM in a browser, not just that the DSP usermod
+    imports.
+    """
+    await page.evaluate("Module.pydevicesBridge.enableAudio(false)")
+    # __audioContext.starts accumulates across the whole page session (e.g.
+    # check_audio()'s 24 format cases already ran on this same page) -- mark
+    # where this check's own buffers begin so it only asserts on those.
+    start_index = await page.evaluate("__audioContext.starts.length")
+    result = await python_json(
+        page,
+        """import json
+import synthio
+from audiodev import AudioFormat
+from audiodev.sample_out import AudioOut
+from audiodev.wasm_audio import WasmPCMOutput
+import audiodev.sample_out as sample_out
+
+# Deterministic, manually-advanced clock: AudioOut schedules by wall time
+# (see sample_out.py), which a browser test should not depend on for a
+# stable number of pulled chunks -- same technique
+# audio_playback_golden_probe.py uses in the pydevices test suite.
+class _FakeClock:
+    def __init__(self):
+        self.now = 0
+    def ms(self):
+        return self.now
+    def diff(self, a, b):
+        return a - b
+    def advance(self, ms):
+        self.now += ms
+
+clock = _FakeClock()
+sample_out.ticks_ms = clock.ms
+sample_out.ticks_diff = clock.diff
+
+fmt = AudioFormat(8000, 1, 16, signed=True, byteorder='little')
+transport = WasmPCMOutput(fmt)
+out = AudioOut(transport, chunk_ms=40)
+synth = synthio.Synthesizer(sample_rate=fmt.rate, channel_count=fmt.channels)
+out.play(synth)
+note = synthio.Note(440.0)
+synth.press(note)
+for _ in range(6):
+    clock.advance(10)
+    out.service()
+synth.release(note)
+for _ in range(4):
+    clock.advance(10)
+    out.service()
+out.close()
+__contract_result = json.dumps({'ok': True})""",
+    )
+    assert result["ok"], result
+    starts = await page.evaluate(
+        """(startIndex) => __audioContext.starts.slice(startIndex).map(item => ({
+          channels:item.buffer.numberOfChannels, rate:item.buffer.sampleRate,
+          samples: Array.from(item.buffer.data[0])
+        }))""",
+        start_index,
+    )
+    assert len(starts) > 0, "AudioOut never scheduled any AudioBufferSource"
+    assert all(item["rate"] == 8000 and item["channels"] == 1 for item in starts), starts
+    # A pressed synthio.Note must produce real, non-silent, non-clipped PCM --
+    # not just call createBufferSource() with empty/silent data.
+    all_samples = [s for item in starts for s in item["samples"]]
+    assert any(abs(s) > AUDIO_SILENCE_THRESHOLD for s in all_samples), "AudioOut PCM was silent"
+    assert all(abs(s) <= 1.0 for s in all_samples), "AudioOut PCM exceeded full scale"
+    return {"buffers": len(starts), "frames": len(all_samples)}
+
+
 async def check_fetch_retry(page: Page, base_url: str) -> dict:
     result = await python_json(
         page,
@@ -302,6 +379,7 @@ async def run_browser(browser_name: str, browser: Browser, base_url: str) -> dic
             "timers": await check_timers(page),
             "fetch_retry": await check_fetch_retry(page, base_url),
             "audio": await check_audio(page),
+            "audio_out": await check_audio_out(page),
         }
     except Exception as error:
         diagnostics = {"url": page.url, "browser_errors": browser_errors}

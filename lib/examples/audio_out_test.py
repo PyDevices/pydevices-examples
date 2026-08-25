@@ -16,7 +16,9 @@ def main():
 
     import board_peripherals
 
-    out = board_peripherals.audio_out()
+    # board_peripherals.audio_out() is an AudioOut sample player now; this
+    # test exercises the raw PCM transport underneath it directly.
+    out = board_peripherals.audio_out().transport
     fmt = out.format
     print("format:", fmt.channels, fmt.rate, fmt.bits, fmt.signed)
 

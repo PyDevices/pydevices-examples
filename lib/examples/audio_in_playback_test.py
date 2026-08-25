@@ -136,7 +136,9 @@ def main(argv=None):
     backend = getattr(board_peripherals, "_select_backend", lambda: "?")()
     print("board_peripherals backend:", backend)
 
-    out = board_peripherals.audio_out()
+    # board_peripherals.audio_out() is an AudioOut sample player now; this
+    # test writes raw PCM directly, so it uses the transport underneath it.
+    out = board_peripherals.audio_out().transport
     fmt = out.format
     print("format:", fmt.channels, fmt.rate, fmt.bits, fmt.signed)
 
