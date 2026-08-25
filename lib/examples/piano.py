@@ -164,11 +164,23 @@ class Piano:
         self._white_geom = {}
         self._black_geom = {}
         self._build_geometry()
+        # white midi -> black midis whose rects overlap it, so a dirty
+        # white-key repaint can restore the black keys drawn on top of it
+        self._blacks_over = {}
+        for wm, (wx, _wy, ww, _wh) in self._white_geom.items():
+            over = []
+            for bm, (bx, _by, bw, _bh) in self._black_geom.items():
+                if bx < wx + ww and bx + bw > wx:
+                    over.append(bm)
+            self._blacks_over[wm] = over
 
         # source_id -> midi
         self._sources = {}
         # midi -> refcount
         self._held = {}
+        # last drawn pressed-state per key / header status, for dirty redraws
+        self._drawn_pressed = {}
+        self._drawn_status = None
         self._audio_ready = False
         # Android focus + mediaPlayback FGS + OpenSL take a few seconds on
         # first open. Warm here (before event handlers) and gate notes so
@@ -242,7 +254,7 @@ class Piano:
             self._notes[midi] = note
             synth.press(note)
         self._status = self._chord_status()
-        self._draw_all()
+        self._refresh()
 
     def _release_source(self, source, redraw=True):
         midi = self._sources.pop(source, None)
@@ -258,7 +270,7 @@ class Piano:
             self._held[midi] = count
         self._status = self._chord_status()
         if redraw:
-            self._draw_all()
+            self._refresh()
 
     def _chord_status(self):
         if not self._held:
@@ -297,6 +309,9 @@ class Piano:
             status = status[: max_chars - 1] + "."
         sw = len(status) * 8
         self.draw.text(status, WIDTH - self.pad - sw - 4, (self.header_h - 8) // 2, COL_GOLD)
+        led = COL_LED if self._held else COL_GOLD_DIM
+        self.draw.fill_rect(WIDTH - self.pad - 10, 8, 8, 8, led)
+        self._drawn_status = self._status
 
     def _draw_case(self):
         self.draw.fill_rect(0, self.header_h, WIDTH, HEIGHT - self.header_h, COL_BG)
@@ -312,12 +327,46 @@ class Piano:
         self._draw_header()
         self._draw_case()
         for midi in self.white_midis:
-            self._draw_key_white(midi, midi in self._held)
+            pressed = midi in self._held
+            self._draw_key_white(midi, pressed)
+            self._drawn_pressed[midi] = pressed
         for midi in self._black_geom:
-            self._draw_key_black(midi, midi in self._held)
-        led = COL_LED if self._held else COL_GOLD_DIM
-        self.draw.fill_rect(WIDTH - self.pad - 10, 8, 8, 8, led)
+            pressed = midi in self._held
+            self._draw_key_black(midi, pressed)
+            self._drawn_pressed[midi] = pressed
         display_drv.show()
+
+    def _refresh(self):
+        """Repaint only what changed since the last paint (keys + header).
+
+        A full ``_draw_all`` per key event is ~40 keys of fill/border/text
+        work -- cheap-ish on desktop SDL, but real bus traffic on an MCU
+        panel, and every ms spent painting is taken from the audio pump's
+        tick budget. Dirty white keys also repaint the black keys drawn on
+        top of them (``_blacks_over``).
+        """
+        changed = False
+        repaint_blacks = {}
+        for midi in self.white_midis:
+            pressed = midi in self._held
+            if self._drawn_pressed.get(midi) == pressed:
+                continue
+            self._draw_key_white(midi, pressed)
+            self._drawn_pressed[midi] = pressed
+            changed = True
+            for bm in self._blacks_over[midi]:
+                repaint_blacks[bm] = True
+        for midi in self._black_geom:
+            pressed = midi in self._held
+            if midi in repaint_blacks or self._drawn_pressed.get(midi) != pressed:
+                self._draw_key_black(midi, pressed)
+                self._drawn_pressed[midi] = pressed
+                changed = True
+        if self._status != self._drawn_status:
+            self._draw_header()
+            changed = True
+        if changed:
+            display_drv.show()
 
     def on_pointer_down(self, source, pos):
         self._press(source, self._hit_test(pos[0], pos[1]))
