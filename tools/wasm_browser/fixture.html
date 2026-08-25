@@ -73,6 +73,11 @@
       });
       contract.mp = mp;
       await mp.runPythonAsync(`
+# The wasm build deliberately freezes no pydevices libs (they are work in
+# progress; frozen copies silently shadow installed ones) -- stage the
+# published package first, same as hero-runtime.js.
+import mip
+mip.install("pydevices", index="https://PyDevices.github.io/mip", target="lib")
 from displaydev.wasmdisplay import WasmDisplay
 display = WasmDisplay(4, 2, quiet=True)
 display.init()
