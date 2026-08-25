@@ -119,10 +119,29 @@ def _read_floors(path: str) -> dict[str, str]:
 
 
 def _write_floors(path: str, versions: dict[str, str]) -> bool:
-    """Write PACKAGE_ORDER floors. Return True if the file content changed."""
-    lines = [f"--index-url {INDEX_URL}", ""]
-    for name in PACKAGE_ORDER:
-        lines.append(f"{name}>={versions[name]}")
+    """Update floors in place. Return True if the file content changed.
+
+    Rewrites only lines that already carry a ``name>=ver`` floor for a known
+    package. Everything else survives verbatim -- ``--extra-index-url``, blank
+    lines, comments, unpinned names, and packages outside PACKAGE_ORDER, none of
+    which this script is the source of truth for. Regenerating the file from
+    PACKAGE_ORDER instead would silently drop them.
+    """
+    old = ""
+    if os.path.isfile(path):
+        with open(path, encoding="utf-8") as handle:
+            old = handle.read()
+
+    lines = []
+    for line in old.splitlines():
+        match = _FLOOR_RE.match(line.strip())
+        if match and match.group(1) in versions:
+            lines.append(f"{match.group(1)}>={versions[match.group(1)]}")
+        else:
+            lines.append(line)
+    if not old:
+        lines = [f"--index-url {INDEX_URL}", ""]
+        lines.extend(f"{name}>={versions[name]}" for name in PACKAGE_ORDER)
     text = "\n".join(lines) + "\n"
 
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
