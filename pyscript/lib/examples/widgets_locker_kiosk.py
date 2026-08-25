@@ -1,5 +1,4 @@
 # deps: pdwidgets
-# utils: audio
 """
 widgets_locker_kiosk
 ====================================================
@@ -7,16 +6,18 @@ Parcel locker and community-room booking kiosk with audio feedback.
 
 Plum / mint palette on a landscape grid (90-degree rotation on portrait panels).
 Enter PIN 1234 to unlock a compartment; book a room with date and accent color.
-Short UI blips via ``utils.audio.AudioEngine``.
+Short UI blips via a real ``synthio.Note`` played through
+``board_config.audio_out`` (an ``audiodev.sample_out.AudioOut``, see
+``examples/piano.py``).
 """
 
-import board_config
 import board_config
 import appdev
 
 app = appdev.App(board_config)
 import pdwidgets as pd
-from audio import AudioEngine
+import synthio
+import ulab.numpy as np
 
 pd.DEBUG = False
 
@@ -52,17 +53,46 @@ PIN_FACE = pal.color565(0x1F, 0x15, 0x22)
 OPEN = pal.color565(0x52, 0xB7, 0x88)
 ERROR = pal.color565(0x9B, 0x22, 0x26)
 
-eng = None
+# A single-cycle sine, short attack/decay/release -- a plain UI "blip", not
+# an instrument voice (contrast piano.py's additive harmonic-stack wave).
+_BLIP_WAVE_SIZE = 256
+_BLIP_WAVE_VOLUME = 24000
+
+
+def _blip_wave():
+    t = np.linspace(0, 2 * np.pi, num=_BLIP_WAVE_SIZE, endpoint=False)
+    return np.array(np.sin(t) * _BLIP_WAVE_VOLUME, dtype=np.int16)
+
+
+blip_synth = None
 try:
-    # board_config.audio_out is now an audiodev.sample_out.AudioOut (a
-    # synthio-shaped sample player, see examples/piano.py); AudioEngine
-    # wants the raw PCMOutput transport underneath it for its own simple
-    # PCM mixer, not the sample player itself.
-    audio_out = board_config.audio_out.transport
-    eng = AudioEngine(audio_out, chunk_ms=40, master=0.45, wave="sine")
-    eng.attach(app)
+    audio_out = board_config.audio_out
+    blip_synth = synthio.Synthesizer(
+        sample_rate=audio_out.format.rate,
+        channel_count=audio_out.format.channels,
+        waveform=_blip_wave(),
+        envelope=synthio.Envelope(
+            attack_time=0.002, decay_time=0.03, release_time=0.05, sustain_level=0.7
+        ),
+    )
+    audio_out.play(blip_synth)
+    audio_out.attach(app)
 except Exception:
-    pass
+    audio_out = None
+    blip_synth = None
+
+
+def _after(ms, fn):
+    """Run *fn* once, ``ms`` milliseconds from now, via the app's shared timer."""
+    sub = None
+
+    def _fire(_=None):
+        if sub is not None:
+            sub.cancel()
+        fn()
+
+    sub = app.every(ms, _fire)
+    return sub
 
 DEMO_PIN = "1234"
 
@@ -193,11 +223,14 @@ _state = {"selected": None, "open": set(), "booking": False, "task": None, "poll
 
 
 def _blip(hz, ms=40):
-    if eng is not None and sound_toggle.value:
-        try:
-            eng.blip(hz, ms=ms)
-        except Exception:
-            pass
+    if blip_synth is None or not sound_toggle.value:
+        return
+    try:
+        note = synthio.Note(hz)
+        blip_synth.press(note)
+        _after(ms, lambda: blip_synth.release(note))
+    except Exception:
+        pass
 
 
 def _on_digit(_d=None, _value=None):

@@ -125,7 +125,6 @@
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/widgets_clinic_queue.py" = "/examples/widgets_clinic_queue.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/widgets_energy_panel.py" = "/examples/widgets_energy_panel.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/widgets_locker_kiosk.py" = "/examples/widgets_locker_kiosk.py"
-"https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/utils/audio.py" = "/utils/audio.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/utils/color_setup.py" = "/utils/color_setup.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/utils/console.py" = "/utils/console.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/utils/displaybuf.py" = "/utils/displaybuf.py"

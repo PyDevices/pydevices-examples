@@ -27,8 +27,7 @@ display_drv = board_config.display_drv
 # writing at realtime pays as note-to-sound delay.
 audio_out = board_peripherals.audio_out(latency="low")
 
-# One additive waveform (fundamental + 2 harmonics), shared by every voice --
-# same shape as the old utils.audio.AudioEngine's built-in "piano" oscillator.
+# One additive waveform (fundamental + 2 harmonics), shared by every voice.
 # Coefficients sum to 1.0, so the peak can never exceed `_WAVE_VOLUME`
 # regardless of phase (triangle inequality) -- no separate normalization pass
 # needed.
