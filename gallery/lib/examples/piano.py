@@ -1,5 +1,5 @@
 # gallery: featured
-# deps: pygraphics
+# deps: audioif, pygraphics
 """Two-octave landscape piano (480x320) with polyphonic touch and chords.
 
 Plays real ``synthio.Note``\\ s through ``board_peripherals.audio_out()`` --
@@ -18,7 +18,8 @@ import board_peripherals
 
 import keys
 import synthio
-import ulab.numpy as np
+from array import array
+from math import pi, sin
 from pygraphics import Draw
 
 display_drv = board_config.display_drv
@@ -36,9 +37,16 @@ _WAVE_VOLUME = 27000
 
 
 def _piano_wave():
-    t = np.linspace(0, 2 * np.pi, num=_WAVE_SIZE, endpoint=False)
-    wave = 0.70 * np.sin(t) + 0.22 * np.sin(t * 2) + 0.08 * np.sin(t * 3)
-    return np.array(wave * _WAVE_VOLUME, dtype=np.int16)
+    return array(
+        "h",
+        (
+            int(
+                (0.70 * sin(t) + 0.22 * sin(t * 2) + 0.08 * sin(t * 3))
+                * _WAVE_VOLUME
+            )
+            for t in (2 * pi * i / _WAVE_SIZE for i in range(_WAVE_SIZE))
+        ),
+    )
 
 
 _PIANO_WAVE = _piano_wave()
