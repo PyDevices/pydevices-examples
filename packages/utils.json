@@ -1,10 +1,6 @@
 {
   "urls": [
     [
-      "audio.py",
-      "github:PyDevices/pydevices-examples/lib/lib/utils/audio.py"
-    ],
-    [
       "color_setup.py",
       "github:PyDevices/pydevices-examples/lib/lib/utils/color_setup.py"
     ],
