@@ -419,6 +419,7 @@ def discover() -> list[Example]:
 # real ecosystem tier (see .site/pyscript/site-chrome.js ECOSYSTEM_DATA).
 # appdev and multimer ship inside pydevices' own lib/, so they take its tier.
 _DEP_TIER = {
+    "audioif": 2,
     "pygraphics": 2,
     "pdwidgets": 2,
     "palettes": 2,

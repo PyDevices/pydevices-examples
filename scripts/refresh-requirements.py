@@ -26,6 +26,7 @@ import urllib.request
 # per-component entries that used to head this list are gone.
 PACKAGE_ORDER = (
     "pydevices",
+    "pydevices-audioif",
     "pydevices-pygraphics",
     "pydevices-palettes",
     "pydevices-pdwidgets",

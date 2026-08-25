@@ -1,4 +1,4 @@
-# deps: pdwidgets
+# deps: audioif, pdwidgets
 """
 widgets_locker_kiosk
 ====================================================
@@ -17,7 +17,8 @@ import appdev
 app = appdev.App(board_config)
 import pdwidgets as pd
 import synthio
-import ulab.numpy as np
+from array import array
+from math import pi, sin
 
 pd.DEBUG = False
 
@@ -60,8 +61,10 @@ _BLIP_WAVE_VOLUME = 24000
 
 
 def _blip_wave():
-    t = np.linspace(0, 2 * np.pi, num=_BLIP_WAVE_SIZE, endpoint=False)
-    return np.array(np.sin(t) * _BLIP_WAVE_VOLUME, dtype=np.int16)
+    return array(
+        "h",
+        (int(sin(2 * pi * i / _BLIP_WAVE_SIZE) * _BLIP_WAVE_VOLUME) for i in range(_BLIP_WAVE_SIZE)),
+    )
 
 
 blip_synth = None
