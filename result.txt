@@ -1,2 +1,0 @@
-list failed: <method 'set_map' of 'lvgl.buttonmatrix' objects> returned a result with an exception set
-ctypes worked
