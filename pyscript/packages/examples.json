@@ -385,6 +385,10 @@
       "github:PyDevices/pydevices-examples/lib/lib/examples/circuitpython/simon_waveshare_rp2040_touch_lcd_1_28.py"
     ],
     [
+      "drum_seq/panel.py",
+      "github:PyDevices/pydevices-examples/lib/lib/examples/drum_seq/panel.py"
+    ],
+    [
       "noto_fonts/NotoSansMono_32.py",
       "github:PyDevices/pydevices-examples/lib/lib/examples/noto_fonts/NotoSansMono_32.py"
     ],

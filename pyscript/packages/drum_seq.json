@@ -1,0 +1,9 @@
+{
+  "urls": [
+    [
+      "drum_seq/panel.py",
+      "../lib/examples/drum_seq/panel.py"
+    ]
+  ],
+  "version": "0.0.1"
+}
