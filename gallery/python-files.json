@@ -46,6 +46,7 @@
   "displaybuf_simpletest.py",
   "displaysys_block_test.py",
   "displaysys_fill_rect_test.py",
+  "drum_machine/drum_machine.py",
   "feathers.py",
   "fonts.py",
   "framebuf_simpletest.py",

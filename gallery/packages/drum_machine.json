@@ -1,0 +1,9 @@
+{
+  "urls": [
+    [
+      "drum_machine/drum_machine.py",
+      "../lib/examples/drum_machine/drum_machine.py"
+    ]
+  ],
+  "version": "0.0.1"
+}
