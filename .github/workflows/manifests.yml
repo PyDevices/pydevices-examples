@@ -29,7 +29,7 @@ on:
 
 jobs:
   validate-pyscript-filesystem-toml:
-    uses: PyDevices/.github/.github/workflows/reusable-validate-pyscript-filesystem-toml.yml@publishing-v3
+    uses: PyDevices/.github/.github/workflows/reusable-validate-pyscript-filesystem-toml.yml@publishing-v5
     with:
       config-path: pydevices-examples.toml
       source-mappings: |
