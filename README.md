@@ -102,8 +102,8 @@ provide a different event loop or traffic controller when appropriate.
 
 Python distributions on TestPyPI use the organization prefix; imports and MIP
 packages remain conventional and unprefixed. `pydevices` ships all of the core
-`lib/` tree as one distribution -- MIP publishes those components separately,
-because installing only what a board needs matters there.
+`lib/` tree as one distribution, and the MIP index publishes it the same way --
+a single `pydevices` package, not one per component.
 
 | TestPyPI distribution | Python import / MIP name |
 |---|---|
