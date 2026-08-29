@@ -167,6 +167,7 @@ class DrumMachine:
         self.panel = None
         self.panel_scr = None
         self.seq_scr = None
+        self._indicator_active = -1
 
         self._build_ui()
         self._load_machine(DEFAULT_MACHINE, start_audio=True)
@@ -443,8 +444,17 @@ class DrumMachine:
         gc.collect()
 
     def _paint_indicator(self, active):
-        for i, cell in enumerate(self.cells):
-            cell.set_style_bg_color(ACCENT if i == active else STEP_OFF, 0)
+        # Restyle only the two cells that change: every style write
+        # invalidates its cell, and 16 invalidations per step is render
+        # work the audio pump pays for on the board.
+        prev = self._indicator_active
+        if active == prev:
+            return
+        if 0 <= prev < N_STEPS:
+            self.cells[prev].set_style_bg_color(STEP_OFF, 0)
+        if 0 <= active < N_STEPS:
+            self.cells[active].set_style_bg_color(ACCENT, 0)
+        self._indicator_active = active
 
     # ---------- instrument panel ----------
 
