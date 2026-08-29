@@ -70,6 +70,9 @@ jobs:
       - name: Verify requirements.txt is current
         run: python3 scripts/refresh-requirements.py --check
 
+      - name: Install libSDL2 (usdl2's runtime dependency)
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-2.0-0
+
       - name: Install requirements.txt from TestPyPI, exactly as the README documents
         run: |
           python3 -m venv .venv
