@@ -22,17 +22,17 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Checkout shared browser URL policy
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: PyDevices/pydevices
           path: pydevices
           sparse-checkout: tools/_browser_url.py
           sparse-checkout-cone-mode: false
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 
