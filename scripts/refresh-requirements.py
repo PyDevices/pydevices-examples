@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
-"""Refresh repo-root requirements.txt TestPyPI floors to latest versions.
+"""Keep repo-root requirements.txt's package list in sync with PACKAGE_ORDER.
 
 Used by:
   - Cursor sessionStart hook (when workspace is pydevices-examples)
-  - Agent after tagging a TestPyPI-publishing repo (CLI: --force)
-  - product release preparation (CLI: --set name=X.Y.Z ...)
+  - CI / local check: ``--check`` exits nonzero if requirements.txt is stale
 
-Preserves package install order and ``--index-url``. Only rewrites ``name>=ver``
-lines for known packages. Fail-open: exits 0 with ``{}`` on any error
-(unless ``--force`` / ``--set``).
+Since 51ff2a27 ("chore: refresh dependencies and WebAssembly runtime"),
+requirements.txt lists bare, unpinned package names -- pip always resolves the
+latest release from the configured indexes, so there is no per-package
+version floor for this script to maintain any more. Its only remaining job is
+to keep the package list itself in sync with PACKAGE_ORDER: add names that
+belong and are missing, drop names that no longer belong, in PACKAGE_ORDER's
+order. Everything else in the file (``--index-url``, ``--extra-index-url``,
+blank lines, comments) survives verbatim. Running it when the file already
+matches PACKAGE_ORDER is a no-op.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import re
 import sys
-import urllib.error
-import urllib.request
 
 # Install order SoT (dependencies before dependents). Keep in sync with the
 # Cursor rule. "pydevices" is the whole of pydevices/lib in one distribution --
@@ -27,16 +29,12 @@ import urllib.request
 PACKAGE_ORDER = (
     "pydevices",
     "pydevices-audioif",
-    "pydevices-pygraphics",
-    "pydevices-palettes",
-    "pydevices-pdwidgets",
     "pydevices-desktop",
     "pydevices-lvgl",
+    "pydevices-palettes",
+    "pydevices-pdwidgets",
+    "pydevices-pygraphics",
 )
-
-INDEX_URL = "https://test.pypi.org/simple/"
-JSON_URL = "https://test.pypi.org/pypi/{}/json"
-_FLOOR_RE = re.compile(r"^([A-Za-z0-9_.-]+)>=([0-9][0-9A-Za-z._+]*)\s*$")
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_REQ = os.path.join(_REPO_ROOT, "requirements.txt")
@@ -99,175 +97,90 @@ def _requirements_path(paths: list[str]) -> str:
     return DEFAULT_REQ
 
 
-def _latest_version(name: str) -> str:
-    url = JSON_URL.format(name)
-    with urllib.request.urlopen(url, timeout=20) as resp:
-        data = json.load(resp)
-    return str(data["info"]["version"])
+def desired_text(path: str) -> str:
+    """Return what ``path`` should contain: existing non-package lines
+    verbatim, followed by PACKAGE_ORDER as bare names.
 
-
-def _read_floors(path: str) -> dict[str, str]:
-    floors: dict[str, str] = {}
-    if not os.path.isfile(path):
-        return floors
-    with open(path, encoding="utf-8") as handle:
-        for line in handle:
-            match = _FLOOR_RE.match(line.strip())
-            if match:
-                floors[match.group(1)] = match.group(2)
-    return floors
-
-
-def _write_floors(path: str, versions: dict[str, str]) -> bool:
-    """Update floors in place. Return True if the file content changed.
-
-    Rewrites only lines that already carry a ``name>=ver`` floor for a known
-    package. Everything else survives verbatim -- ``--extra-index-url``, blank
-    lines, comments, unpinned names, and packages outside PACKAGE_ORDER, none of
-    which this script is the source of truth for. Regenerating the file from
-    PACKAGE_ORDER instead would silently drop them.
+    A "package line" is a non-blank, non-comment line that doesn't start with
+    ``--`` (an index/option flag). Those are the only lines this function
+    touches.
     """
     old = ""
     if os.path.isfile(path):
         with open(path, encoding="utf-8") as handle:
             old = handle.read()
 
-    lines = []
+    header: list[str] = []
     for line in old.splitlines():
-        match = _FLOOR_RE.match(line.strip())
-        if match and match.group(1) in versions:
-            lines.append(f"{match.group(1)}>={versions[match.group(1)]}")
-        else:
-            lines.append(line)
-    if not old:
-        lines = [f"--index-url {INDEX_URL}", ""]
-        lines.extend(f"{name}>={versions[name]}" for name in PACKAGE_ORDER)
-    text = "\n".join(lines) + "\n"
+        stripped = line.strip()
+        if stripped and not stripped.startswith("--") and not stripped.startswith("#"):
+            continue  # a package line -- dropped; regenerated below
+        header.append(line)
+    while header and header[-1] == "":
+        header.pop()
 
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    if not old:
+        header = ["--index-url https://test.pypi.org/simple/", ""]
+
+    lines = (
+        [*header, "", *PACKAGE_ORDER] if header and header[-1] != "" else [*header, *PACKAGE_ORDER]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def refresh(path: str) -> bool:
+    """Write ``path`` if it doesn't already match PACKAGE_ORDER. Return True
+    if the file changed."""
+    text = desired_text(path)
     old = ""
     if os.path.isfile(path):
         with open(path, encoding="utf-8") as handle:
             old = handle.read()
     if old == text:
         return False
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(text)
     return True
 
 
-def refresh(path: str) -> dict[str, str]:
-    versions = {}
-    for name in PACKAGE_ORDER:
-        versions[name] = _latest_version(name)
-    _write_floors(path, versions)
-    return versions
-
-
-def set_floors(
-    path: str, overrides: dict[str, str], *, fetch_missing: bool = True
-) -> dict[str, str]:
-    """Set specific floors; keep or fetch the rest. Returns the full floor map."""
-    unknown = sorted(set(overrides) - set(PACKAGE_ORDER))
-    if unknown:
-        raise ValueError("unknown package(s): " + ", ".join(unknown))
-
-    versions = _read_floors(path)
-    for name, ver in overrides.items():
-        versions[name] = ver
-
-    for name in PACKAGE_ORDER:
-        if name in versions:
-            continue
-        if not fetch_missing:
-            raise ValueError(f"missing floor for {name!r} and fetch_missing is false")
-        versions[name] = _latest_version(name)
-
-    _write_floors(path, versions)
-    return {name: versions[name] for name in PACKAGE_ORDER}
-
-
-def _parse_set_args(argv: list[str]) -> tuple[dict[str, str], str | None]:
-    """Parse ``--set a=1 b=2`` and optional ``--path`` from argv."""
-    overrides: dict[str, str] = {}
-    path = None
-    i = 0
-    while i < len(argv):
-        arg = argv[i]
-        if arg == "--set":
-            i += 1
-            while i < len(argv) and not argv[i].startswith("--"):
-                item = argv[i]
-                if "=" not in item:
-                    raise ValueError(f"--set expected name=version, got: {item}")
-                name, ver = item.split("=", 1)
-                name = name.strip()
-                ver = ver.strip().lstrip("v")
-                if not name or not ver:
-                    raise ValueError(f"--set expected name=version, got: {item}")
-                overrides[name] = ver
-                i += 1
-            continue
-        if arg == "--path":
-            i += 1
-            if i >= len(argv):
-                raise ValueError("--path requires a value")
-            path = argv[i]
-            i += 1
-            continue
-        i += 1
-    return overrides, path
-
-
 def main() -> int:
     argv = sys.argv[1:]
     force = "--force" in argv
-    try:
-        overrides, set_path = _parse_set_args(argv)
-    except ValueError as exc:
-        print(f"refresh failed: {exc}", file=sys.stderr)
+    check = "--check" in argv
+
+    path = argv[argv.index("--path") + 1] if "--path" in argv else None
+
+    if check:
+        path = path or DEFAULT_REQ
+        changed_text = desired_text(path)
+        old = ""
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as handle:
+                old = handle.read()
+        if old == changed_text:
+            print(f"{path} is current.")
+            return 0
+        print(f"{path} is stale; run scripts/refresh-requirements.py --force", file=sys.stderr)
         return 1
 
-    if overrides:
-        path = set_path or DEFAULT_REQ
-        try:
-            versions = set_floors(path, overrides)
-        except (urllib.error.URLError, TimeoutError, KeyError, OSError, ValueError) as exc:
-            print(f"refresh failed: {exc}", file=sys.stderr)
-            return 1
-        print(f"Updated {path}", file=sys.stderr)
-        for name in PACKAGE_ORDER:
-            mark = " *" if name in overrides else ""
-            print(f"  {name}>={versions[name]}{mark}", file=sys.stderr)
+    if force:
+        path = path or DEFAULT_REQ
+        changed = refresh(path)
+        print(f"{'Updated' if changed else 'Already current'}: {path}", file=sys.stderr)
         print("{}")
         return 0
 
-    payload = _load_stdin() if not force else {}
+    payload = _load_stdin()
     paths = _paths_from_payload(payload)
 
-    if not force and not _is_pydevices_examples_workspace(paths):
+    if not _is_pydevices_examples_workspace(paths):
         print("{}")
         return 0
 
-    path = (
-        _requirements_path(paths)
-        if not force
-        else (argv[argv.index("--path") + 1] if "--path" in argv else DEFAULT_REQ)
-    )
-
-    try:
-        versions = refresh(path)
-    except (urllib.error.URLError, TimeoutError, KeyError, OSError) as exc:
-        print("{}")
-        if force:
-            print(f"refresh failed: {exc}", file=sys.stderr)
-            return 1
-        return 0
-
-    if force:
-        print(f"Updated {path}", file=sys.stderr)
-        for name in PACKAGE_ORDER:
-            print(f"  {name}>={versions[name]}", file=sys.stderr)
+    path = _requirements_path(paths)
+    changed = refresh(path)
+    if not changed:
         print("{}")
         return 0
 
@@ -275,8 +188,8 @@ def main() -> int:
         json.dumps(
             {
                 "additional_context": (
-                    "Refreshed pydevices-examples/requirements.txt TestPyPI floors to latest: "
-                    + ", ".join(f"{n}>={versions[n]}" for n in PACKAGE_ORDER)
+                    "Synced pydevices-examples/requirements.txt package list to "
+                    "PACKAGE_ORDER: " + ", ".join(PACKAGE_ORDER)
                 )
             }
         )
