@@ -23,6 +23,10 @@ from displaydev import env_set
 
 env_set("PYDEVICES_WIDTH", 720)
 env_set("PYDEVICES_HEIGHT", 720)
+env_set("PYDEVICES_SCALE", 1.0)
+
+import gc
+import time
 
 import board_config
 import appdev
@@ -168,8 +172,18 @@ class DrumMachine:
         self._load_machine(DEFAULT_MACHINE, start_audio=True)
         self._sync_matrix_from_pattern()
 
-        self.timer = lv.timer_create(_guarded(self._on_step_timer), self._step_ms(), None)
-        self.timer.pause()
+        # The step scheduler runs on a fast timer and fires steps against a
+        # wall-clock deadline: lv timer lateness then never accumulates, and
+        # after a UI stall the groove resyncs instead of shifting. A stall
+        # longer than one step drops the missed steps rather than machine-
+        # gunning them.
+        self._next_step_ms = None
+        self.timer = lv.timer_create(_guarded(self._on_step_timer), 15, None)
+
+        # Collect little and often: left to itself the heap fills in tens of
+        # seconds of audio and pays one long automatic mark-sweep pause;
+        # collecting while the garbage is small costs ~1ms.
+        self._gc_timer = lv.timer_create(_guarded(self._on_idle_collect), 2000, None)
 
     # ---------- audio ----------
 
@@ -183,6 +197,14 @@ class DrumMachine:
         self.inst = audioinstruments.create(
             name, self.fmt.rate, channel_count=self.fmt.channels
         )
+        # Pre-warm before the output is attached: each drum builds its
+        # wavetables lazily on first note_on, and paying that inside the
+        # low-latency audio window makes a new kit stutter for its first
+        # bar or two (dmx, with its 13 voices, was the worst). These hits
+        # are inaudible - play() hasn't connected the output yet.
+        for pitch in ROW_PITCHES:
+            self.inst.note_on(pitch, velocity=1)
+        self.inst.all_notes_off()
         self.machine = name
         names = dict(self.inst.note_map)
         for i, pitch in enumerate(ROW_PITCHES):
@@ -373,11 +395,8 @@ class DrumMachine:
         self.play_label.set_text("STOP" if self.playing else "PLAY")
         if self.playing:
             self.step = 0
-            self.timer.set_period(self._step_ms())
-            self.timer.reset()
-            self.timer.resume()
+            self._next_step_ms = None
         else:
-            self.timer.pause()
             self.inst.all_notes_off()
             self._paint_indicator(-1)
 
@@ -399,12 +418,29 @@ class DrumMachine:
     def _change_bpm(self, delta):
         self.bpm = min(BPM_MAX, max(BPM_MIN, self.bpm + delta))
         self.bpm_label.set_text("%d BPM" % self.bpm)
-        self.timer.set_period(self._step_ms())
 
     def _on_step_timer(self, t):
+        if not self.playing:
+            self._next_step_ms = None
+            return
+        now = time.ticks_ms()
+        if self._next_step_ms is None:
+            self._next_step_ms = now
+        late = time.ticks_diff(now, self._next_step_ms)
+        if late < 0:
+            return
         self._fire_step(self.step)
         self._paint_indicator(self.step)
         self.step = (self.step + 1) % N_STEPS
+        step_ms = self._step_ms()
+        self._next_step_ms = (
+            time.ticks_add(self._next_step_ms, step_ms)
+            if late < step_ms
+            else time.ticks_add(now, step_ms)
+        )
+
+    def _on_idle_collect(self, t):
+        gc.collect()
 
     def _paint_indicator(self, active):
         for i, cell in enumerate(self.cells):
