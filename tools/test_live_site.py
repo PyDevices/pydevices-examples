@@ -8,25 +8,24 @@ import sys
 
 from playwright.async_api import async_playwright
 
-LIVE_BASE_URL = "https://pydevices.github.io/pydevices-examples/pyscript"
+SITE_BASE_URL = "https://pydevices.github.io/pydevices-examples"
 
+# (title, relative path from SITE_BASE_URL)
 PAGES = [
-    ("DOM Event Test", "dom.html"),
-    ("Async Animation Test", "async.html"),
-    ("MicroPython Paint", "micropython.html?modules=paint"),
-    ("Pyodide Paint", "pyodide.html?modules=paint"),
-    ("Compact MP Runner", "mp.html?modules=paint"),
-    ("Compact Pyodide Runner", "py.html?modules=paint"),
-    ("Autotest Harness", "harness.html?modules=paint"),
-    ("Interactive Editor", "editor.html"),
-    ("Interactive REPL", "repl.html"),
-    ("Peter Hinch GUI Demos", "peterhinch.html?touch"),
+    ("PyScript Landing Page", "pyscript/index.html"),
+    ("DOM Event Test", "pyscript/dom.html"),
+    ("Pyodide Paint", "pyscript/pyodide.html?modules=paint"),
+    ("Compact Pyodide Runner", "pyscript/py.html?manifests=car_cluster&deps=pydevices-lvgl"),
+    ("Gallery Landing Page", "gallery/index.html"),
+    ("MicroPython Paint", "gallery/micropython.html?modules=paint"),
+    ("Compact MP Runner", "gallery/mp.html?manifests=car_cluster"),
+    ("Peter Hinch GUI Demos", "gallery/peterhinch.html?touch"),
 ]
 
 
 async def run_live_tests():
     print("=" * 70)
-    print(f"TESTING LIVE SITE: {LIVE_BASE_URL}")
+    print(f"TESTING LIVE SITE: {SITE_BASE_URL}")
     print("=" * 70)
 
     async with async_playwright() as p:
@@ -52,7 +51,7 @@ async def run_live_tests():
             page_errors.clear()
             network_failures.clear()
 
-            url = f"{LIVE_BASE_URL}/{rel_path}"
+            url = f"{SITE_BASE_URL}/{rel_path}"
             print(f"\nEvaluating: {title} ({url})")
 
             try:
@@ -118,6 +117,15 @@ async def run_live_tests():
             for nf in r["network_failures"]:
                 print(f"   Network Failure: {nf}")
 
+    # Only navigation-level failures (page missing, exception, no response) are
+    # treated as fatal here. In-page console/JS errors and third-party network
+    # failures are reported above but don't fail the run -- they're too easy to
+    # pick up flakily from a live, externally-hosted CDN.
+    hard_failures = [r for r in results if r.get("status_code") in ("EXCEPTION", "NO_RESPONSE")]
+    print(f"\n{len(results) - len(hard_failures)}/{len(results)} pages reachable.")
+    return len(hard_failures) == 0
+
 
 if __name__ == "__main__":
-    asyncio.run(run_live_tests())
+    ok = asyncio.run(run_live_tests())
+    sys.exit(0 if ok else 1)

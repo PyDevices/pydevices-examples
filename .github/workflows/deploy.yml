@@ -70,3 +70,16 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: _site
           publish_branch: gh-pages
+
+      - name: Wait for GitHub Pages to publish
+        run: sleep 60
+
+      - name: Post-deploy live site check
+        # Non-fatal: the site is already published at this point, and GitHub
+        # Pages / CDN propagation delay can make this flaky right after a
+        # push. Treat failures as a warning to investigate, not a broken build.
+        continue-on-error: true
+        run: |
+          pip install playwright
+          playwright install --with-deps chromium
+          python tools/test_live_site.py
