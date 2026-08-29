@@ -15,6 +15,15 @@ Requires the ``audioinstruments`` package (``mip.install("audioinstruments",
 index="https://PyDevices.github.io/mip")`` on a board; pip on desktop).
 """
 
+# Desktop resolution override, before board_config is imported: the desktop
+# board_config reads these; a board's board_config ignores them (its display
+# is a fixed size), so an app can ask for its designed resolution without
+# ever fighting real hardware.
+from displaydev import env_set
+
+env_set("PYDEVICES_WIDTH", 720)
+env_set("PYDEVICES_HEIGHT", 720)
+
 import board_config
 import appdev
 
