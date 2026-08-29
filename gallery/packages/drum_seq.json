@@ -1,6 +1,10 @@
 {
   "urls": [
     [
+      "drum_seq/__init__.py",
+      "../lib/examples/drum_seq/__init__.py"
+    ],
+    [
       "drum_seq/panel.py",
       "../lib/examples/drum_seq/panel.py"
     ]
