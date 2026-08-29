@@ -238,8 +238,14 @@ class DrumMachine:
         self.btnm.set_style_bg_color(BG, 0)
         self.btnm.set_style_border_width(0, 0)
         self.btnm.set_style_bg_color(ACCENT, lv.PART.ITEMS | lv.STATE.CHECKED)
+        # CLICK_TRIG matters: without it, buttonmatrix sends VALUE_CHANGED on
+        # *press*, before the CHECKED toggle (which happens on release), so a
+        # callback reads the pre-toggle state. With it, the event arrives on
+        # release, after the toggle.
         for i in range(N_ROWS * N_STEPS):
-            self.btnm.set_button_ctrl(i, lv.buttonmatrix.CTRL.CHECKABLE)
+            self.btnm.set_button_ctrl(
+                i, lv.buttonmatrix.CTRL.CHECKABLE | lv.buttonmatrix.CTRL.CLICK_TRIG
+            )
         self.btnm.add_event_cb(
             _guarded(self._on_step_toggled), lv.EVENT.VALUE_CHANGED, None
         )
