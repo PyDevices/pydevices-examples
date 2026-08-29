@@ -88,8 +88,8 @@ jobs:
           fail=0
           for example in pydevices_demo palettes_demo; do
             echo "== $example =="
-            PYTHONPATH=.:lib:utils timeout 10 ../.venv/bin/python "examples/${example}.py"
-            rc=$?
+            rc=0
+            PYTHONPATH=.:lib:utils timeout 10 ../.venv/bin/python "examples/${example}.py" || rc=$?
             # The app keeps itself alive past the end of the script (no
             # trailing app.run()), so a timeout kill (rc 124) means the
             # example is still running -- that's a PASS. Any other exit
