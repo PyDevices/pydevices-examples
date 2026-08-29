@@ -52,8 +52,17 @@ cd lib
 
 On Windows, use the equivalent `.venv\Scripts\python.exe` commands.
 
+Examples that import helpers from `lib/utils` (see
+[lib/utils/README.md](lib/utils/README.md)) need `utils/` on the import path.
+Set `PYTHONPATH` before running from `lib/`:
+
+```bash
+cd lib
+PYTHONPATH=.:lib:utils ../.venv/bin/python examples/hello.py
+```
+
 For MicroPython, install unprefixed MIP package names from the PyDevices
-PyDevices MIP index, then install a board package:
+MIP index, then install a board package:
 
 ```python
 import mip
