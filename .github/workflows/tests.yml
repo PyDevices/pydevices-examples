@@ -54,3 +54,48 @@ jobs:
           SDL_VIDEODRIVER: dummy
           SDL_AUDIODRIVER: dummy
         run: python -m unittest discover -s tests -v
+
+      - name: Lint with ruff
+        run: ruff check lib tests tools scripts
+
+  quickstart-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - name: Verify requirements.txt is current
+        run: python3 scripts/refresh-requirements.py --check
+
+      - name: Install requirements.txt from TestPyPI, exactly as the README documents
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ -r requirements.txt
+
+      - name: Smoke-run non-LVGL examples headless
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: |
+          cd lib
+          fail=0
+          for example in pydevices_demo palettes_demo; do
+            echo "== $example =="
+            PYTHONPATH=.:lib:utils timeout 10 ../.venv/bin/python "examples/${example}.py"
+            rc=$?
+            # The app keeps itself alive past the end of the script (no
+            # trailing app.run()), so a timeout kill (rc 124) means the
+            # example is still running -- that's a PASS. Any other exit
+            # means it crashed or exited early -- that's a FAIL.
+            if [ "$rc" -eq 124 ]; then
+              echo "$example: still alive at timeout (PASS)"
+            else
+              echo "$example: exited early with rc=$rc (FAIL)"
+              fail=1
+            fi
+          done
+          exit $fail
