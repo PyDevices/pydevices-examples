@@ -10,7 +10,7 @@ Board config: [`wokwi_ili9341_ft6x36_esp32s3`](https://github.com/PyDevices/pyde
 
 | File | Purpose |
 |------|---------|
-| `main.py` | WiFi + `mip.install` (with `target="."`) + `testris` |
+| `main.py` | WiFi (when `WOKWI = True`, target `lib`) + `mip.install` of the board config, `pygraphics`, and `testris` |
 | `diagram.json` | ESP32-S3 + `board-ili9341-cap-touch` wiring |
 
 ## Run in the browser
@@ -21,13 +21,14 @@ Board config: [`wokwi_ili9341_ft6x36_esp32s3`](https://github.com/PyDevices/pyde
 
 ## Quick try (default)
 
-Use `main.py` as committed. On first boot, `mip` downloads PyDevices core + `pygraphics` from the PyDevices MIP index (network required). You should see the **testris** game running — drive it with the on-screen touch keypad.
+Use `main.py` as committed. On first boot, `mip` downloads PyDevices core + `pygraphics` from the
+PyDevices MIP index (network required), then runs **testris** — a touch + joystick Tetris demo. You
+should see the game running — drive it with the on-screen touch keypad.
 
-## Full install
-
-Uncomment the two `utils` and `examples` lines in `main.py`, then restart the simulation. First boot takes several minutes.
-
-Enables the full example catalog (`hello.py`, `bmp565_*`, `pydevices_demo`, LVGL prep examples, and more under `examples/`).
+Only `testris.py` is installed from `lib/examples/`; the rest of the example catalog is not fetched.
+To try a different example, edit the `mip.install(PYDEVICES_EXAMPLES + ...)` line in `main.py` to
+point at another script under [`lib/examples/`](../../lib/examples/) and update the `import testris`
+line at the bottom to match.
 
 ## Wiring (GPIO)
 
