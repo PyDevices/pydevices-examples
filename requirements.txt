@@ -8,5 +8,3 @@ pydevices-lvgl
 pydevices-palettes
 pydevices-pdwidgets
 pydevices-pygraphics
-pydevices-usdl2
-pydevices-uwin32
