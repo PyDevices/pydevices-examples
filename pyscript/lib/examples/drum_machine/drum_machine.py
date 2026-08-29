@@ -155,7 +155,7 @@ class DrumMachine:
         # as piano.py).
         self.audio_out = board_peripherals.audio_out(latency="low")
         self.audio_out.attach(app)
-        self.audio_out.set_volume(100)
+        self.audio_out.set_volume(85)
         self.fmt = self.audio_out.format
 
         self.machine = DEFAULT_MACHINE
@@ -300,7 +300,7 @@ class DrumMachine:
 
         self.vol_slider = lv.slider(vol_row)
         self.vol_slider.set_range(0, 100)
-        self.vol_slider.set_value(100, 0)
+        self.vol_slider.set_value(85, 0)
         self.vol_slider.set_flex_grow(1)
         self.vol_slider.set_height(max(12, vol_h // 3))
         self.vol_slider.set_style_bg_color(STEP_OFF, lv.PART.MAIN)
@@ -308,7 +308,7 @@ class DrumMachine:
         self.vol_slider.add_event_cb(_guarded(self._on_volume), lv.EVENT.VALUE_CHANGED, None)
 
         self.vol_readout = lv.label(vol_row)
-        self.vol_readout.set_text("100")
+        self.vol_readout.set_text("85")
         self.vol_readout.set_style_text_color(FG, 0)
         self.vol_readout.set_width(unit // 2)
 
