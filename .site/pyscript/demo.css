@@ -247,11 +247,11 @@ html {
 .device {
   padding: 16px;
   border-radius: 22px;
-  background: linear-gradient(160deg, #2b2620, #171310);
+  background: linear-gradient(160deg, #262e36, #131a20);
   box-shadow:
     var(--shadow),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  border: 1px solid #3a332a;
+  border: 1px solid #2f3a45;
 }
 
 #display_canvas {
@@ -417,11 +417,11 @@ html {
   padding: 12px 14px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: #17130f;
+  background: #121a22;
   font-family: var(--mono);
   font-size: 0.82rem;
   line-height: 1.5;
-  color: #ecd9c4;
+  color: #dfeaf2;
   white-space: pre-wrap;
   word-break: break-word;
 }

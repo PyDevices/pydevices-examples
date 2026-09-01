@@ -75,7 +75,7 @@
   color: var(--muted);
   text-align: center;
   background:
-    radial-gradient(circle at center, rgba(245, 78, 0, 0.08), transparent 42%),
+    radial-gradient(circle at center, rgb(var(--accent-rgb) / 0.08), transparent 42%),
     var(--panel-2);
 }
 
@@ -122,8 +122,8 @@
 }
 
 .tag.featured {
-  background: rgba(245, 78, 0, 0.15);
-  border-color: rgba(245, 78, 0, 0.35);
+  background: rgb(var(--accent-rgb) / 0.15);
+  border-color: rgb(var(--accent-rgb) / 0.35);
   color: var(--accent-strong);
 }
 
