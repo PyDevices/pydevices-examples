@@ -5,7 +5,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX = ROOT / ".site" / "pyscript" / "index.html"
-CSS = ROOT / ".site" / "pyscript" / "site.css"
+CSS = ROOT / ".site" / "pyscript" / "site-extra.css"
 DEMO_CSS = ROOT / ".site" / "pyscript" / "demo.css"
 THEME = ROOT / ".site" / "pyscript" / "theme-toggle.js"
 INTERPRETER_LAYOUT = ROOT / ".site" / "pyscript" / "interpreter-layout.js"
