@@ -21,7 +21,7 @@
  * Token contract — read this before changing a colour anywhere in the file.
  *
  * 1. Colours that need alpha variants are stored as *channel* tokens:
- *      --accent-rgb: 245 78 0;          (space-separated R G B, no rgb())
+ *      --accent-rgb: 34 199 226;        (space-separated R G B, no rgb())
  *      --accent: rgb(var(--accent-rgb));
  *    Every translucent use then composes from the same source of truth:
  *      rgb(var(--accent-rgb) / 0.32)
@@ -40,40 +40,40 @@
 
 :root {
   /* Always-dark anchors — never overridden by the light theme. */
-  --dark-panel: #1c1712;
-  --dark-panel-deep: #14110d;
-  --dark-ink: #f3ecdf;
+  --dark-panel: #121a22;
+  --dark-panel-deep: #0c1218;
+  --dark-ink: #dfeaf2;
   --dark-good-rgb: 62 207 149;
   --dark-warn-rgb: 232 179 78;
   --dark-bad-rgb: 239 92 78;
 
   /* Channel tokens (R G B) for every colour that needs alpha variants. */
-  --bg-rgb: 16 14 11;
-  --accent-rgb: 245 78 0;
-  --indigo-rgb: 139 147 255;
+  --bg-rgb: 8 12 16;
+  --accent-rgb: 34 199 226;
+  --indigo-rgb: 124 152 255;
   --good-rgb: var(--dark-good-rgb);
   --warn-rgb: var(--dark-warn-rgb);
 
   /* Per-theme tint strengths (see contract note 2). */
-  --bg-glow-accent: 0.16;
+  --bg-glow-accent: 0.13;
   --bg-glow-indigo: 0.1;
   --tag-tint: 0.1;
   --tier-tint: 0.08;
   --nav-active-tint: 0.08;
 
   --bg: rgb(var(--bg-rgb));
-  --bg-soft: #17130f;
+  --bg-soft: #0d131a;
   --panel: var(--dark-panel);
-  --panel-2: #241e17;
-  --border: #342a1d;
-  --border-soft: #2a2117;
+  --panel-2: #17222c;
+  --border: #23323f;
+  --border-soft: #1d2935;
   --ink: var(--dark-ink);
-  --ink-soft: #c9bfae;
-  --muted: #8f8474;
+  --ink-soft: #a7bccc;
+  --muted: #6f8598;
   --accent: rgb(var(--accent-rgb));
-  --accent-soft: #ff7a3d;
-  --accent-strong: #ff8a52;
-  --accent-ink: #1a0d05;
+  --accent-soft: #5edcf0;
+  --accent-strong: #7de8f7;
+  --accent-ink: #04161c;
   --indigo: rgb(var(--indigo-rgb));
   --good: rgb(var(--good-rgb));
   --warn: rgb(var(--warn-rgb));
@@ -89,7 +89,7 @@
   --radius-sm: 10px;
   --shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
   --shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.3);
-  --hover-border: #4a3c28;
+  --hover-border: #2f4354;
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
@@ -98,40 +98,41 @@
    * the logo-badge gradient fades into; scripts/generate_sites.py and
    * assets/js/site-chrome.js both read these rather than carrying their own
    * copies of the hexes. */
-  --tier-1-rgb: 245 158 11;
+  --tier-1-rgb: 240 160 30;
   --tier-1-amber: rgb(var(--tier-1-rgb));
-  --tier-1-deep: #d97706;
+  --tier-1-deep: #c87d0e;
   --tier-1-bg: rgb(var(--tier-1-rgb) / var(--tier-tint));
   --tier-1-border: rgb(var(--tier-1-rgb) / 0.4);
 
-  --tier-2-rgb: 16 185 129;
+  --tier-2-rgb: 18 184 134;
   --tier-2-emerald: rgb(var(--tier-2-rgb));
-  --tier-2-deep: #059669;
+  --tier-2-deep: #0d9268;
   --tier-2-bg: rgb(var(--tier-2-rgb) / var(--tier-tint));
   --tier-2-border: rgb(var(--tier-2-rgb) / 0.4);
 
-  --tier-3-rgb: 59 130 246;
+  --tier-3-rgb: 79 143 245;
   --tier-3-blue: rgb(var(--tier-3-rgb));
-  --tier-3-deep: #2563eb;
+  --tier-3-deep: #3269d1;
   --tier-3-bg: rgb(var(--tier-3-rgb) / var(--tier-tint));
   --tier-3-border: rgb(var(--tier-3-rgb) / 0.4);
 
-  --tier-4-rgb: 139 92 246;
+  --tier-4-rgb: 146 104 240;
   --tier-4-purple: rgb(var(--tier-4-rgb));
-  --tier-4-deep: #7c3aed;
+  --tier-4-deep: #7449cc;
   --tier-4-bg: rgb(var(--tier-4-rgb) / var(--tier-tint));
   --tier-4-border: rgb(var(--tier-4-rgb) / 0.4);
 
-  --tier-5-rgb: 6 182 212;
+  --tier-5-rgb: 79 136 171;
   --tier-5-steel: rgb(var(--tier-5-rgb));
-  --tier-5-deep: #0284c7;
+  --tier-5-deep: #376a89;
   --tier-5-bg: rgb(var(--tier-5-rgb) / var(--tier-tint));
   --tier-5-border: rgb(var(--tier-5-rgb) / 0.4);
 }
 
 :root[data-theme="light"] {
-  --bg-rgb: 251 249 245;
-  --indigo-rgb: 90 79 214;
+  --bg-rgb: 245 249 251;
+  --accent-rgb: 11 127 150;
+  --indigo-rgb: 67 92 199;
   --good-rgb: 31 143 107;
   --warn-rgb: 181 121 10;
 
@@ -141,20 +142,21 @@
   --tier-tint: 0.1;
   --nav-active-tint: 0.06;
 
-  --bg-soft: #f3eee6;
+  --bg-soft: #e9f1f5;
   --panel: #ffffff;
-  --panel-2: #f6f1e9;
-  --border: #e7e0d3;
-  --border-soft: #eee8db;
-  --ink: #201c16;
-  --ink-soft: #5b5347;
-  --muted: #8a8172;
-  --accent-strong: #c33f00;
-  --accent-ink: #fff7f1;
+  --panel-2: #eff6f9;
+  --border: #d5e3ea;
+  --border-soft: #e2edf2;
+  --ink: #0c161d;
+  --ink-soft: #47606f;
+  --muted: #6f8695;
+  --accent-soft: #3fa2b8;
+  --accent-strong: #08657a;
+  --accent-ink: #f0fdff;
   --bad: #d1382b;
-  --shadow: 0 18px 44px rgba(32, 24, 12, 0.1);
-  --shadow-soft: 0 6px 18px rgba(32, 24, 12, 0.06);
-  --hover-border: #d9cfba;
+  --shadow: 0 18px 44px rgba(8, 22, 32, 0.1);
+  --shadow-soft: 0 6px 18px rgba(8, 22, 32, 0.06);
+  --hover-border: #bcd0da;
 }
 
 * {
