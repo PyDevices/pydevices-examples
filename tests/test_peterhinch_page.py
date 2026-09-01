@@ -1,13 +1,19 @@
-"""Static contract tests for the dynamic Peter Hinch demo browser."""
+"""Static contract tests for the dynamic Peter Hinch demo browser.
+
+The page runs on the direct-WebAssembly host (``gallery-host.js``). It used to
+run on PyScript, and the assertions that described *that* plumbing — the ``mpy``
+interpreter type, ``dataset.configs``, the modular ``.toml`` config chain — have
+been restated against the host that replaced it. Everything describing what a
+visitor gets is unchanged.
+"""
 
 import json
 from pathlib import Path
 import re
 
-import tomllib
-
 ROOT = Path(__file__).resolve().parents[1]
-PAGE = ROOT / ".site" / "pyscript" / "peterhinch.html"
+GALLERY = ROOT / ".site" / "gallery"
+PAGE = GALLERY / "peterhinch.html"
 
 
 def _source():
@@ -25,26 +31,46 @@ def _excluded(gui):
     return set(re.findall(r'^\s+"([^"]+)",', match.group("body"), flags=re.MULTILINE))
 
 
-def test_page_selects_a_gui_specific_micropython_config_before_core_loads():
+def test_page_declares_its_gui_specific_plan_before_the_host_loads():
+    """The host reads ``?manifests=…&command=…`` from the address bar, but this
+    page's address bar carries the demo browser's own state (``?touch&demo=…``),
+    so it hands the host a GUI-specific plan directly — before the host loads."""
     source = _source()
     interpreter = source.index('<script id="hinch-interpreter" type="text/plain"')
-    interpreter_config = source.index("'./micropython.toml'")
-    desktop_config = source.index(
-        "'https://raw.githubusercontent.com/PyDevices/pydevices/main/pydevices-desktop.toml'"
-    )
-    shared_config = source.index("'./pydevices-examples.toml'")
-    gui_config = source.index("'./peterhinch-' + gui + '.toml'")
-    loader = source.index('<script type="module" src="./pyscript-config.js"></script>')
-    assert interpreter < interpreter_config < desktop_config < shared_config < gui_config < loader
-    assert "interpreter.type = 'mpy';" in source
-    assert "interpreter.dataset.configs" in source
+    manifest_map = source.index("nano: 'micropython-nano-gui'")
+    plan = source.index("globalThis.__pydevicesPlan = new URLSearchParams({")
+    command = source.index("command: document.getElementById('hinch-interpreter').textContent")
+    loader = source.index('<script type="module" src="./gallery-host.js"></script>')
+    assert interpreter < manifest_map < plan < command < loader
+    assert "manifests: manifests[gui]" in source
+    # The retired PyScript plumbing must not come back with it.
+    assert "interpreter.type = 'mpy'" not in source
+    assert "dataset.configs" not in source
+    assert ".toml" not in source
+    assert "pyscript-config.js" not in source
     assert "pyodide" not in source.lower()
 
 
-def test_page_loads_coi_shim_and_styles():
+def test_page_loads_the_shared_gallery_chrome_and_styles():
+    """The COI shim the PyScript page carried is obsolete here: the direct host
+    runs MicroPython on the page's own main thread and never needs
+    SharedArrayBuffer. What survives is that the page wears the same chrome and
+    stylesheets as its sibling runtime page rather than forking them."""
     source = _source()
-    assert '<script src="./mini-coi-fd.js"></script>' in source
-    assert '<link rel="stylesheet" href="./site.css">' in source
+    sibling = (GALLERY / "micropython.html").read_text(encoding="utf-8")
+    for link in (
+        '<link rel="stylesheet" href="/assets/chrome/site.css">',
+        '<link rel="stylesheet" href="../pyscript/site-extra.css">',
+        '<link rel="stylesheet" href="../pyscript/demo.css">',
+    ):
+        assert link in source
+        assert link in sibling
+    assert "mini-coi" not in source
+    assert "mini-coi" not in sibling
+    assert '<script src="../pyscript/site-chrome.js"></script>' in source
+    assert '<script src="../pyscript/theme-toggle.js"></script>' in source
+    assert 'id="pydevices-site-header"' in source
+    assert 'id="pydevices-site-footer"' in source
 
 
 def test_bare_url_defaults_to_touch_gui():
@@ -54,51 +80,40 @@ def test_bare_url_defaults_to_touch_gui():
     assert "selectors.length === 0 && unknownBare.length === 0" in source
 
 
-def test_generated_configs_split_shared_files_from_gui_manifests():
-    micropython = tomllib.loads((ROOT / ".site" / "pyscript" / "micropython.toml").read_text())
-    pyodide = tomllib.loads((ROOT / ".site" / "pyscript" / "pyodide.toml").read_text())
-    assert micropython == {"interpreter": "/vendor/micropython/micropython.mjs"}
-    assert pyodide == {"interpreter": "./vendor/pyodide/pyodide.mjs"}
-
+def test_gui_files_come_from_per_gui_mip_manifests():
+    """Each GUI's files come from its own manifest, sourced straight from
+    peterhinch's upstream repository — and nothing shared rides along in it.
+    ``pydevices-desktop`` (board_config, displaydev) is the host's job."""
+    source = _source()
     packages = {
         "nano": "micropython-nano-gui",
         "micro": "micropython-micro-gui",
         "touch": "micropython-touch",
     }
     for gui, package in packages.items():
-        config = tomllib.loads(
-            (ROOT / ".site" / "pyscript" / f"peterhinch-{gui}.toml").read_text()
-        )
+        assert f"{gui}: '{package}'" in source
         manifest = json.loads((ROOT / "packages" / f"{package}.json").read_text())
-        assert set(config) == {"files"}
-        assert "./lib/board_config.py" not in config["files"]
-        for destination, source in manifest["urls"]:
-            github_path = source.removeprefix("github:")
-            owner, repository, path = github_path.split("/", 2)
-            raw_source = f"https://raw.githubusercontent.com/{owner}/{repository}/master/{path}"
-            assert config["files"][raw_source] == f"/utils/{destination}"
+        destinations = {destination for destination, _ in manifest["urls"]}
+        assert destinations
+        assert not any(name.endswith("board_config.py") for name in destinations)
+        assert all(name.startswith("gui/") for name in destinations)
+        assert any(name.startswith("gui/demos/") for name in destinations)
+        for destination, origin in manifest["urls"]:
+            assert origin == f"github:peterhinch/{package}/{destination}"
 
 
-def test_gallery_pages_compose_modular_toml_configs():
-    pages = {
-        "repl.html": "micropython",
-        "harness.html": "micropython",
-        "editor.html": "micropython",
-        "micropython.html": "micropython",
-        "async.html": "micropython",
-        "dom.html": "micropython",
-        "mp.html": "micropython",
-        "py.html": "pyodide",
-        "pyodide.html": "pyodide",
-    }
-    for filename, interpreter in pages.items():
-        source = (ROOT / ".site" / "pyscript" / filename).read_text()
-        assert (
-            f'data-configs="./{interpreter}.toml https://raw.githubusercontent.com/PyDevices/pydevices/main/pydevices-desktop.toml ./pydevices-examples.toml"'
-            in source
-        )
-        assert '<script type="module" src="./pyscript-config.js"></script>' in source
-        assert ".json" not in source.split("data-configs=")[1].split(">")[0]
+def test_gallery_pages_share_one_direct_wasm_host():
+    """The modular ``.toml`` config chain retired with PyScript. The gallery's
+    loader pages now compose by sharing one host module instead."""
+    for filename in ("micropython.html", "mp.html", "peterhinch.html"):
+        source = (GALLERY / filename).read_text(encoding="utf-8")
+        assert '<script type="module" src="./gallery-host.js"></script>' in source
+        assert ".toml" not in source
+        assert "pyscript-config.js" not in source
+    host = (GALLERY / "gallery-host.js").read_text(encoding="utf-8")
+    assert "globalThis.__pydevicesPlan ?? location.search" in host
+    assert 'command: params.get("command")' in host
+    assert "`./packages/${manifest}.json`" in host
 
 
 def test_dynamic_discovery_is_sorted_and_excludes_init():
@@ -161,6 +176,19 @@ def test_console_stacks_below_canvas_and_cards_are_synchronized():
     assert "demoPanel.style.maxWidth = width;" in source
     assert "panel.style.height = rect.height + 'px';" in source
     assert "demoPanel.style.height = consoleBottom - demoTop + 'px';" in source
+
+
+def test_console_output_is_the_hosts_and_is_not_written_twice():
+    """PyScript needed the page to rebind ``print`` to reach the console panel.
+    ``gallery-host.js`` already pipes stdout and stderr into ``#log``, so a
+    second writer would double every line."""
+    source = _source()
+    assert '<pre id="log" class="log"' in source
+    assert "builtins.print" not in source
+    host = (GALLERY / "gallery-host.js").read_text(encoding="utf-8")
+    assert 'const logElement = () => document.getElementById("log");' in host
+    assert 'log(line, "stdout")' in host
+    assert 'log(line, "stderr")' in host
 
 
 def test_known_incompatible_demos_are_filtered():
