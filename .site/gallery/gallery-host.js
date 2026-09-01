@@ -57,7 +57,10 @@ async function stagePython(mp, plan) {
 }
 
 function loaderPlan() {
-    const params = new URLSearchParams(location.search);
+    // A host page whose address bar carries its own state (peterhinch.html)
+    // declares the plan directly instead; everything else reads ?modules=…,
+    // ?manifests=…, ?deps=…, ?files=… and ?command=… from the URL.
+    const params = new URLSearchParams(globalThis.__pydevicesPlan ?? location.search);
     const split = (name) => (params.get(name) || "")
         .split(",").map((item) => item.trim()).filter(Boolean);
     const modules = split("modules");
