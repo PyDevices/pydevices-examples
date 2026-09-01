@@ -38,13 +38,18 @@ def main():
 
     pygraphics.fill(display_drv, BG)
 
-    SIZE = min(display_drv.width, display_drv.height)
-    SCALE = SIZE / 64
-    # Centre the mark's bounding box rather than the viewBox: the mark is
-    # taller than it is wide and does not sit dead centre in the 64x64 grid,
-    # so centring the box is what actually looks centred.
-    LEFT = round((display_drv.width - (MARK_X1 - MARK_X0) * SCALE) / 2 - MARK_X0 * SCALE)
-    TOP = round((display_drv.height - (MARK_Y1 - MARK_Y0) * SCALE) / 2 - MARK_Y0 * SCALE)
+    # Fit the mark's own bounding box to the display, not the 64x64 viewBox.
+    # Mapping the whole grid would leave the mark filling barely half the
+    # screen, because the drawing occupies only 34x44.5 of those 64 units --
+    # the badge tile that used to take up the rest is gone.
+    MARGIN = 0.86  # fraction of the display the mark's box may occupy
+    MARK_W, MARK_H = MARK_X1 - MARK_X0, MARK_Y1 - MARK_Y0
+    SCALE = min(display_drv.width * MARGIN / MARK_W, display_drv.height * MARGIN / MARK_H)
+    # Centre that box, not the viewBox: the mark is taller than it is wide and
+    # does not sit dead centre in the grid, so centring the box is what
+    # actually looks centred.
+    LEFT = round((display_drv.width - MARK_W * SCALE) / 2 - MARK_X0 * SCALE)
+    TOP = round((display_drv.height - MARK_H * SCALE) / 2 - MARK_Y0 * SCALE)
 
     def s(v):
         return round(v * SCALE)
