@@ -8,7 +8,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PD = process.env.PD || join(HERE, "../../../pydevices");
-const { loadMicroPython } = await import(join(HERE, "../../../cmods/bin/micropython.mjs"));
+const { loadMicroPython } = await import(join(HERE, "../../../pydevices/bin/micropython.mjs"));
 
 const mp = await loadMicroPython({
     stdout: (line) => console.log(line),

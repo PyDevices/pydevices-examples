@@ -3,7 +3,7 @@
 # on every interpreter PyDevices targets.
 cd "$(dirname "$0")"
 PD=${PD:-/home/brad/gh/pydevices/pydevices}
-BIN=${BIN:-/home/brad/gh/pydevices/cmods/bin}
+BIN=${BIN:-$PD/bin}
 export MICROPYPATH=".:$PD/lib:$PD/utils"
 export PYTHONPATH=".:$PD/lib:$PD/utils"
 # micropython.exe is a Windows binary launched from WSL, so it only sees the
