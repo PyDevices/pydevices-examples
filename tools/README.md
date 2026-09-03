@@ -292,6 +292,6 @@ the binary-bundled ``imageio-ffmpeg`` Python package.
 |---------|--------|
 | MicroPython stdlib stubs | committed under `tools/typings/` |
 | `displaydev` / `appdev` / `multimer` / `events` / `keys` | committed package trees / modules; regenerate with [`../scripts/gen_package_pyi.sh`](../scripts/gen_package_pyi.sh) |
-| `lvgl` | committed `tools/typings/lvgl.pyi` (from `cmods/lvgl-bindings/generated/lvgl.pyi`) |
+| `lvgl` | committed `tools/typings/lvgl.pyi` (from `../lvgl-bindings/generated/lvgl.pyi`) |
 
 Confirm **Python: Select Interpreter** → `.venv/bin/python`. Cursor uses **cursorpyright** with `stubPath` / `typeshedPaths` → `tools/typings` (configured in a local `.vscode/settings.json` when present).

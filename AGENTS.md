@@ -171,8 +171,8 @@ LVGL and mpftp soft-reset:
 - Symptom table, wrap architecture, and bring-up methods live in the sibling
   displayif repo:
   [`soft-reset-and-bring-up.md`](https://github.com/PyDevices/displayif/blob/main/docs/soft-reset-and-bring-up.md)
-  (local: `../cmods/displayif/docs/soft-reset-and-bring-up.md` or
-  `~/gh/pydevices/cmods/displayif/…`). Start at displayif `AGENTS.md`.
+  (local: `../displayif/docs/soft-reset-and-bring-up.md` or
+  `~/gh/pydevices/displayif/…`). Start at displayif `AGENTS.md`.
 - Do not leave flash-backed debug logs on the touch/refresh path (looks like
   flicker). Fix displayif/bindings root causes rather than board_config
   workarounds.
