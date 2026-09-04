@@ -265,6 +265,37 @@ html {
   touch-action: none;
 }
 
+/* Boot loader over the canvas -- the same spinner and uppercase status line the
+   org landing page shows over a hero canvas. Its .hero-canvas-loader,
+   .hero-spinner and .hero-canvas-status rules arrive with the shared chrome
+   (/assets/chrome/site.css), so only the anchor, the reveal condition and the
+   contrast against a black canvas are set here. */
+.canvas-stage {
+  position: relative;
+  line-height: 0;
+}
+
+body[data-runtime-state="ready"] .hero-canvas-loader {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* The bezel is dark in both themes, so --ink-soft would sink into it. */
+.canvas-stage .hero-canvas-status {
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.4;
+}
+
+.canvas-stage .hero-spinner {
+  border-color: rgba(255, 255, 255, 0.18);
+  border-top-color: var(--accent);
+}
+
+body[data-runtime-state="failed"] .canvas-stage .hero-spinner {
+  animation: none;
+  border-top-color: #e5687a;
+}
+
 /* Starts 1×1; PSDisplay (lv_multi_display / EncoderEmu) resizes when used. */
 #aux_canvas {
   display: block;

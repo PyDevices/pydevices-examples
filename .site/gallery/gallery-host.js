@@ -9,6 +9,16 @@ globalThis.__pydevicesHost = state;
 
 const logElement = () => document.getElementById("log");
 
+// The loader overlay both host shells carry (micropython.html, mp.html). A
+// first visit downloads the runtime, then installs packages over the network,
+// which is long enough that a black canvas reads as a broken page.
+function setStatus(text) {
+    const element = document.querySelector(".hero-canvas-status");
+    if (element) element.textContent = text;
+}
+
+const readable = (name) => String(name).replaceAll("_", " ");
+
 function log(line, stream = "stdout") {
     state[stream].push(String(line));
     const element = logElement();
@@ -84,16 +94,19 @@ function pythonLiteral(value) {
 
 async function installPackages(mp, plan) {
     const index = "https://PyDevices.github.io/mip";
+    setStatus("Installing pydevices-desktop…");
     await mp.runPythonAsync(`
 import mip
 mip.install("pydevices-desktop", index=${pythonLiteral(index)}, target="lib")
 `);
     for (const dependency of plan.deps) {
+        setStatus(`Installing ${dependency}…`);
         await mp.runPythonAsync(
             `mip.install(${pythonLiteral(dependency)}, index=${pythonLiteral(index)}, target="lib")`
         );
     }
     for (const manifest of plan.manifests) {
+        setStatus(`Installing ${readable(manifest)}…`);
         const url = new URL(`./packages/${manifest}.json`, location.href).href;
         await mp.runPythonAsync(
             `mip.install(${pythonLiteral(url)}, index=${pythonLiteral(index)}, target="lib")`
@@ -128,10 +141,13 @@ async function boot() {
     document.body.dataset.runtimeState = "loading";
     const plan = loaderPlan();
     try {
+        setStatus(state.mp ? "Restarting…" : "Booting MicroPython…");
         const mp = state.mp || await createRuntime();
         state.mp = mp;
+        setStatus("Staging example files…");
         await stagePython(mp, plan);
         await installPackages(mp, plan);
+        setStatus(plan.entry ? `Loading ${readable(plan.entry)}…` : "Starting…");
         await executePlan(mp, plan);
         state.phase = "ready";
         document.body.dataset.runtimeState = "ready";
@@ -142,6 +158,7 @@ async function boot() {
         log(detail, "stderr");
         state.phase = "failed";
         document.body.dataset.runtimeState = "failed";
+        setStatus("Failed to start. See console output.");
         dispatchEvent(new CustomEvent("pydevices-failed", {detail}));
     }
 }
