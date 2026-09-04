@@ -62,6 +62,7 @@
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/displaybuf_simpletest.py" = "/examples/displaybuf_simpletest.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/displaysys_block_test.py" = "/examples/displaysys_block_test.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/displaysys_fill_rect_test.py" = "/examples/displaysys_fill_rect_test.py"
+"https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/drum_machine/__init__.py" = "/examples/drum_machine/__init__.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/drum_machine/drum_machine.py" = "/examples/drum_machine/drum_machine.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/drum_seq/__init__.py" = "/examples/drum_seq/__init__.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/drum_seq/panel.py" = "/examples/drum_seq/panel.py"
