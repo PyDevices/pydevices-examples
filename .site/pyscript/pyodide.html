@@ -13,12 +13,12 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
     <link rel="stylesheet" href="/assets/chrome/site.css">
     <link rel="stylesheet" href="./site-extra.css">
-    <link rel="stylesheet" href="./demo.css?v=5">
+    <link rel="stylesheet" href="./demo.css?v=6">
     <link rel="stylesheet" href="./vendor/core.css">
     <script src="./loader-query.js"></script>
     <script src="./theme-toggle.js" defer></script>
 </head>
-<body class="interpreter-page" data-loader-interpreter="py">
+<body class="interpreter-page" data-loader-interpreter="py" data-runtime-state="loading">
     <header class="site-header">
         <div class="wrap">
             <a class="brand" href="https://pydevices.github.io/">
@@ -72,8 +72,19 @@
         <div class="play-area" id="play-area">
             <div class="display-column">
                 <div class="device">
-                    <canvas id="display_canvas" width="320" height="480" tabindex="0"></canvas>
-                    <canvas id="aux_canvas" width="1" height="1" tabindex="0"></canvas>
+                    <div class="canvas-stage">
+                        <canvas id="display_canvas" width="320" height="480" tabindex="0"></canvas>
+                        <canvas id="aux_canvas" width="1" height="1" tabindex="0"></canvas>
+                        <!-- Same loader the org landing page shows over a hero
+                             canvas, and the direct MicroPython host over this
+                             one. Pyodide's own boot is the slowest part, so the
+                             first line is in the markup rather than set by
+                             Python, which only starts running after it. -->
+                        <div class="hero-canvas-loader">
+                            <div class="hero-spinner"></div>
+                            <span class="hero-canvas-status" role="status" aria-live="polite">Booting Pyodide…</span>
+                        </div>
+                    </div>
                     <div class="device-footer">
                         <button type="button" class="console-toggle" aria-expanded="false">Show console</button>
                     </div>
@@ -243,8 +254,24 @@
         _started = False
 
         def _set(msg):
+            # One line over the canvas, and the body state the CSS reveals and
+            # hides it by. "" means the entry module imported; a message
+            # starting with "Error" means it did not.
             if msg:
                 _log_print(msg)
+            try:
+                el = document.querySelector(".hero-canvas-status")
+                if el is not None and msg:
+                    el.textContent = msg
+                if not msg:
+                    state = "ready"
+                elif msg.startswith("Error"):
+                    state = "failed"
+                else:
+                    state = "loading"
+                document.body.dataset.runtimeState = state
+            except Exception:
+                pass
 
         def _from_window(name, default=""):
             from js import window

@@ -7,9 +7,25 @@
 <link rel="stylesheet" href="./vendor/core.css">
 <script src="./loader-query.js"></script>
 </head>
-<body bgcolor="black" text="white" link="white" vlink="white" alink="white">
+<style>
+/* The org landing page's hero loader, inlined: this shell loads no chrome. */
+.canvas-stage{position:relative;display:inline-block;line-height:0}
+.hero-canvas-loader{position:absolute;inset:0;background:rgba(8,12,16,.62);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;transition:opacity .3s ease;z-index:2}
+body[data-runtime-state="ready"] .hero-canvas-loader{opacity:0;visibility:hidden}
+.hero-spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,.18);border-top-color:#4fd1c5;border-radius:50%;animation:hero-spin .9s linear infinite}
+body[data-runtime-state="failed"] .hero-spinner{animation:none;border-top-color:#e5687a}
+@keyframes hero-spin{to{transform:rotate(360deg)}}
+.hero-canvas-status{font:600 .72rem/1.4 system-ui;color:rgba(255,255,255,.72);letter-spacing:.05em;text-transform:uppercase;max-width:180px;text-align:center}
+</style>
+<body bgcolor="black" text="white" link="white" vlink="white" alink="white" data-runtime-state="loading">
+<div class="canvas-stage">
 <canvas id="display_canvas" width="320" height="480" tabindex="0"></canvas>
 <canvas id="aux_canvas" width="1" height="1" tabindex="0"></canvas>
+<div class="hero-canvas-loader">
+    <div class="hero-spinner"></div>
+    <span class="hero-canvas-status" role="status" aria-live="polite">Booting Pyodide…</span>
+</div>
+</div>
 <pre id="log" hidden></pre>
 <script>
 (function () {
@@ -50,6 +66,19 @@ def _log_print(*args, **kwargs):
 
 builtins.print = _log_print
 
+def _set(msg):
+    # Mirrors pyodide.html: one line over the canvas, and the body state the
+    # CSS reveals and hides it by.
+    if msg:
+        _log_print(msg)
+    try:
+        el = document.querySelector(".hero-canvas-status")
+        if el is not None and msg:
+            el.textContent = msg
+        document.body.dataset.runtimeState = "ready" if not msg else "loading"
+    except Exception:
+        pass
+
 def _from_window(name, default=""):
     from js import window
     return str(getattr(window, name, default) or default).strip()
@@ -68,9 +97,17 @@ async def _run():
     if not entry:
         print("Missing ?modules= and/or ?manifests= in the URL.")
         return
-    await ps_loader.install_pyodide(modules, manifests, deps)
-    ps_loader.set_board_defaults()
-    __import__(entry)
+    _set("Starting…")
+    try:
+        await ps_loader.install_pyodide(modules, manifests, deps, status=_set)
+        _set("Loading " + entry.replace("_", " ") + "…")
+        ps_loader.set_board_defaults()
+        __import__(entry)
+    except Exception:
+        _set("Failed to start.")
+        document.body.dataset.runtimeState = "failed"
+        raise
+    _set("")
 
 await _run()
 </script>
