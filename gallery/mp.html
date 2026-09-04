@@ -8,7 +8,7 @@
         html,body{margin:0;background:#111;color:#eee;font:14px system-ui;display:grid;place-items:center;height:100%}canvas{max-width:100%;height:auto;image-rendering:pixelated;background:#000;touch-action:none}
         /* The org landing page's hero loader, inlined: this shell loads no site.css. */
         .canvas-stage{position:relative;display:inline-block;line-height:0}
-        .hero-canvas-loader{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;transition:opacity .3s ease;z-index:2}
+        .hero-canvas-loader{position:absolute;inset:0;background:rgba(8,12,16,.62);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;transition:opacity .3s ease;z-index:2}
         body[data-runtime-state="ready"] .hero-canvas-loader{opacity:0;visibility:hidden}
         .hero-spinner{width:32px;height:32px;border:3px solid rgba(255,255,255,.18);border-top-color:#4fd1c5;border-radius:50%;animation:hero-spin .9s linear infinite}
         body[data-runtime-state="failed"] .hero-spinner{animation:none;border-top-color:#e5687a}

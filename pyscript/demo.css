@@ -296,6 +296,13 @@ body[data-runtime-state="failed"] .canvas-stage .hero-spinner {
   border-top-color: #e5687a;
 }
 
+/* Invisible over the black canvas of a booting demo; the reason it is here is
+   the failure case, where the app has already painted a bright UI underneath
+   and the message would otherwise be unreadable. */
+.canvas-stage .hero-canvas-loader {
+  background: rgba(8, 12, 16, 0.62);
+}
+
 /* Starts 1×1; PSDisplay (lv_multi_display / EncoderEmu) resizes when used. */
 #aux_canvas {
   display: block;
