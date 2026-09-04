@@ -14,15 +14,19 @@ Optional headers (first 10 lines), one line per namespace::
   # utils: console, tft_config  — pydevices-examples utils modules (shown as badges)
   # modules: calc_engine          — extra example .py stems (site)
   # manifests: alien              — site-served packages/<name>.json bundles
-  # gallery: featured|skip|binaries|nochrome
+  # gallery: featured|skip|binaries|nochrome|newwindow  (comma-separated)
 
 MIP manifests for package examples live in ``packages/<name>.json`` (generated
 by ``scripts/install_gen_manifests.py``). The direct host loads them from the
 deployed gallery tree as ``?manifests=<name>``.
 
-``# gallery: nochrome`` keeps the demo in the gallery but links the minimal
-``mp.html`` / ``py.html`` shells (no gallery chrome) — useful for
-large landscape demos.
+``# gallery: newwindow`` keeps the full ``micropython.html`` / ``pyodide.html``
+pages, with the org chrome, but opens them in a new tab instead of the
+gallery's embedded preview — for demos too large to read beside the cards.
+``# gallery: nochrome`` also opens a new tab but links the minimal ``mp.html``
+/ ``py.html`` shells, which carry no chrome at all. The two are separate
+choices: new tab is about where the demo opens, chrome is about what it looks
+like when it gets there. Values combine, so ``featured, newwindow`` is valid.
 
 Then:
 
@@ -99,7 +103,7 @@ GENERIC_ICON = (
 )
 
 HEADER_SCAN_LINES = 10
-GALLERY_VALUES = frozenset({"featured", "skip", "binaries", "nochrome"})
+GALLERY_VALUES = frozenset({"featured", "skip", "binaries", "nochrome", "newwindow"})
 
 LOCAL_IMPORT_RE = re.compile(
     r"^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))",
@@ -122,6 +126,7 @@ class Example:
         self.pyscript_files: list[str] = []
         self.featured = False
         self.nochrome = False
+        self.new_window = False
         self.in_gallery = True
 
     @property
@@ -189,23 +194,30 @@ def parse_header_list(lines: list[str], prefix: str) -> list[str]:
     return []
 
 
-def parse_gallery_value(lines: list[str]) -> str | None:
-    """Return featured|skip|binaries|nochrome or None. Exactly one value when present."""
+def parse_gallery_values(lines: list[str]) -> set[str]:
+    """Return the declared ``# gallery:`` values, or an empty set.
+
+    Comma-separated, because the choices are independent: ``featured`` is
+    prominence, ``newwindow`` is where the demo opens, ``nochrome`` is which
+    shell it opens. ``featured, newwindow`` is the combination a large hero
+    demo wants.
+    """
     for line in lines[:HEADER_SCAN_LINES]:
         s = line.strip()
         if not s.startswith("# gallery:"):
             continue
         body = s.split(":", 1)[1].strip().lower()
         if not body:
-            return None
-        # Allow a single token only.
-        token = body.split(",")[0].strip()
-        if token in GALLERY_VALUES:
-            return token
-        raise SystemExit(
-            f"invalid # gallery: value {body!r} (want featured|skip|binaries|nochrome)"
-        )
-    return None
+            return set()
+        tokens = {t.strip() for t in body.split(",") if t.strip()}
+        unknown = tokens - GALLERY_VALUES
+        if unknown:
+            raise SystemExit(
+                f"invalid # gallery: value(s) {sorted(unknown)!r} "
+                f"(want {'|'.join(sorted(GALLERY_VALUES))})"
+            )
+        return tokens
+    return set()
 
 
 def _py_sort_key(rel: str) -> tuple:
@@ -344,10 +356,12 @@ def parse_example(path: Path) -> Example | None:
 
     rel = path.relative_to(REPO_ROOT).as_posix()
     ex = Example(name, rel, kind)
-    gallery = parse_gallery_value(lines)
-    ex.in_gallery = gallery not in ("skip", "binaries")
-    ex.featured = gallery == "featured"
-    ex.nochrome = gallery == "nochrome"
+    gallery = parse_gallery_values(lines)
+    ex.in_gallery = not (gallery & {"skip", "binaries"})
+    ex.featured = "featured" in gallery
+    ex.nochrome = "nochrome" in gallery
+    # A bare shell is only reachable in its own tab, so nochrome implies it.
+    ex.new_window = "newwindow" in gallery or ex.nochrome
     ex.docstring_blurb = extract_blurb(text, name)
     ex.extra_modules = parse_header_list(lines, "# modules:")
     ex.extra_manifests = parse_header_list(lines, "# manifests:")
@@ -513,12 +527,14 @@ def render_card(ex: Example, *, runtime: str = "micropython") -> str:
         tag = '\n                        <span class="tag featured">featured</span>'
     elif ex.nochrome:
         tag = '\n                        <span class="tag">nochrome</span>'
+    elif ex.new_window:
+        tag = '\n                        <span class="tag">new window</span>'
     else:
         tag = ""
     badges = _render_badges(ex)
     hrefs = ex.loader_hrefs()
     icon = render_card_icon(ex)
-    link_attrs = ' target="_blank" rel="noopener"' if ex.nochrome else ""
+    link_attrs = ' target="_blank" rel="noopener"' if ex.new_window else ""
     return f'''                <a class="card" href="{hrefs[runtime]}"{link_attrs}>
                     <div class="card-top">
                         <span class="card-icon">{icon}</span>
@@ -725,10 +741,10 @@ def main(argv: list[str] | None = None) -> int:
         n = copy_gallery_examples(args.copy_examples)
         print(f"copied {n} gallery example file(s) to {args.copy_examples}")
 
-    # featured, then nochrome, then A-Z
+    # featured, then new-window, then A-Z
     examples = sorted(
         discover(),
-        key=lambda e: (0 if e.featured else 1 if e.nochrome else 2, e.title.lower()),
+        key=lambda e: (0 if e.featured else 1 if e.new_window else 2, e.title.lower()),
     )
     stale: list[str] = []
 
@@ -776,13 +792,13 @@ def main(argv: list[str] | None = None) -> int:
     n_module = sum(1 for ex in examples if ex.kind == "module" and ex.in_gallery)
     n_manifest = sum(1 for ex in examples if ex.kind == "manifest" and ex.in_gallery)
     n_featured = sum(1 for ex in examples if ex.featured and ex.in_gallery)
-    n_nochrome = sum(1 for ex in examples if ex.nochrome and ex.in_gallery)
+    n_new_window = sum(1 for ex in examples if ex.new_window and ex.in_gallery)
     n_gallery = sum(1 for ex in examples if ex.in_gallery)
     n_local_only = sum(1 for ex in examples if not ex.in_gallery)
     print(
         f"\n{n_gallery} gallery demo(s) "
         f"({n_module} module, {n_manifest} manifest; {n_featured} featured"
-        f"; {n_nochrome} nochrome)"
+        f"; {n_new_window} in a new window)"
         f"; {n_local_only} local-only (gallery: skip/binaries)."
     )
 

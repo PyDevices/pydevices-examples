@@ -1,5 +1,5 @@
 # deps: audioinstruments, lvgl, multimer
-# gallery: featured
+# gallery: featured, newwindow
 """
 drum_machine.py — 16-step drum sequencer with ten classic drum machines.
 
@@ -10,7 +10,8 @@ dropdown that switches between the ten drum machines while the pattern keeps
 playing. The PANEL button opens the generic Tier-0 instrument panel
 (``drum_seq.panel``) over the current machine for macro and patch editing.
 
-Sized for a 720×720 touch panel; other resolutions lay out proportionally.
+Designed on a 720×720 touch panel and laid out for 720×480 here, which fits
+a browser window; other resolutions lay out proportionally.
 Requires the ``audioinstruments`` package (``mip.install("audioinstruments",
 index="https://PyDevices.github.io/mip")`` on a board; pip on desktop).
 """
@@ -22,7 +23,7 @@ index="https://PyDevices.github.io/mip")`` on a board; pip on desktop).
 from displaydev import env_set
 
 env_set("PYDEVICES_WIDTH", 720)
-env_set("PYDEVICES_HEIGHT", 720)
+env_set("PYDEVICES_HEIGHT", 480)
 env_set("PYDEVICES_SCALE", 1.0)
 
 import gc

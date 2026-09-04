@@ -79,20 +79,25 @@ class TestGalleryFrame(unittest.TestCase):
         for page in embedded:
             assert (GALLERY / page).is_file()
 
-    def test_every_nochrome_card_uses_compact_interpreter_pages(self):
-        """``# gallery: nochrome`` demos open the bare ``mp.html`` shell in a
-        new tab; everything else embeds the full ``micropython.html`` page.
-        Each card is one link for the gallery's own runtime now -- the Pyodide
-        pairing lives in the sibling PyScript gallery."""
+    def test_new_window_cards_keep_the_chrome_unless_nochrome(self):
+        """Where a demo opens and what it looks like are separate choices.
+
+        ``# gallery: newwindow`` opens the full ``micropython.html`` page --
+        org chrome and all -- in its own tab, for demos too large to read
+        beside the cards. ``# gallery: nochrome`` opens the bare ``mp.html``
+        shell instead. Everything else embeds ``micropython.html`` in the
+        gallery's preview. Each card is one link for the gallery's own runtime;
+        the Pyodide pairing lives in the sibling PyScript gallery."""
         cards = _generated_cards(_read(INDEX))
-        nochrome = [(href, attrs) for href, attrs, body in cards if NOCHROME_TAG in body]
-        chrome = [(href, attrs) for href, attrs, body in cards if NOCHROME_TAG not in body]
-        assert nochrome
-        assert chrome
-        for href, attrs in nochrome:
-            assert href.startswith("mp.html?")
-            assert attrs == ' target="_blank" rel="noopener"'
-        for href, attrs in chrome:
+        assert cards
+        new_tab = [(href, body) for href, attrs, body in cards if 'target="_blank"' in attrs]
+        embedded = [(href, attrs) for href, attrs, _ in cards if 'target="_blank"' not in attrs]
+        assert new_tab, "no demo opens in its own tab"
+        assert embedded
+        for href, body in new_tab:
+            expected = "mp.html?" if NOCHROME_TAG in body else "micropython.html?"
+            assert href.startswith(expected), f"{href} should start with {expected}"
+        for href, attrs in embedded:
             assert href.startswith("micropython.html?")
             assert attrs == ""
 
