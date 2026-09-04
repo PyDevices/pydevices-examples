@@ -1,4 +1,4 @@
-# deps: lvgl
+# deps: audioinstruments, lvgl
 # gallery: featured
 """
 drum_machine.py — 16-step drum sequencer with ten classic drum machines.
