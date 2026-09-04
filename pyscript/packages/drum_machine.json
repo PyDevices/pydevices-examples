@@ -1,6 +1,10 @@
 {
   "urls": [
     [
+      "drum_machine/__init__.py",
+      "../lib/examples/drum_machine/__init__.py"
+    ],
+    [
       "drum_machine/drum_machine.py",
       "../lib/examples/drum_machine/drum_machine.py"
     ]

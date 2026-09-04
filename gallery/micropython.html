@@ -27,8 +27,17 @@
         <div class="play-area">
             <div class="display-column">
                 <div class="device">
-                    <canvas id="display_canvas" width="320" height="480" tabindex="0" aria-label="Application display"></canvas>
-                    <canvas id="aux_canvas" width="1" height="1" tabindex="0" hidden></canvas>
+                    <div class="canvas-stage">
+                        <canvas id="display_canvas" width="320" height="480" tabindex="0" aria-label="Application display"></canvas>
+                        <canvas id="aux_canvas" width="1" height="1" tabindex="0" hidden></canvas>
+                        <!-- Same loader the org landing page shows over a hero
+                             canvas (hero-runtime.js / site.css): a spinner and
+                             one uppercase line, driven here by gallery-host.js. -->
+                        <div class="hero-canvas-loader">
+                            <div class="hero-spinner"></div>
+                            <span class="hero-canvas-status" role="status" aria-live="polite">Booting MicroPython…</span>
+                        </div>
+                    </div>
                     <div class="device-footer">
                         <button type="button" class="console-toggle" aria-expanded="false">Show console</button>
                     </div>
