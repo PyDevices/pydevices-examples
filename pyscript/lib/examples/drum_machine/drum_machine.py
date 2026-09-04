@@ -163,6 +163,8 @@ class DrumMachine:
         self.pattern = [set(s) for s in DEFAULT_PATTERN]
         self.bpm = 120
         self.playing = False
+        self.audio_started = False
+        self._audio_retry_ms = 0
         self.step = 0
         self.panel = None
         self.panel_scr = None
@@ -191,10 +193,34 @@ class DrumMachine:
     def _step_ms(self):
         return 60_000 // self.bpm // 4  # 16th notes
 
+    def _start_audio(self):
+        """Connect the current kit to the speaker; report whether it took.
+
+        A browser will not open audio until the page has had a user gesture --
+        the wasm backend raises RuntimeError and the gallery host offers an
+        Enable Audio control -- so a build-time connection is not something to
+        die on. Nothing is playing yet at that point, so the attempt is simply
+        repeated from PLAY and from a kit change, both of which are clicks.
+        On a board it succeeds the first time and this costs one try/except.
+        """
+        if self.inst is None:
+            return False
+        try:
+            self.audio_out.play(self.inst.output)
+        except RuntimeError as err:
+            if self.audio_started or not self._audio_retry_ms:
+                print("drum_machine: audio is not open yet -", err)
+            self.audio_started = False
+            self._audio_retry_ms = time.ticks_ms()
+            return False
+        self.audio_started = True
+        return True
+
     def _load_machine(self, name, start_audio=False):
         if self.inst is not None:
             self.inst.all_notes_off()
-            self.audio_out.stop()
+            if self.audio_started:
+                self.audio_out.stop()
         self.inst = audioinstruments.create(
             name, self.fmt.rate, channel_count=self.fmt.channels
         )
@@ -210,7 +236,7 @@ class DrumMachine:
         names = dict(self.inst.note_map)
         for i, pitch in enumerate(ROW_PITCHES):
             self.row_labels[i].set_text(names.get(pitch, str(pitch)))
-        self.audio_out.play(self.inst.output)
+        self._start_audio()
 
     def _fire_step(self, step):
         for row, pitch in enumerate(ROW_PITCHES):
@@ -395,6 +421,8 @@ class DrumMachine:
         self.playing = self.play_btn.has_state(lv.STATE.CHECKED)
         self.play_label.set_text("STOP" if self.playing else "PLAY")
         if self.playing:
+            if not self.audio_started:
+                self._start_audio()
             self.step = 0
             self._next_step_ms = None
         else:
@@ -421,6 +449,13 @@ class DrumMachine:
         self.bpm_label.set_text("%d BPM" % self.bpm)
 
     def _on_step_timer(self, t):
+        if self.playing and not self.audio_started:
+            # The gallery host unlocks the AudioContext on the page's first
+            # gesture (gallery-host.js), which can complete just after the PLAY
+            # press that caused it. Retry about once a second rather than make
+            # the visitor press PLAY twice.
+            if time.ticks_diff(time.ticks_ms(), self._audio_retry_ms) > 1000:
+                self._start_audio()
         if not self.playing:
             self._next_step_ms = None
             return
@@ -489,7 +524,8 @@ machine = DrumMachine()
 def _on_quit(_e=None):
     try:
         machine.timer.pause()
-        machine.audio_out.close()
+        if machine.audio_started:
+            machine.audio_out.close()
     except Exception:
         pass
 
