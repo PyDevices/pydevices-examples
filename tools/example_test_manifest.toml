@@ -453,6 +453,14 @@ deps = ["utils"]
 matrix = false
 timeout_s = 45
 
+[examples.drum_machine]
+import = "drum_machine"
+script = "examples/drum_machine/drum_machine.py"
+kind = "lvgl"
+quit = "inject"
+deps = ["lvgl"]
+timeout_s = 45
+
 [examples.alien]
 import = "alien.alien"
 script = "examples/alien/alien.py"

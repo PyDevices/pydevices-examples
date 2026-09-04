@@ -1,4 +1,4 @@
-# deps: audioinstruments, lvgl
+# deps: audioinstruments, lvgl, multimer
 # gallery: featured
 """
 drum_machine.py — 16-step drum sequencer with ten classic drum machines.
@@ -26,7 +26,12 @@ env_set("PYDEVICES_HEIGHT", 720)
 env_set("PYDEVICES_SCALE", 1.0)
 
 import gc
-import time
+
+# Wrapping millisecond ticks that exist on every runtime. The tick calls in
+# MicroPython's own time module do not exist under CPython, so on the
+# pyscript (Pyodide) host the step timer raised on every tick and the
+# sequencer could never run there, however well the UI drew.
+from multimer import ticks_add, ticks_diff, ticks_ms
 
 import board_config
 import appdev
@@ -86,7 +91,15 @@ def _guarded(fn):
         except Exception as exc:  # noqa: BLE001
             import sys
 
-            sys.print_exception(exc) if hasattr(sys, "print_exception") else print(exc)
+            printer = getattr(sys, "print_exception", None)
+            if printer is not None:
+                printer(exc)
+            else:
+                # CPython and Pyodide: print(exc) gives the message with no
+                # location, which is close to useless inside a callback.
+                import traceback
+
+                traceback.print_exception(type(exc), exc, exc.__traceback__)
 
     return wrapper
 
@@ -211,7 +224,7 @@ class DrumMachine:
             if self.audio_started or not self._audio_retry_ms:
                 print("drum_machine: audio is not open yet -", err)
             self.audio_started = False
-            self._audio_retry_ms = time.ticks_ms()
+            self._audio_retry_ms = ticks_ms()
             return False
         self.audio_started = True
         return True
@@ -454,15 +467,15 @@ class DrumMachine:
             # gesture (gallery-host.js), which can complete just after the PLAY
             # press that caused it. Retry about once a second rather than make
             # the visitor press PLAY twice.
-            if time.ticks_diff(time.ticks_ms(), self._audio_retry_ms) > 1000:
+            if ticks_diff(ticks_ms(), self._audio_retry_ms) > 1000:
                 self._start_audio()
         if not self.playing:
             self._next_step_ms = None
             return
-        now = time.ticks_ms()
+        now = ticks_ms()
         if self._next_step_ms is None:
             self._next_step_ms = now
-        late = time.ticks_diff(now, self._next_step_ms)
+        late = ticks_diff(now, self._next_step_ms)
         if late < 0:
             return
         self._fire_step(self.step)
@@ -470,9 +483,9 @@ class DrumMachine:
         self.step = (self.step + 1) % N_STEPS
         step_ms = self._step_ms()
         self._next_step_ms = (
-            time.ticks_add(self._next_step_ms, step_ms)
+            ticks_add(self._next_step_ms, step_ms)
             if late < step_ms
-            else time.ticks_add(now, step_ms)
+            else ticks_add(now, step_ms)
         )
 
     def _on_idle_collect(self, t):

@@ -2,7 +2,9 @@
 --extra-index-url https://pypi.org/simple/
 
 pydevices
+pydevices-audioeffects
 pydevices-audioif
+pydevices-audioinstruments
 pydevices-desktop
 pydevices-lvgl
 pydevices-palettes
