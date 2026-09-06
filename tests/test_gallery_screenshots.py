@@ -17,10 +17,32 @@ import gallery_generator as gallery  # noqa: E402
 
 
 class TestGalleryScreenshots(unittest.TestCase):
-    def test_direct_stage_excludes_generated_gui_cache(self):
+    def test_direct_stage_excludes_generated_gui_cache_and_validates_dependencies(self):
         utilities = gallery.tracked_utility_files()
         self.assertIn("utils/tft_config.py", utilities)
         self.assertFalse(any(path.startswith("utils/gui/") for path in utilities))
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            gallery, "EXAMPLES_DIR", Path(tmp)
+        ):
+            package = Path(tmp) / "demo"
+            package.mkdir()
+            (package / "demo.py").write_text("import palettes\nfrom pygraphics import Area\n")
+            (package / "helper.py").write_text("from pdwidgets.button import Button\n")
+            example = gallery.Example("demo", "lib/examples/demo/demo.py", "manifest")
+            example.pyscript_files = ["demo/demo.py", "demo/helper.py"]
+            example.deps = ["palettes", "pygraphics", "pdwidgets", "audioif"]
+
+            with mock.patch("sys.stderr") as stderr:
+                gallery.validate_example_deps([example])
+            warning = "".join(call.args[0] for call in stderr.write.call_args_list)
+            self.assertIn("declared # deps not imported: audioif", warning)
+
+            example.deps.remove("pdwidgets")
+            with mock.patch("sys.stderr"), self.assertRaisesRegex(
+                SystemExit, r"missing # deps: pdwidgets"
+            ):
+                gallery.validate_example_deps([example])
 
     def test_card_uses_existing_thumbnail(self):
         example = gallery.Example("demo", "demo.py", "module")
