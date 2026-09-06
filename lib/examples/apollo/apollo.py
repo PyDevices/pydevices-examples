@@ -1,4 +1,4 @@
-# deps: palettes
+# deps: palettes, pygraphics
 # gallery: binaries
 """
 apollo.py — Apollo Guidance Computer DSKY emulator.

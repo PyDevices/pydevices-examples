@@ -47,6 +47,7 @@ installs them at runtime via color/hardware/touch setup.
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 from pathlib import Path
 import re
@@ -104,6 +105,9 @@ GENERIC_ICON = (
 
 HEADER_SCAN_LINES = 10
 GALLERY_VALUES = frozenset({"featured", "skip", "binaries", "nochrome", "newwindow"})
+INSTALLABLE_DEPS = frozenset(
+    {"palettes", "pygraphics", "pdwidgets", "audioinstruments", "audioeffects"}
+)
 
 LOCAL_IMPORT_RE = re.compile(
     r"^\s*(?:from\s+([\w.]+)\s+import|import\s+([\w.]+))",
@@ -429,6 +433,38 @@ def discover() -> list[Example]:
     return found
 
 
+def imported_top_level_modules(ex: Example) -> set[str]:
+    """Return imports from every Python file shipped for an example."""
+    imported: set[str] = set()
+    for rel in ex.pyscript_files:
+        path = EXAMPLES_DIR / rel
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name.split(".", 1)[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imported.add(node.module.split(".", 1)[0])
+    return imported
+
+
+def validate_example_deps(examples: list[Example]) -> None:
+    """Reject missing installable deps and warn about unused declarations."""
+    errors: list[str] = []
+    for ex in examples:
+        imported = imported_top_level_modules(ex)
+        missing = sorted((imported & INSTALLABLE_DEPS) - set(ex.deps))
+        if missing:
+            errors.append(f"{ex.source_rel}: missing # deps: {', '.join(missing)}")
+        unused = sorted(set(ex.deps) - imported)
+        if unused:
+            print(
+                f"warning: {ex.source_rel}: declared # deps not imported: {', '.join(unused)}",
+                file=sys.stderr,
+            )
+    if errors:
+        raise SystemExit("gallery dependency errors:\n  " + "\n  ".join(errors))
+
+
 # Package deps that are also top-level PyDevices org repos get that repo's
 # real ecosystem tier (see .site/pyscript/site-chrome.js ECOSYSTEM_DATA).
 # appdev and multimer ship inside pydevices' own lib/, so they take its tier.
@@ -742,8 +778,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"copied {n} gallery example file(s) to {args.copy_examples}")
 
     # featured, then new-window, then A-Z
+    discovered = discover()
+    validate_example_deps(discovered)
     examples = sorted(
-        discover(),
+        discovered,
         key=lambda e: (0 if e.featured else 1 if e.new_window else 2, e.title.lower()),
     )
     stale: list[str] = []
