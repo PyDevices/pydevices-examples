@@ -22,7 +22,6 @@ def draw_line():
     color = color_byte << 8 | color_byte
     display_drv.fill_rect(0, 0, x_pos, thickness, color)
     display_drv.fill_rect(x_pos, 0, w - x_pos, thickness, bg_color)
-    display_drv.show()
 
 
 display_drv.vscsad(y_pos)
@@ -73,7 +72,6 @@ def _on_wheel(e):
         delta = steps * steps * direction  # Quadratic acceleration
         y_pos = (y_pos + delta) % h
         display_drv.vscsad(y_pos)
-        display_drv.show()
     steps, _accum_x = _whole_steps(_accum_x, raw_x)
     if steps != 0:
         direction = factor if steps > 0 else -factor

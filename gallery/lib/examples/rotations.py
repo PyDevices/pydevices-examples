@@ -70,7 +70,6 @@ def main():
         center_text("Rotation", height // 3 - FONT_H // 2, fg, bg)
         center_text(str(rotation * 90), height // 2 - FONT_H // 2, fg, bg)
         center_text(colors[color_idx][0], height // 3 * 2 - FONT_H // 2, fg, bg)
-        display_drv.show()
         st["color_idx"] = (color_idx + 1) % len(colors)
         st["rotation"] = (rotation + 1) % 4
         return False

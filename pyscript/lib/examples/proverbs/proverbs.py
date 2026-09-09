@@ -106,7 +106,6 @@ def main():
 
         st["wheel"] = (st["wheel"] + 5) % 256
 
-        tft.show()
         st["index"] = (st["index"] + 1) % len(proverbs)
 
     app.every(_tick, period=5000, async_=app.timer_async)

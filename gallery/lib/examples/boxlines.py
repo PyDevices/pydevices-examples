@@ -70,7 +70,6 @@ def _setup():
             height,
             palette.color565(getrandbits(8), getrandbits(8), getrandbits(8)),
         )
-        tft.show()
         return False
 
     return poll

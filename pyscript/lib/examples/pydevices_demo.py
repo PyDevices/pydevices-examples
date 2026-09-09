@@ -125,7 +125,6 @@ def redraw():
     display_drv.fill_rect(0, h - BOT, w, BOT, SURFACE)
     blit_text(f"rot {state['rotation']}", 4, h - BOT + 4, MUTED, SURFACE)
     display_drv.vscroll = saved_scroll
-    display_drv.show()
 
 
 def _scroll_tick(_=None):

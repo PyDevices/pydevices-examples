@@ -664,7 +664,6 @@ class _Remote:
     def _present(self):
         if not self._compose_direct:
             display_drv.blit_rect(self.ba, 0, 0, self.width, self.height)
-        display_drv.show()
 
     def _draw_chassis(self):
         t = self.theme

@@ -78,7 +78,6 @@ def main():
         text_y = start_row + (end_row - start_row - font.HEIGHT) // 2
         tft_text.text(tft, font, name, text_x, text_y, palette.WHITE, color)
 
-    tft.show()
 
     border_colors = [palette.RED, palette.GREEN, palette.BLUE]
     st = {"ci": 0}
@@ -91,7 +90,6 @@ def main():
         for y in range(tft.height):
             tft.draw.pixel(0, y, color)
             tft.draw.pixel(tft.width - 1, y, color)
-        tft.show()
         st["ci"] = (st["ci"] + 1) % len(border_colors)
         return False
 

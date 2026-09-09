@@ -489,7 +489,6 @@ class DinoGame:
                 self._draw_number(self.high_score, WIDTH - 24, score_color)
 
         display_drv.blit_rect(self.canvas.buffer, 0, 0, WIDTH, HEIGHT)
-        display_drv.show()
 
     def tick(self, _timer=None):
         app.poll()

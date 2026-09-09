@@ -50,7 +50,6 @@ def _setup():
         st["mode"] = mode
         display_drv.vscsad(0)
         display_drv.fill(0)
-        display_drv.show()
         if mode == "wheel":
             palette = get_palette(name="wheel", swapped=needs_swap, length=256, saturation=1.0)
             st["wheel_colors"] = list(palette)
@@ -92,7 +91,6 @@ def _setup():
             lh,
             colors[st["wheel_ci"]],
         )
-        display_drv.show()
         st["wheel_i"] += lh
         st["wheel_ci"] = (st["wheel_ci"] + 1) % n
 
@@ -112,7 +110,6 @@ def _setup():
         display_drv.blit_rect(
             st["cube_ba"], 0, st["cube_y"] % display_drv.height, display_drv.width, lh
         )
-        display_drv.show()
         st["cube_y"] += lh
         st["cube_idx"] = (st["cube_idx"] + 1) % n
         # One full walk of the cube palette (and enough rows to fill a screen).
@@ -124,7 +121,6 @@ def _setup():
             palette = get_palette(name="material_design", color_depth=16, swapped=needs_swap)
             for i, color in enumerate(palette):
                 display_drv.fill_rect(0, i, display_drv.width, 1, color)
-            display_drv.show()
             st["mat_drawn"] = True
             st["mat_hold"] = 0
             return

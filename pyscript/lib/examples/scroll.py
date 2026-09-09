@@ -44,7 +44,6 @@ def _setup():
     tft.vscrdef(tfa, tft.height - tfa - bfa, bfa)
 
     tft.draw.fill(palette.BLUE)
-    tft.show()
     col = tft.width // 2 - 5 * font.WIDTH // 2
     st = {"scroll": 0, "character": 0}
 
@@ -65,7 +64,6 @@ def _setup():
             st["character"] = st["character"] + 1 if st["character"] < 256 else 0
 
         tft.vscsad(scroll + tfa)
-        tft.show()
         scroll += 1
         if scroll == tft.height:
             scroll = 0

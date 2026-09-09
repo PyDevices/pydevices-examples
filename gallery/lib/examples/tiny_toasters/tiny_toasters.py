@@ -226,7 +226,6 @@ def main():
             sprite.move(sprites)
             sprite.draw()
 
-        tft.show()
         gc.collect()
 
     app.every(_tick, period=50, async_=app.timer_async)

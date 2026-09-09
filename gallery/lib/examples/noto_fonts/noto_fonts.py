@@ -63,7 +63,6 @@ def main():
     center(noto_mono, "NotoSansMono", row, palette.BLUE)
     row += noto_mono.HEIGHT
 
-    tft.show()
 
 
 main()

@@ -248,7 +248,6 @@ class Piano:
             return
         if not self._audio_ready and not self._open_audio():
             self._draw_header()
-            display_drv.show()
             return
         prev = self._sources.get(source)
         if prev == midi:
@@ -342,7 +341,6 @@ class Piano:
             pressed = midi in self._held
             self._draw_key_black(midi, pressed)
             self._drawn_pressed[midi] = pressed
-        display_drv.show()
 
     def _refresh(self):
         """Repaint only what changed since the last paint (keys + header).
@@ -353,7 +351,6 @@ class Piano:
         tick budget. Dirty white keys also repaint the black keys drawn on
         top of them (``_blacks_over``).
         """
-        changed = False
         repaint_blacks = {}
         for midi in self.white_midis:
             pressed = midi in self._held
@@ -361,7 +358,6 @@ class Piano:
                 continue
             self._draw_key_white(midi, pressed)
             self._drawn_pressed[midi] = pressed
-            changed = True
             for bm in self._blacks_over[midi]:
                 repaint_blacks[bm] = True
         for midi in self._black_geom:
@@ -369,12 +365,8 @@ class Piano:
             if midi in repaint_blacks or self._drawn_pressed.get(midi) != pressed:
                 self._draw_key_black(midi, pressed)
                 self._drawn_pressed[midi] = pressed
-                changed = True
         if self._status != self._drawn_status:
             self._draw_header()
-            changed = True
-        if changed:
-            display_drv.show()
 
     def on_pointer_down(self, source, pos):
         self._press(source, self._hit_test(pos[0], pos[1]))

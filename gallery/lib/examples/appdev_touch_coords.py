@@ -48,7 +48,6 @@ def _show():
     display_drv.fill_rect(0, 0, W, H, BG)
     x, y = TARGETS[idx]
     _plus(x, y, FG)
-    display_drv.show()
     _out("[%d/%d] tap (%d, %d)" % (idx + 1, len(TARGETS), x, y))
 
 
@@ -71,7 +70,6 @@ def _on_up(e):
         if idx >= len(TARGETS):
             _out("done %s" % (results,))
             display_drv.fill_rect(0, 0, W, H, BG)
-            display_drv.show()
         else:
             _show()
             timer.sleep_ms(400)

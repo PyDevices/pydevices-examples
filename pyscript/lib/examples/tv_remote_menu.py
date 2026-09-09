@@ -77,7 +77,6 @@ def redraw():
 
     display_drv.fill_rect(0, h - 28, w, 28, SURFACE)
     blit_text(state["status"][:40], PAD, h - 22, MUTED, SURFACE)
-    display_drv.show()
 
 
 def on_key(e):

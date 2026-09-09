@@ -57,7 +57,6 @@ def main():
     tft_write.write(tft, font_64, "abcd", 0, row, palette.BLUE)
     row += font_64.HEIGHT
 
-    tft.show()
 
 
 main()

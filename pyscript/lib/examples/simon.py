@@ -153,7 +153,6 @@ def draw_board(hub_msg="SIMON", hub_sub="tap"):
         _pad(i, False)
     _gaps()
     _hub(hub_msg, hub_sub)
-    display_drv.show()
 
 
 def hit_pad(x, y):
@@ -182,7 +181,6 @@ def _enter_input():
     deadline = _until(INPUT_MS)
     state = INPUT
     _hub_text(str(len(sequence)), "go")
-    display_drv.show()
     busy = False
     _anim = None
 
@@ -190,7 +188,6 @@ def _enter_input():
 def _show_lit(index):
     global _anim
     _pad(sequence[index], True)
-    display_drv.show()
     _anim = ("show_lit", index, _until(FLASH_MS))
 
 
@@ -199,7 +196,6 @@ def play_sequence():
     busy = True
     state = SHOW
     _hub_text(str(len(sequence)), "watch")
-    display_drv.show()
     _anim = ("show_pause", _until(SHOW_PAUSE_MS))
 
 
@@ -219,7 +215,6 @@ def fail():
     if score > best:
         best = score
     display_drv.fill_rect(0, 0, W, H, 0x8000)
-    display_drv.show()
     # phase: 0=red shown, 1=black shown; blink twice (4 phases) then settle.
     _anim = ("fail", 0, _until(FAIL_ON_MS))
 
@@ -230,7 +225,6 @@ def advance():
     deadline = _until(INPUT_MS)
     if step < len(sequence):
         _hub_text(str(len(sequence)), "%d/%d" % (step, len(sequence)))
-        display_drv.show()
         return
     if len(sequence) >= MAX_LEN:
         best = max(best, MAX_LEN)
@@ -255,7 +249,6 @@ def _anim_tick():
         if not _due(until):
             return
         _pad(sequence[_index], False)
-        display_drv.show()
         _anim = ("show_gap", _index, _until(GAP_MS))
     elif kind == "show_gap":
         _index, until = _anim[1], _anim[2]
@@ -271,7 +264,6 @@ def _anim_tick():
         if not _due(until):
             return
         _pad(pad, False)
-        display_drv.show()
         _anim = None
         if wrong:
             fail()
@@ -291,11 +283,9 @@ def _anim_tick():
             return
         if phase & 1:
             display_drv.fill_rect(0, 0, W, H, BLACK)
-            display_drv.show()
             _anim = ("fail", phase, _until(FAIL_OFF_MS))
         else:
             display_drv.fill_rect(0, 0, W, H, 0x8000)
-            display_drv.show()
             _anim = ("fail", phase, _until(FAIL_ON_MS))
 
 
@@ -313,7 +303,6 @@ def _on_up(e):
         return
     busy = True
     _pad(pad, True)
-    display_drv.show()
     _anim = ("tap", pad, _until(FLASH_MS), pad != sequence[step])
 
 

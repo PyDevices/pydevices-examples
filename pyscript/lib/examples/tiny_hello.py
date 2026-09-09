@@ -90,12 +90,10 @@ def _setup():
         tft.draw.fill(color)
         tft.draw.rect(0, 0, tft.width, tft.height, palette.WHITE)
         center("Hello!", palette.WHITE, color)
-        tft.show()
 
     def start_rotation():
         tft.rotation = st["rotation"]
         tft.draw.fill(0)
-        tft.show()
         st["col_max"] = tft.width - font.WIDTH * 6
         st["row_max"] = tft.height - font.HEIGHT
         st["count"] = 0
@@ -125,7 +123,6 @@ def _setup():
             palette.color565(getrandbits(8), getrandbits(8), getrandbits(8)),
             palette.color565(getrandbits(8), getrandbits(8), getrandbits(8)),
         )
-        tft.show()
         st["count"] += 1
         return False
 

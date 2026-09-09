@@ -529,7 +529,6 @@ def _build_testris():  # noqa: C901, PLR0915
                 x=(display_width - 5 * block_size) // 2,
                 y=(display_height - 2 * block_size),
             )
-            display_drv.show()
             # Flat wait loop (no nested generators) — keeps PyScript yielding reliably.
             while True:
                 if loop.poll("splash_wait"):
@@ -558,7 +557,6 @@ def _build_testris():  # noqa: C901, PLR0915
             draw_banner(f"High Score {high_score:,}\n\nPress START\nto play.")
             if str(type(keypad)).find("Touchpad"):  # If we're using the touchpad
                 draw_touch_targets()  # Draw the touch targets
-            display_drv.show()
             for event in _yield_wait(loop, START):
                 if event is True:
                     yield True
@@ -568,7 +566,6 @@ def _build_testris():  # noqa: C901, PLR0915
 
             # Play the game
             show_score(state)  # Show the score
-            display_drv.show()
             while True:  # Main game loop
                 if loop.poll("main_loop"):
                     yield True
@@ -703,7 +700,6 @@ def _build_testris():  # noqa: C901, PLR0915
                                                     grid[y][x],
                                                 )
 
-                        display_drv.show()
                         yield False
 
                     if (
@@ -721,7 +717,6 @@ def _build_testris():  # noqa: C901, PLR0915
             else:
                 message = "Game over!"
             show_score(state, message)  # Show the score
-            display_drv.show()
             for event in _yield_wait(loop, START):
                 if event is True:
                     yield True

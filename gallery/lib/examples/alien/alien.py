@@ -88,7 +88,6 @@ def main():
             st["yd"] = -abs(st["yd"])
         st["col"], st["row"] = col, row
         tft_bitmap.bitmap(tft, alien, col, row)
-        tft.show()
         st["last_col"], st["old_row"] = col, row
 
     app.every(_tick, period=10, async_=app.timer_async)

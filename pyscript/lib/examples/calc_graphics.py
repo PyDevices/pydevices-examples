@@ -173,7 +173,6 @@ class _Calculator:
                 continue
             self._draw_button(col, row, label, pressed=False)
         self._refresh_display()
-        display_drv.show()
 
     def _button_geom(self, col, row, label):
         x = col * self.col_w + self.pad
@@ -276,7 +275,6 @@ class _Calculator:
             return
         self.engine.press(label)
         self._refresh_display()
-        display_drv.show()
 
     def _release(self, _=None):
         if self._pending_release is None:
@@ -289,11 +287,9 @@ class _Calculator:
         self._draw_button(col, row, label, pressed=True)
         self.engine.press(label)
         self._refresh_display()
-        display_drv.show()
 
     def release_button(self, col, row, label):
         self._draw_button(col, row, label, pressed=False)
-        display_drv.show()
 
 
 # Canonical idiom: build the UI (registers input callbacks), then hand control

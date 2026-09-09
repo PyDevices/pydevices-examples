@@ -72,7 +72,6 @@ def _setup():
     tft.vscrdef(tfa, height, bfa)
     tft.vscsad(0 + tfa)
     tft.draw.fill(palette.BLACK)
-    tft.show()
 
     half = (width >> 1) - 1
     y_offsets = [i * (height // 8) - 1 for i in range(2, 9)]
@@ -109,7 +108,6 @@ def _setup():
                 half - tween, (scroll + y_offset) % height, palette[st["wheel"] + (i << 2)]
             )
 
-        tft.show()
         st["scroll"] = (scroll + 1) % height
         st["wheel"] = (st["wheel"] + 1) % 256
         st["counter"] += 1
