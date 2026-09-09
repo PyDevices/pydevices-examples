@@ -41,7 +41,6 @@ def paint(x, y, color):
 for i, color in enumerate(colors):
     draw_block(i, color)
 
-display_drv.show()
 print("Application loaded.  Select a color and PAINT!")
 
 
@@ -74,10 +73,8 @@ def _on_button(e):
                     display_drv.height,
                     colors[selected],
                 )
-        display_drv.show()
     elif e.button == 1:
         paint(x, y, colors[selected])
-        display_drv.show()
 
 
 def _on_motion(e):
@@ -86,7 +83,6 @@ def _on_motion(e):
     x, y = e.pos
     if (on_x_axis and y > block_size) or (not on_x_axis and x > block_size):
         paint(x, y, colors[selected])
-        display_drv.show()
 
 
 app.on(app.events.MOUSEBUTTONDOWN, _on_button)

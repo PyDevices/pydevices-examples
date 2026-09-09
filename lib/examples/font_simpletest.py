@@ -91,14 +91,11 @@ def _setup():
             fb.fill(bg_color)
             font.text(fb, string, 0, 0, fg_color, scale)
             display_drv.blit_rect(buffer, x, y, buffer_width, buffer_height)
-            display_drv.show()
         elif mode == "per_pixel":
             font.text(display_drv, string, x, y, fg_color, scale)
-            display_drv.show()
         else:
             dirty = font.text(canvas, string, x, y, fg_color, scale)
             canvas.show(dirty)
-            display_drv.show()
 
     def start_rotation():
         canvas = st["canvas"]

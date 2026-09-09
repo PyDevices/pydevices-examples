@@ -55,7 +55,6 @@ def _setup():
         st["fi"] = (st["fi"] + 1) % len(fonts)
         st["font"] = fonts[st["fi"]]
         tft.draw.fill(palette.BLUE)
-        tft.show()
         st["char"] = st["font"].FIRST
         st["col"] = 0
         st["line"] = 0
@@ -74,7 +73,6 @@ def _setup():
                 new_font()
             elif action == "clear_page":
                 tft.draw.fill(palette.BLUE)
-                tft.show()
                 st["line"] = 0
                 st["col"] = 0
             return False
@@ -86,7 +84,6 @@ def _setup():
             return False
 
         tft_text.text(tft, font, chr(st["char"]), st["col"], st["line"], palette.WHITE, palette.BLUE)
-        tft.show()
         st["char"] += 1
         st["col"] += font.WIDTH
         if st["col"] > tft.width - font.WIDTH:

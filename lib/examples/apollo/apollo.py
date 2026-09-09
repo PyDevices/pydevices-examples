@@ -57,12 +57,10 @@ _pending_key = None
 
 def _init_apollo():
     dsky.init_screen()
-    display_drv.show()
 
     dsky.write_string("42", dsky.prog_pos)
     dsky.write_string("01", dsky.verb_pos)
     dsky.write_string("23", dsky.noun_pos)
-    display_drv.show()
 
 
 def _update_time():
@@ -75,7 +73,6 @@ def _update_time():
         _last_time = (y, mo, d, h, m, s)
         gc.collect()
         dsky.write_string(f"{mem-mem_free():7}", dsky.data3_pos)
-        display_drv.show()
 
 
 def _scroll_step():
@@ -83,7 +80,6 @@ def _scroll_step():
     if not _scrolling:
         return
     display_drv.vscsad(_scroll_i)
-    display_drv.show()
     _scroll_i += 1
     if _scroll_i >= _scroll_end:
         _scrolling = False
@@ -105,7 +101,6 @@ def _key_release():
         dsky.set_button(_pending_key, False)
         _pending_key = None
     dsky.set_acty(False)
-    display_drv.show()
     _key_busy = False
     _key_release_at = None
 

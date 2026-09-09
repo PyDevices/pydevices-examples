@@ -101,7 +101,6 @@ def _tick(_=None):
     for ball in balls:
         step(ball)
         pygraphics.circle(display_drv, int(ball.x), int(ball.y), ball.r, ball.color, True)
-    display_drv.show()
 
 
 app.every(_tick, period=10, async_=app.timer_async)

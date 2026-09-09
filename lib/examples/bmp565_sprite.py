@@ -52,7 +52,6 @@ def draw_sprite(
 
 
 display_drv.fill(bg)
-display_drv.show()
 
 point = namedtuple("point", "x y")
 step = 3
@@ -101,7 +100,6 @@ def _tick(_=None):
         location = point(location.x + step, location.y)
     st["location"] = location
     draw_sprite(*location, pos, direction)
-    display_drv.show()
     st["pos_i"] = (st["pos_i"] + 1) % len(positions)
 
 

@@ -93,7 +93,6 @@ def main():
         draw_bg(i % display_drv.width, i % image.height, 1)
         st["i"] = i + 1
         if i < display_drv.width:
-            display_drv.show()
             return
 
         draw_x = st["scroll"] + st["char_x"]
@@ -116,7 +115,6 @@ def main():
                     bg,
                 )
                 st["shot_location"] = 0
-        display_drv.show()
 
     app.on(app.events.MOUSEMOTION, _on_motion)
     # ~20 fps once scrolling; first columns also tick so quit is always serviced.

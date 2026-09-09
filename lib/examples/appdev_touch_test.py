@@ -62,7 +62,6 @@ def _draw_target(x, y, half_width, half_height):
         y * half_height + ((half_height - 8) // 2),
         BG_COLOR,
     )
-    display_drv.show()
 
 
 def _clear_target(x, y, half_width, half_height):
@@ -73,7 +72,6 @@ def _clear_target(x, y, half_width, half_height):
         half_height - 1,
         BG_COLOR,
     )
-    display_drv.show()
 
 
 def _report(touch_rotation_table):
@@ -91,7 +89,6 @@ def _report(touch_rotation_table):
         (display_drv.height - 8) // 2,
         FG_COLOR,
     )
-    display_drv.show()
 
 
 # Callback-driven state machine (one path for sync and async).

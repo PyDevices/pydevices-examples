@@ -62,7 +62,6 @@ def _setup():
     def start_rotation():
         tft.rotation = st["rotation"]
         tft.draw.fill(0)
-        tft.show()
         st["col_max"] = tft.width - font.WIDTH * 5
         st["row_max"] = tft.height - font.HEIGHT
         if st["col_max"] < 0 or st["row_max"] < 0:
@@ -83,7 +82,6 @@ def _setup():
             palette.color565(getrandbits(8), getrandbits(8), getrandbits(8)),
             palette.color565(getrandbits(8), getrandbits(8), getrandbits(8)),
         )
-        tft.show()
         st["count"] += 1
         return False
 

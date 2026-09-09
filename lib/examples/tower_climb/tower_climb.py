@@ -288,7 +288,9 @@ def _open_video_recorder():
 
 
 def _present():
-    display_drv.show()
+    # Nothing to do: appdev.App presents the frame whenever the driver reports
+    # needs_refresh. Kept as a seam for its three call sites.
+    return
 
 # --- Background draw ---------------------------------------------------------------------------
 

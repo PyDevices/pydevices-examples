@@ -26,8 +26,6 @@ st = {
 
 def _present():
     st["canvas"].show()
-    if st["use_displaybuf"]:
-        display_drv.show()
 
 
 def _label():
