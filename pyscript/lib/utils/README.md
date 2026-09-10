@@ -32,7 +32,6 @@ instead, and are installed by `pydevices-desktop`.
 | `framebuf.py` | The `framebuf` API on CPython and CircuitPython |
 | `displaybuf.py` | Peter Hinch's `DisplayBuffer` API |
 | `keypins.py` | Presents key events as pin-like objects |
-| `wifi.py` | MicroPython `network.WLAN` shim used by the examples |
 | `viper_tools.py` | Optional MicroPython Viper accelerators |
 | `console.py` | Scrolling character terminal; an `os.dupterm` target that mirrors the REPL onto a display |
 | `lv_encoder_emu.py` | Desktop-only soft encoder on a secondary surface, standing in for MCU `machine.Encoder` / `rotaryio` (see `examples/lv_multi_display.py`) |
