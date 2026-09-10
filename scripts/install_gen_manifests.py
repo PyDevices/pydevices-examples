@@ -80,7 +80,10 @@ for package_path, deps, extra_files in packages:
 
     for extra_file in sorted(extra_files):
         full_file_path = os.path.join(full_path.split(package_name)[0], extra_file)
-        src_file = repo_url + os.path.relpath(full_file_path, repo_dir)
+        # repo_url already ends in "lib/", so the relative part must be taken
+        # from src_dir, not the repo root -- otherwise every URL gets "lib/"
+        # twice and 404s.
+        src_file = repo_url + os.path.relpath(full_file_path, os.path.join(repo_dir, src_dir))
         package_dicts[package_name]["urls"].append([extra_file, src_file])
 
     package_skip = PACKAGE_SKIP_DIRS.get(package_name, set())
@@ -94,7 +97,7 @@ for package_path, deps, extra_files in packages:
             if is_gitignored(full_file_path):
                 continue
             dest_file = package_sub_dir + os.path.relpath(full_file_path, full_path)
-            src_file = repo_url + os.path.relpath(full_file_path, repo_dir)
+            src_file = repo_url + os.path.relpath(full_file_path, os.path.join(repo_dir, src_dir))
             package_dicts[package_name]["urls"].append([dest_file, src_file])
 
 # Write the package .json files (GitHub MIP only).
