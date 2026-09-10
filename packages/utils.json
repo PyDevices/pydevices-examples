@@ -85,10 +85,6 @@
       "github:PyDevices/pydevices-examples/lib/utils/viper_tools.py"
     ],
     [
-      "wifi.py",
-      "github:PyDevices/pydevices-examples/lib/utils/wifi.py"
-    ],
-    [
       "fonts/__init__.py",
       "github:PyDevices/pydevices-examples/lib/utils/fonts/__init__.py"
     ],
