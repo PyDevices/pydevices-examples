@@ -3,10 +3,10 @@
 
 Default (hearable on all hosts): write a 440 Hz tone via
 audiodev.emulated_audio WAV devices, read it back with the same PCMInput
-contract as audio_in, play on audio_out. Also opens board_peripherals.audio_in()
+contract as audio_in, play on audio_out. Also opens board_peripherals.pcm_in()
 briefly to prove the host mic factory.
 
-Live mic path: pass --live to record ~3 s from board_peripherals.audio_in and play
+Live mic path: pass --live to record ~3 s from board_peripherals.pcm_in and play
 that buffer back.
 """
 
@@ -47,8 +47,8 @@ def _wav_path():
 
 
 def _self_feed(out, fmt):
-    from audiodev.emulated_audio import audio_in as wav_in
-    from audiodev.emulated_audio import audio_out as wav_out
+    from audiodev.emulated_audio import pcm_in as wav_in
+    from audiodev.emulated_audio import pcm_out as wav_out
 
     path = _wav_path()
     print("self-feed wav:", path)
@@ -80,7 +80,7 @@ def _probe_audio_in():
     except Exception:
         pass
 
-    mic = board_peripherals.audio_in()
+    mic = board_peripherals.pcm_in()
     print(
         "audio_in opened:",
         mic.format.channels,
@@ -136,15 +136,15 @@ def main(argv=None):
     backend = getattr(board_peripherals, "_select_backend", lambda: "?")()
     print("board_peripherals backend:", backend)
 
-    # board_peripherals.audio_out() is an AudioOut sample player now; this
+    # pcm_out is the raw PCM sink; no AudioOut and so no audioif needed.
     # test writes raw PCM directly, so it uses the transport underneath it.
-    out = board_peripherals.audio_out().transport
+    out = board_peripherals.pcm_out()
     fmt = out.format
     print("format:", fmt.channels, fmt.rate, fmt.bits, fmt.signed)
 
     try:
         if live:
-            mic = board_peripherals.audio_in()
+            mic = board_peripherals.pcm_in()
             print("audio_in format:", mic.format.channels, mic.format.rate, mic.format.bits)
             _live_capture_playback(out, mic, fmt, seconds=3.0)
         else:
