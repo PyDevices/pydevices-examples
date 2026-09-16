@@ -401,6 +401,34 @@
       "github:PyDevices/pydevices-examples/lib/examples/drum_seq/panel.py"
     ],
     [
+      "google_photos/__init__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/google_photos/__init__.py"
+    ],
+    [
+      "google_photos/__main__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/google_photos/__main__.py"
+    ],
+    [
+      "google_photos/google_photos.py",
+      "github:PyDevices/pydevices-examples/lib/examples/google_photos/google_photos.py"
+    ],
+    [
+      "google_photos/gphotos_engine.py",
+      "github:PyDevices/pydevices-examples/lib/examples/google_photos/gphotos_engine.py"
+    ],
+    [
+      "google_photos/gphotos_lvgl.py",
+      "github:PyDevices/pydevices-examples/lib/examples/google_photos/gphotos_lvgl.py"
+    ],
+    [
+      "google_photos/gphotos_sim.py",
+      "github:PyDevices/pydevices-examples/lib/examples/google_photos/gphotos_sim.py"
+    ],
+    [
+      "google_photos/assets/gen_sim_assets.py",
+      "github:PyDevices/pydevices-examples/lib/examples/google_photos/assets/gen_sim_assets.py"
+    ],
+    [
       "noto_fonts/NotoSansMono_32.py",
       "github:PyDevices/pydevices-examples/lib/examples/noto_fonts/NotoSansMono_32.py"
     ],

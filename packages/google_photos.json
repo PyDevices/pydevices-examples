@@ -1,0 +1,33 @@
+{
+  "urls": [
+    [
+      "google_photos/__init__.py",
+      "../lib/examples/google_photos/__init__.py"
+    ],
+    [
+      "google_photos/__main__.py",
+      "../lib/examples/google_photos/__main__.py"
+    ],
+    [
+      "google_photos/google_photos.py",
+      "../lib/examples/google_photos/google_photos.py"
+    ],
+    [
+      "google_photos/gphotos_engine.py",
+      "../lib/examples/google_photos/gphotos_engine.py"
+    ],
+    [
+      "google_photos/gphotos_lvgl.py",
+      "../lib/examples/google_photos/gphotos_lvgl.py"
+    ],
+    [
+      "google_photos/gphotos_sim.py",
+      "../lib/examples/google_photos/gphotos_sim.py"
+    ],
+    [
+      "google_photos/assets/gen_sim_assets.py",
+      "../lib/examples/google_photos/assets/gen_sim_assets.py"
+    ]
+  ],
+  "version": "0.0.1"
+}

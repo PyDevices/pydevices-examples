@@ -76,6 +76,22 @@ quit = "inject"
 deps = ["lvgl"]
 timeout_s = 45
 
+[examples.google_photos]
+import = "google_photos.google_photos"
+script = "examples/google_photos/google_photos.py"
+kind = "lvgl"
+quit = "inject"
+deps = ["lvgl"]
+timeout_s = 45
+
+[examples.gphotos_lvgl]
+import = "google_photos.gphotos_lvgl"
+script = "examples/google_photos/gphotos_lvgl.py"
+kind = "lvgl"
+quit = "inject"
+deps = ["lvgl"]
+timeout_s = 45
+
 [examples.paint]
 import = "paint"
 script = "examples/paint.py"
