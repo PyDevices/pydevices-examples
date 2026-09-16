@@ -69,7 +69,7 @@ def _blip_wave():
 
 blip_synth = None
 try:
-    audio_out = board_config.audio_out
+    audio_out = board_config.audio_out()
     blip_synth = synthio.Synthesizer(
         sample_rate=audio_out.format.rate,
         channel_count=audio_out.format.channels,

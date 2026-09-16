@@ -1,5 +1,5 @@
 # gallery: skip
-"""440 Hz tone smoke test for board_peripherals.audio_out (no display/app)."""
+"""440 Hz tone smoke test for board_peripherals.pcm_out (no display/app)."""
 
 import math
 import struct
@@ -16,9 +16,12 @@ def main():
 
     import board_peripherals
 
-    # board_peripherals.audio_out() is an AudioOut sample player now; this
+    # pcm_out is the raw PCM sink -- exactly what a tone test wants. This
+    # used to reach through audio_out().transport, which constructed an
+    # AudioOut (and so required audioif) for a path that never plays a
+    # sample graph.
     # test exercises the raw PCM transport underneath it directly.
-    out = board_peripherals.audio_out().transport
+    out = board_peripherals.pcm_out()
     fmt = out.format
     print("format:", fmt.channels, fmt.rate, fmt.bits, fmt.signed)
 
