@@ -265,6 +265,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/apollo/dsky.py"
     ],
     [
+      "audiolive/__init__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive/__init__.py"
+    ],
+    [
       "car_cluster/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/car_cluster/__init__.py"
     ],
