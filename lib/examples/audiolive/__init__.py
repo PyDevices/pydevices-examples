@@ -341,6 +341,22 @@ class LiveAudio:
 
     def _rebuild(self):
         """Build the new graph, then point the pump at it in one move."""
+        # Last swap's chain, released now that many blocks have gone by on
+        # the new one. Releasing it *immediately* after the retarget is what
+        # a first reading of the lock says you may do -- retarget swaps the
+        # pump's tail under the lock, so the old chain is detached the
+        # instant it returns -- and on the P4, under a live GUI, it stopped
+        # the audio at the first patch change with fault=deinited. Stepped
+        # through by hand with a few hundred milliseconds between the two it
+        # never fails, so it is a race and not a rule. One generation of lag
+        # costs one spare chain of memory and closes it.
+        retired = getattr(self, "_retired", None)
+        if retired is not None:
+            try:
+                retired.deinit()
+            except Exception as exc:
+                print("retired rack deinit:", exc)
+            self._retired = None
         old_rack = getattr(self, "_rack", None)
         # Built BEFORE the swap, not during it. Constructing an effect is tens
         # of milliseconds - far longer than the DMA cushion - so it must not
@@ -357,11 +373,8 @@ class LiveAudio:
             # finishes the block it is in and the next one comes from the new
             # graph; nothing is ever pulled half-rewired.
             _safely(audiopump.retarget, tail)
-            if old_rack is not None:
-                try:
-                    old_rack.deinit()      # detached already, so this is safe
-                except Exception as exc:
-                    print("old rack deinit:", exc)
+            # Not deinited here; retired until the next swap. See above.
+            self._retired = old_rack
         else:
             gc.collect()
             self._dma_at_start = self._dma()
