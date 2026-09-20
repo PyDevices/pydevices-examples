@@ -31,14 +31,21 @@ Run it on the Waveshare ESP32-P4-WIFI6-Touch-LCD-4B
 --------------------------------------------------
 ::
 
-    mpftp cp -d COM4 lib/examples/audiolive/__init__.py /lib/audiolive/__init__.py
-    mpftp cp -d COM4 lib/examples/audiolive/rack_midi.py /lib/audiolive/rack_midi.py
-    python.exe -m mpremote connect COM4 exec "import audiolive.rack_midi" repl
+    mpftp mkdir -d COM4 /lib/audiolive
+    mpftp put -d COM4 lib/examples/audiolive/__init__.py /lib/audiolive/__init__.py
+    mpftp run lib/examples/audiolive/rack_midi.py -d COM4 --follow --timeout 300
 
-The board then waits for the host to configure it and starts listening.
-Ctrl-C at the REPL stops the MIDI loop and the sound with it. (The P4's USB
-host controller detects nothing at high speed, so the P4 is always the
-device in a pairing - see usbif#3.)
+This one owns the terminal, unlike the two LVGL examples here: its MIDI
+loop is the foreground, so it is run rather than imported-and-left. The
+soft reset ``run`` does on the way in is harmless - nothing is playing yet
+- and the pump is torn down when the run ends, whether you stop it or it
+times out. (The P4's USB host controller detects nothing at high speed, so
+the P4 is always the device in a pairing - see usbif#3.)
+
+``MidiRack`` below is the reusable half - it turns parsed MIDI into sound
+and knows nothing about how the bytes arrived. ``rack_all.py`` drives the
+same idea from an LVGL timer instead of a loop, which is what an app with
+a screen wants.
 
 What you should see and hear
 ----------------------------

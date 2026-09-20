@@ -18,8 +18,9 @@ Run it on the Waveshare ESP32-P4-WIFI6-Touch-LCD-4B
 --------------------------------------------------
 ::
 
-    mpftp cp -d COM4 lib/examples/audiolive/__init__.py /lib/audiolive/__init__.py
-    mpftp cp -d COM4 lib/examples/audiolive/rack_all.py /lib/audiolive/rack_all.py
+    mpftp mkdir -d COM4 /lib/audiolive
+    mpftp put -d COM4 lib/examples/audiolive/__init__.py /lib/audiolive/__init__.py
+    mpftp put -d COM4 lib/examples/audiolive/rack_all.py /lib/audiolive/rack_all.py
     python.exe -m mpremote connect COM4 exec "import audiolive.rack_all" repl
 
 Same costume as rack_midi.py: CDC + MIDI, applied only if it is not already

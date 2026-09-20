@@ -17,8 +17,9 @@ Run it on the Waveshare ESP32-P4-WIFI6-Touch-LCD-4B
 Copy the module and start it without a soft reset, so the REPL stays alive
 beside the audio::
 
-    mpftp cp -d COM4 lib/examples/audiolive/__init__.py /lib/audiolive/__init__.py
-    mpftp cp -d COM4 lib/examples/audiolive/rack_gui.py /lib/audiolive/rack_gui.py
+    mpftp mkdir -d COM4 /lib/audiolive
+    mpftp put -d COM4 lib/examples/audiolive/__init__.py /lib/audiolive/__init__.py
+    mpftp put -d COM4 lib/examples/audiolive/rack_gui.py /lib/audiolive/rack_gui.py
     python.exe -m mpremote connect COM4 exec "import audiolive.rack_gui" repl
 
 ``exec`` soft-resets on the way in, which is fine - nothing is playing yet.
