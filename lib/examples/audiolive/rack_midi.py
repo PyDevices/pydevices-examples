@@ -55,7 +55,7 @@ get a chord. Move the mod wheel and the drive comes up - the note you are
 already holding gets dirtier as you move it, not on the next note.
 CC 74 (the one most controllers label "filter" or "brightness") moves the
 second pedal's first knob, so on the CRUNCH board it drags the echo out
-longer. Send program change 1, 2 or 3 and the pedalboard changes to FUZZ,
+longer. Send program change 1, 2 or 3 and the pedalboard changes to DIRT,
 CLEAN or LO-FI; the note you were holding carries on through the new
 pedals.
 

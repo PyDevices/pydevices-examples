@@ -53,13 +53,22 @@ import audiopump
 RATE = 48000
 CHANNELS = 2
 
-# One block of audio, in frames. The pump hands the driver a whole block per
-# I2S write, so the DMA ring can never be shorter than one block - measured:
-# a ring of two 128-frame descriptors plays a 256-frame chain perfectly and
-# anything shorter starves. Four descriptors of one block is 21 ms of cushion
-# at 48 kHz, which survives a garbage collection with room to spare.
+# One block of audio, in frames: what the pump pulls from the graph at a time.
 BLOCK = 256
-RING_BLOCKS = 4
+
+# The DMA ring, in descriptors of so many frames. This is the LATENCY, and it
+# is a different number from the block above - conflating the two was a bug
+# here, because a 256-frame descriptor makes the smallest ring 21 ms when the
+# same cushion in 128-frame pieces is 10.7 ms. The floor is one block: the
+# pump hands the driver a whole block per write, so a ring shorter than one
+# block cannot be full when the write returns. 4 x 128 is the smallest ring
+# every class in the palette survives (ShimmerHall pulls 512 frames), and it
+# ran ten minutes of garbage collection with zero starved bytes.
+#
+# Module-level so a board or a harness can lower them before constructing:
+# 2 x 128 is one block, 5.3 ms, the lowest this board plays.
+DMA_DESC = 4
+DMA_FRAME = 128
 
 # The Mixer is double-buffered, so its buffer in bytes is twice one block.
 BUFFER_SIZE = BLOCK * CHANNELS * 2 * 2
@@ -71,9 +80,16 @@ BLOCKS_FOREVER = 0x7FFFFFFF
 # a name, or a (name, options) pair. Two effects rather than five on
 # purpose - LiveAudio.status() tells you what a third one costs before you
 # commit to it.
+# Measured on the P4 at 48 kHz stereo, 256-frame blocks, as a fraction of the
+# 5333 us a block of audio lasts: CRUNCH 41 %, DIRT ~83 %, CLEAN 81 %,
+# LO-FI 16 %. Anything over 100 % cannot play, and two classes in the palette
+# are over it by themselves -- `Fuzz` is 553 % of a block and `Saturation` is
+# 697 %, against `Distortion`'s 36 % for the same job. So the dirty board here
+# is a Distortion. Do not put either of those two in a chain you mean to hear
+# until they are cheaper; the speaker fills the gap with silence.
 PATCHES = (
     ("CRUNCH", (("Overdrive", {}), ("TapeDelay", {"mix": 0.22}))),
-    ("FUZZ", (("Fuzz", {}), ("SlapbackDelay", {}))),
+    ("DIRT", (("Distortion", {}), ("SlapbackDelay", {}))),
     ("CLEAN", (("Compressor", {}), ("Reverb", {"mix": 0.30}))),
     ("LO-FI", (("Bitcrusher", {}), ("AnalogDelay", {}))),
 )
@@ -154,13 +170,18 @@ class LiveAudio:
     open, clocking silence. Nothing is audible until you call ``play()``.
 
     Optional keywords: ``rate``, ``channels``, ``volume`` (0-100),
-    ``block`` (frames per pull) and ``ring_blocks`` (the DMA cushion, in
-    blocks). Shorter is lower latency and less room to survive a stall;
-    the floor is one block.
+    ``block`` (frames per pull), and ``dma_desc`` / ``dma_frame`` - the DMA
+    ring, which is the latency. Shorter is lower latency and less room to
+    survive a stall; the floor is one block of the graph you are playing.
     """
 
     def __init__(self, rate=RATE, channels=CHANNELS, volume=100,
-                 block=BLOCK, ring_blocks=RING_BLOCKS):
+                 block=BLOCK, dma_desc=None, dma_frame=None):
+        # Read from the module rather than baked into the signature, so a
+        # board file or a harness can set audiolive.DMA_DESC once and every
+        # example here follows.
+        dma_desc = DMA_DESC if dma_desc is None else dma_desc
+        dma_frame = DMA_FRAME if dma_frame is None else dma_frame
         if audiopump.running():
             raise RuntimeError("a pump is already running; stop() it first")
         self.rate = rate
@@ -195,6 +216,8 @@ class LiveAudio:
             # code that runs on a board.
             self._ring = bytearray(block * channels * 2 * 8)
             return
+        self.dma_desc = dma_desc
+        self.dma_frame = dma_frame
 
         # The board describes its own wiring: an I2SWire on the capability,
         # published without opening the peripheral, which is exactly what a
@@ -227,7 +250,7 @@ class LiveAudio:
             w.port, w.sck, w.ws, w.sd, rate,
             bits=16, channels=channels,
             mclk=-1 if w.mck is None else w.mck, mclk_fs=w.mck_fs,
-            dma_desc=ring_blocks, dma_frame=block, din=din)
+            dma_desc=dma_desc, dma_frame=dma_frame, din=din)
         self.duplex = din >= 0
 
     # --- where the sound comes from --------------------------------------
@@ -420,7 +443,10 @@ class LiveAudio:
         import struct
         w = struct.unpack("<%dQ" % audiopump.STATUS_WORDS, self._status)
         blocks = w[0] or 1
-        block_us = self.block * 1000000 // self.rate
+        # Measured, not assumed: a class chooses its own block length and
+        # ShimmerHall's is 512 frames, so dividing by the configured 256
+        # reports it at 113 % of a core when it is using half of one.
+        block_us = (w[16] // blocks) or (self.block * 1000000 // self.rate)
         dma = self._dma() - self._dma_at_start
         starved = dma - w[15] if dma else 0
         out = {
