@@ -66,6 +66,18 @@ BUFFER_SIZE = BLOCK * CHANNELS * 2 * 2
 
 BLOCKS_FOREVER = 0x7FFFFFFF
 
+# Four pedalboards, shared by every example here so there is one list to
+# read and one to edit. Each is a chain the way audioeffects.Rack takes one:
+# a name, or a (name, options) pair. Two effects rather than five on
+# purpose - LiveAudio.status() tells you what a third one costs before you
+# commit to it.
+PATCHES = (
+    ("CRUNCH", (("Overdrive", {}), ("TapeDelay", {"mix": 0.22}))),
+    ("FUZZ", (("Fuzz", {}), ("SlapbackDelay", {}))),
+    ("CLEAN", (("Compressor", {}), ("Reverb", {"mix": 0.30}))),
+    ("LO-FI", (("Bitcrusher", {}), ("AnalogDelay", {}))),
+)
+
 # A short riff to hear an effect working on. Six notes of E minor.
 NOTES = (164.81, 196.00, 246.94, 329.63, 246.94, 196.00)
 NOTE_MS = 400
@@ -220,25 +232,14 @@ class LiveAudio:
 
     # --- where the sound comes from --------------------------------------
 
-    def source(self, what=None):
-        """Point the chain at a source: 'riff', 'input', or an instrument."""
-        if what is None:
-            return self.source_name
-        if what == "riff":
+    def _make(self, name):
+        """One source, as an audiosample, plus whether it wants looping."""
+        if name == "riff":
             if self._riff is None:
                 self._riff = riff(self.rate)
-            sample = audiocore.RawSample(self._riff, sample_rate=self.rate,
-                                         channel_count=self.channels)
-            mixer = audiomixer.Mixer(
-                voice_count=1, sample_rate=self.rate,
-                channel_count=self.channels, bits_per_sample=16,
-                samples_signed=True, buffer_size=BUFFER_SIZE)
-            mixer.voice[0].level = 1.0
-            mixer.play(sample, voice=0, loop=True)
-            self._mixer = mixer
-            self._sample = sample
-            new = mixer
-        elif what == "input":
+            return audiocore.RawSample(self._riff, sample_rate=self.rate,
+                                       channel_count=self.channels), True
+        if name == "input":
             if not hasattr(audiopump, "Input"):
                 raise RuntimeError("this port has no audio input")
             if not self.duplex:
@@ -251,14 +252,36 @@ class LiveAudio:
             self._input = audiopump.Input(
                 sample_rate=self.rate, channel_count=self.channels,
                 frames=self.block)
-            new = self._input
-        else:
-            import audioinstruments
-            self._instrument = audioinstruments.create(
-                what, self.rate, channel_count=self.channels)
-            new = self._instrument.output
+            return self._input, False
+        import audioinstruments
+        self._instrument = audioinstruments.create(
+            name, self.rate, channel_count=self.channels)
+        return self._instrument.output, False
+
+    def source(self, what=None):
+        """Point the chain at a source, or at several summed together.
+
+        ``what`` is ``'riff'``, ``'input'``, an instrument name from
+        ``audioinstruments``, or a tuple of those. A tuple puts one voice of
+        an ``audiomixer.Mixer`` behind each, so the microphone and an
+        instrument play through the same pedals at once.
+        """
+        if what is None:
+            return self.source_name
+        names = (what,) if isinstance(what, str) else tuple(what)
+        mixer = audiomixer.Mixer(
+            voice_count=len(names), sample_rate=self.rate,
+            channel_count=self.channels, bits_per_sample=16,
+            samples_signed=True, buffer_size=BUFFER_SIZE)
+        for voice, name in enumerate(names):
+            sample, loop = self._make(name)
+            # Headroom: the Mixer sums, it does not limit, so two voices at
+            # full level clip as soon as both are loud.
+            mixer.voice[voice].level = 1.0 / len(names)
+            mixer.play(sample, voice=voice, loop=loop)
+        self._mixer = mixer
         self.source_name = what
-        self._source = new
+        self._source = mixer
         if self.effects or audiopump.running():
             self._rebuild()
         return what

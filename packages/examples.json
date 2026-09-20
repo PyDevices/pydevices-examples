@@ -269,6 +269,18 @@
       "github:PyDevices/pydevices-examples/lib/examples/audiolive/__init__.py"
     ],
     [
+      "audiolive/rack_all.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive/rack_all.py"
+    ],
+    [
+      "audiolive/rack_gui.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive/rack_gui.py"
+    ],
+    [
+      "audiolive/rack_midi.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive/rack_midi.py"
+    ],
+    [
       "car_cluster/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/car_cluster/__init__.py"
     ],
