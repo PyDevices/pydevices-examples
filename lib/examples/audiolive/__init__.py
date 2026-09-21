@@ -67,8 +67,38 @@ BLOCK = 256
 #
 # Module-level so a board or a harness can lower them before constructing:
 # 2 x 128 is one block, 5.3 ms, the lowest this board plays.
+#
+# A SCREEN COSTS YOU RING. Measured on the P4 with the CRUNCH board playing,
+# 25 seconds each, as a fraction of the 5333 us a 256-frame block lasts:
+#
+#     no display at all                         41 %    0 ms starved
+#     the panel lit and LVGL doing nothing      52 %    2 ms
+#     sliders being dragged                     63 %   16 ms
+#     whole-screen repaints forced on top       66 %   69 ms
+#
+# Two things to take from that. The first is that just LIGHTING the panel
+# costs the pump eleven points before a finger touches it: a 720x720 16-bit
+# framebuffer is a megabyte being read out of PSRAM for every frame the
+# display clocks, and the graph lives in PSRAM too. That is a bandwidth tax
+# on every block - a MEAN cost, not a tail one - so no amount of moving the
+# flush to another core or raising the pump's priority reaches it. The second
+# is what does reach it: ring. The worst block under a finger is 7.5-8.6 ms
+# against a mean of 3.5, and the ring is what absorbs the difference.
+#
+# So an app with a screen sets a deeper ring, and rack_gui.py does exactly
+# that. The same 190-second run with pedalboard changes, three thousand
+# slider moves and forced repaints:
+#
+#     4 x 128   (10.7 ms)   silence all the way through
+#     6 x 128   (16 ms)     381 ms of silence, all of it at patch changes
+#     12 x 128  (32 ms)     seven of nine readings exactly 0 ms
 DMA_DESC = 4
 DMA_FRAME = 128
+
+#: What an app with a lit screen should use on a board like the P4. 32 ms of
+#: latency, which is inaudible for a pedalboard and far too much for playing
+#: an instrument - so it is a constant an app opts into, not the default.
+DMA_DESC_GUI = 12
 
 # The Mixer is double-buffered, so its buffer in bytes is twice one block.
 BUFFER_SIZE = BLOCK * CHANNELS * 2 * 2

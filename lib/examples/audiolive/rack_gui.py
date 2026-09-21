@@ -46,6 +46,11 @@ is the one that matters: it is how many milliseconds of silence the
 speaker has had to invent because the effects were late. It should read
 ``0 ms`` no matter how hard you drag.
 
+If the audio ever does stop, that line says so in words instead - the pump
+runs on the other core and cannot raise an exception at you, so a sentence
+where the numbers were is how it tells you. Tap any patch and it starts
+again.
+
 The T-Embed S3 follows with two changes: it has no touchscreen, so the
 sliders bind to the rotary encoder (``board_config.encoder_read``, which
 ``appdev`` already maps to mouse-wheel events), and its microphone is on a
@@ -88,6 +93,16 @@ def _guarded(fn):
 class RackGUI:
     def __init__(self):
         # The pump starts here. Nothing is audible until play().
+        #
+        # A deeper ring than the module default, because there is a screen.
+        # A lit 720x720 panel reads a megabyte out of PSRAM per frame and the
+        # effect graph lives in PSRAM too, so every block costs more: the same
+        # chain is 41 % of a block with no display and 66 % with this panel up
+        # and a finger on it. The mean is survivable; the worst block is 7.5 -
+        # 8.6 ms against a 5.3 ms block, and ring is what absorbs that. At
+        # 4 x 128 this example starves continuously; at 12 x 128 it reads zero.
+        # 32 ms of latency you cannot hear moving a slider.
+        audiolive.DMA_DESC = audiolive.DMA_DESC_GUI
         self.live = audiolive.LiveAudio(volume=100)
         self.patch = 0
         self.slot = 0                     # which effect in the chain has focus
