@@ -13,6 +13,10 @@
       "../lib/examples/audiolive/rack_gui.py"
     ],
     [
+      "audiolive/rack_knob.py",
+      "../lib/examples/audiolive/rack_knob.py"
+    ],
+    [
       "audiolive/rack_midi.py",
       "../lib/examples/audiolive/rack_midi.py"
     ]

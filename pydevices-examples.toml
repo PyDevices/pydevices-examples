@@ -17,6 +17,7 @@
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/audiolive/__init__.py" = "/examples/audiolive/__init__.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/audiolive/rack_all.py" = "/examples/audiolive/rack_all.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/audiolive/rack_gui.py" = "/examples/audiolive/rack_gui.py"
+"https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/audiolive/rack_knob.py" = "/examples/audiolive/rack_knob.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/audiolive/rack_midi.py" = "/examples/audiolive/rack_midi.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/bmp565_scroll.py" = "/examples/bmp565_scroll.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/bmp565_scroll_sprite.py" = "/examples/bmp565_scroll_sprite.py"

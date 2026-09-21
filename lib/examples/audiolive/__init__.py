@@ -1,4 +1,4 @@
-# deps: audioeffects, audioinstruments
+# deps: audioeffects, audioinstruments, pygraphics
 # gallery: skip
 """audiolive - one object that owns the codec, the graph and the audio pump.
 
@@ -129,6 +129,39 @@ PATCHES = (
     ("LO-FI", (("Bitcrusher", {}), ("AnalogDelay", {}))),
 )
 
+# The same five names for a board with about half the P4's arithmetic, and
+# every chain here was measured on one. The T-Embed S3 runs the same code
+# 1.6-2.3x slower, so a pedalboard there is one dear pedal or two cheap ones
+# -- not any two the P4 will carry.
+#
+# Two classes are out of the list entirely. Measured on the T-Embed with the
+# pump playing and nothing else running, against each class's OWN block
+# (`docs/spikes/live-audio-path-s3.md` in the workspace anchor):
+#
+#     ShimmerHall   10.14 ms of its own 10.67 ms block -- 92 %, and it
+#                   starves 21 ms in 8 seconds with nothing beside it
+#     Reverb         5.54 ms of a 10.67 ms block -- 52 % with nothing after
+#                   it, so a delay behind it does not fit
+#
+# And the P4's own pairs are too dear here even without those two:
+# Overdrive -> TapeDelay reads 82 %, Fuzz -> TapeDelay 92 %, Bitcrusher ->
+# AnalogDelay 73 % -- and an app with a screen and a knob on it adds 15-20
+# points more, which is a hole in the audio rather than a slow app. What the
+# list below costs, same conditions, 256-frame blocks, ring 4 x 128:
+#
+#     CRUNCH  Overdrive                  67 %
+#     DIRT    Distortion                 70 %
+#     FUZZ    Fuzz                       73 %
+#     CLEAN   Compressor -> CabinetSim   66 %
+#     LO-FI   Bitcrusher -> TapeDelay    64 %
+LIGHT_PATCHES = (
+    ("CRUNCH", (("Overdrive", {}),)),
+    ("DIRT", (("Distortion", {}),)),
+    ("FUZZ", (("Fuzz", {}),)),
+    ("CLEAN", (("Compressor", {}), ("CabinetSim", {}))),
+    ("LO-FI", (("Bitcrusher", {}), ("TapeDelay", {"mix": 0.22}))),
+)
+
 # What the pump publishes when it stops on its own, as sentences. Word 5 of
 # the status block is the pump's own reason for breaking out of its loop;
 # word 24 is the code audioif's funnel left behind on the way.
@@ -228,7 +261,7 @@ class LiveAudio:
     """
 
     def __init__(self, rate=RATE, channels=CHANNELS, volume=100,
-                 block=BLOCK, dma_desc=None, dma_frame=None):
+                 block=BLOCK, dma_desc=None, dma_frame=None, level=1.0):
         # Read from the module rather than baked into the signature, so a
         # board file or a harness can set audiolive.DMA_DESC once and every
         # example here follows.
@@ -262,6 +295,12 @@ class LiveAudio:
         # the answer to it.
         self._spawned = False
         self.volume = volume
+        # What every source voice is opened at, 0.0-1.0. On a board with a
+        # codec this is a trim and `volume` is the loudness; on a board whose
+        # amplifier has no registers -- the T-Embed's MAX98357A has no I2C at
+        # all -- it is the ONLY volume there is, because the loudness then
+        # lives entirely in the samples.
+        self.level = level
 
         audioeffects.configure(rate, channels)
 
@@ -271,6 +310,7 @@ class LiveAudio:
         self.cushion = 0
         self.duplex = False
         self._bp = None
+        self._power = None
 
         if not self.on_board:
             # Desktop: no I2S and no codec, so the pump produces into a RAM
@@ -292,12 +332,14 @@ class LiveAudio:
         self._bp = bp
         self.out_wire = getattr(bp, "AUDIO_OUT").wire
         self.in_wire = getattr(getattr(bp, "AUDIO_IN", None), "wire", None)
-        power = getattr(bp, "audio_power", None)
-        if power is None:
-            raise RuntimeError(
-                "this board's board_peripherals has no audio_power role, so "
-                "there is no way to power the codec without opening I2S; add "
-                "one, or drive the codec directly as probes/listen.py does")
+        # A board with a codec publishes `audio_power` so the codec and the
+        # amplifier can be brought up WITHOUT opening a stream. A board with
+        # no codec has nothing to switch: the T-Embed's MAX98357A is an
+        # amplifier with no I2C, no register set and no volume, and its
+        # `board_peripherals` raises the LilyGO rail (GPIO46) at import. So
+        # importing that module is the whole of "power on" there, `volume`
+        # has no hardware meaning, and `level` is the loudness.
+        self._power = getattr(bp, "audio_power", None)
         self._open_codec()
 
     def _open_codec(self):
@@ -307,8 +349,8 @@ class LiveAudio:
         task, so anything that means to spawn again has to come back through
         here first.
         """
-        bp = self._bp
-        bp.audio_power(True, volume=self.volume)
+        if self._power is not None:
+            self._power(True, volume=self.volume)
         w = self.out_wire
         # din= opens the RX half of the SAME channel pair, so one clock tree
         # drives capture and playback and the two DMAs cannot drift. The
@@ -397,8 +439,9 @@ class LiveAudio:
         for voice, name in enumerate(names):
             sample, loop = self._make(name)
             # Headroom: the Mixer sums, it does not limit, so two voices at
-            # full level clip as soon as both are loud.
-            mixer.voice[voice].level = 1.0 / len(names)
+            # full level clip as soon as both are loud. `level` rides on top
+            # of that, and on a board with no codec volume it IS the volume.
+            mixer.voice[voice].level = self.level / len(names)
             mixer.play(sample, voice=voice, loop=loop)
         self._mixer = mixer
         self.source_name = what
