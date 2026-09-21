@@ -83,6 +83,12 @@ def _guarded(fn):
 
 class AllAtOnce:
     def __init__(self):
+        # A deeper ring than the module default, for the same reason
+        # rack_gui uses one: a lit 720x720 panel is a megabyte read out of
+        # PSRAM per frame and the graph is in PSRAM too, so every block costs
+        # more and the worst block costs a lot more. See audiolive's DMA
+        # comment for the measurements.
+        audiolive.DMA_DESC = audiolive.DMA_DESC_GUI
         self.live = audiolive.LiveAudio(volume=100)
         self.patch = 0
         self.midi_count = 0
@@ -267,14 +273,16 @@ class AllAtOnce:
         self.big.set_text("LOAD %d%%   WORST %d us of %d   MIDI %d"
                           % (s["load_pct"], s["worst_us"], s["block_us"],
                              self.midi_count))
+        if s["why"]:
+            # The pump stopped on its own. It runs on the other core and has
+            # no interpreter to raise at you, so this is how it says so - and
+            # tapping any patch calls play(), which starts a fresh one.
+            self.starved.set_text("AUDIO STOPPED: %s - tap a patch" % s["why"])
+            self.starved.set_style_text_color(BAD, 0)
+            return
         ms = s["starved_ms"]
         self.starved.set_text("STARVED %d ms" % ms)
         self.starved.set_style_text_color(GOOD if ms == 0 else BAD, 0)
-        if s["fault"]:
-            # A pull that gave up publishes why in the status block rather
-            # than raising: there is no way to raise on the pump's thread.
-            self.starved.set_text("PUMP FAULT %d" % s["fault"])
-            self.starved.set_style_text_color(BAD, 0)
 
 
 rack = AllAtOnce()

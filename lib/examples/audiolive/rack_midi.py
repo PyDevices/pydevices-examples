@@ -229,4 +229,8 @@ def main():
     return True
 
 
-main()
+# `mpftp run` and `mpremote exec` both execute a file as `__main__`, so the
+# documented way in still starts the loop. Importing the module does not, so
+# `MidiRack` is reusable - rack_all.py does the same job from an LVGL timer.
+if __name__ == "__main__":
+    main()
