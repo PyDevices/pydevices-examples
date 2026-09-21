@@ -258,7 +258,7 @@ class RackGUI:
             slider.set_style_bg_color(ACCENT, lv.PART.INDICATOR)
             slider.set_style_bg_color(FG, lv.PART.KNOB)
             # The macro moves on every drag event. No park, no queue, no
-            # handshake: audioif's control paths take the pump's lock around
+            # handshake: audiodsp's control paths take the pump's lock around
             # their own swap, so the pull either sees the old value or the
             # new one and never something in between.
             slider.add_event_cb(_guarded(self._make_knob_cb(index)),

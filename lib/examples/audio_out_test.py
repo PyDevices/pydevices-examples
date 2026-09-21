@@ -18,7 +18,7 @@ def main():
 
     # pcm_out is the raw PCM sink -- exactly what a tone test wants. This
     # used to reach through audio_out().transport, which constructed an
-    # AudioOut (and so required audioif) for a path that never plays a
+    # AudioOut (and so required audiodsp) for a path that never plays a
     # sample graph.
     # test exercises the raw PCM transport underneath it directly.
     out = board_peripherals.pcm_out()
