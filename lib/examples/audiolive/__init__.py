@@ -49,6 +49,16 @@ import audiocore
 import audiomixer
 import audioeffects
 import audiopump
+try:
+    # The pump's platform driver: the I2S channel, the microphone `Input` and
+    # the round-trip probe. A separate module from `audiopump` because a
+    # separate repo builds it -- the engine is portable and ships with
+    # audioif everywhere, this half exists only where there is hardware. On a
+    # build without it these examples have nothing to play through, and they
+    # say so rather than failing on the import line.
+    import _audioif
+except ImportError:
+    _audioif = None
 
 RATE = 48000
 CHANNELS = 2
@@ -359,7 +369,7 @@ class LiveAudio:
         din = -1
         if self.in_wire is not None and self.in_wire.port == w.port:
             din = self.in_wire.sd
-        self.cushion = audiopump.i2s_start(
+        self.cushion = _audioif.i2s_start(
             w.port, w.sck, w.ws, w.sd, self.rate,
             bits=16, channels=self.channels,
             mclk=-1 if w.mck is None else w.mck, mclk_fs=w.mck_fs,
@@ -412,7 +422,7 @@ class LiveAudio:
             # An audiosample whose get_buffer is an I2S read, so the
             # microphone is a source like any other and the read is what
             # paces the pump.
-            self._input = audiopump.Input(
+            self._input = _audioif.Input(
                 sample_rate=self.rate, channel_count=self.channels,
                 frames=self.block)
             return self._input, False
@@ -691,7 +701,7 @@ class LiveAudio:
 
     def _dma(self):
         if hasattr(audiopump, "i2s_dma_bytes"):
-            return audiopump.i2s_dma_bytes()
+            return _audioif.i2s_dma_bytes()
         return 0
 
     def drain(self, buf):
