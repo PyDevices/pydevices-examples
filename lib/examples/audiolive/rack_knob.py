@@ -132,7 +132,7 @@ LEVEL = 0.5                # see the docstring: this board's only volume
 # thread building the new Rack - so a 190 s run that keeps changing patch
 # reads 3749 ms starved at this same ring. Change pedalboards while you are
 # playing and you will hear it; turn a macro and you will not.
-# See ``docs/spikes/live-audio-path-s3.md``.
+# Tracked: https://github.com/PyDevices/pydevices-examples/issues/126
 #
 # The P4 runs ``rack_gui`` at 12 x 128, because a lit 720x720 panel reads a
 # megabyte of PSRAM per frame and an SPI ST7789 reads none.
