@@ -4,8 +4,16 @@
 
 This is the one that answers the question. The microphone goes through a
 pedalboard and out of the speaker; the touchscreen is redrawing an animated
-meter as fast as it will go; the board is enumerated on your computer as a
-MIDI device and you are playing it. Three busy things on one chip.
+meter; the board is enumerated on your computer as a MIDI device and you
+are playing it. Three busy things on one chip.
+
+If you read one comment in this file, read ``METER_MS``. The audio survives
+all three without a byte of silence - that was never in doubt once the pump
+was on its own core. What an app on this board actually has to budget is
+its own interpreter time, because LVGL spends it: the display tick is a
+soft callback that runs between your bytecodes. A meter drawn the greedy
+way took forty thousand times longer to run a Python loop than the same
+meter drawn small.
 
 On screen, in numbers big enough to read from across the room, is what the
 audio pump costs and - the one that matters - how many milliseconds of
@@ -57,13 +65,61 @@ from audiolive import PATCHES
 
 BUF = bytearray(256)
 MIDI_POLL_MS = 5          # the MIDI pump rides the display loop
-METER_MS = 30             # the animation that keeps the display busy
-# Read this as an upper bound, not a rate. On the microphone the pump reads
-# 91 % of a block and ONE LVGL pass through `app.poll()` measured 2.1 s, so
-# an LVGL timer asking for 30 ms fires once a pass like every other. The
-# panel, the effect graph and the audio all live in PSRAM and they are
-# competing for it; the bar is the visible part of that bill.
 STATUS_MS = 500
+
+# Controller number -> (which pedal in the chain, which of its macros).
+# The same map rack_midi.py uses, so one controller drives either example.
+CC_MAP = {
+    1: (0, 0),          # mod wheel   -> first pedal, first knob (usually Drive)
+    74: (1, 0),         # brightness  -> second pedal, first knob
+    71: (0, 1),         # harmonics   -> first pedal, second knob
+    91: (1, 2),         # reverb send -> second pedal, third knob (usually Mix)
+}
+
+# THE METER: A SMALL STRIP, EIGHT TIMES A SECOND. Both of those numbers are
+# the point of this example, so here is what they cost.
+#
+# `display_driver` runs `lv.task_handler()` from a `machine.Timer` at 10 ms,
+# and MicroPython delivers a `machine.Timer` callback through
+# `micropython.schedule` -- a soft callback the VM drains BETWEEN BYTECODES.
+# So LVGL is not competing with your code from somewhere else. It IS your
+# thread, running LVGL instead of your loop. Whatever one repaint costs, you
+# pay it out of your own interpreter time.
+#
+# What one repaint costs is the INVALIDATED AREA. An `lv.bar` invalidates the
+# whole widget when its value changes, LVGL re-renders every pixel of it into
+# the panel's framebuffer in PSRAM, and the driver then cache-syncs those
+# rows. Measured on the P4 Touch-LCD-4B with this example playing:
+#
+#     bar size      pixels    one repaint
+#     696 x 240     167 040     67.8 ms
+#     696 x 120      83 520     32.0 ms
+#     696 x  60      41 760     19.5 ms
+#     348 x  40      13 920     10.7 ms
+#     174 x  24       4 176      8.3 ms
+#
+# Read that as about 8 ms of fixed cost plus 0.4 us a pixel. Now the cliff.
+# A 300-iteration Python loop, in this example, while all of that runs:
+#
+#     696 x 240 every 30 ms     20 340 ms      <-- the app looks hung
+#     696 x 240 every 125 ms         0.50 ms
+#     696 x 120 every 30 ms          0.50 ms
+#     174 x  24 every 30 ms          0.49 ms
+#
+# One configuration is forty thousand times slower than the others, and it
+# is the one where a repaint (67.8 ms) takes longer than the tick that asks
+# for it (10 ms): the next tick is already queued when the repaint returns,
+# so repaints run back to back and Python never gets the gap. That is the
+# whole of the "rack_all hangs when you tap SOURCE" bug. The audio was never
+# the casualty -- `starved` read 0 ms throughout -- the interpreter was.
+#
+# THE RULE, and it is a cheap one to keep: an animation should cost less
+# than one LVGL refresh period (about 33 ms) per repaint, and should not ask
+# for repaints faster than it costs. A strip 696 x 40 at 8 Hz is about 14 ms
+# eight times a second -- eleven per cent of the thread - and it is still a
+# bar sweeping across the screen from the other side of the room.
+METER_MS = 125
+METER_H = 40
 
 BG = lv.color_hex(0x101014)
 PANEL = lv.color_hex(0x1E1E26)
@@ -94,7 +150,7 @@ class AllAtOnce:
         # more and the worst block costs a lot more. See audiolive's DMA
         # comment for the measurements.
         audiolive.DMA_DESC = audiolive.DMA_DESC_GUI
-        self.live = audiolive.LiveAudio(volume=100)
+        self.live = audiolive.LiveAudio(volume=audiolive.VOLUME)
         self.patch = 0
         self.midi_count = 0
         self.synth = None
@@ -117,10 +173,17 @@ class AllAtOnce:
         self._build_screen()
         self._start_midi()
 
-        lv.timer_create(_guarded(self._on_meter), METER_MS, None)
-        lv.timer_create(_guarded(self._on_status), STATUS_MS, None)
+        # Keep the handles. A timer you cannot pause or delete is a timer you
+        # cannot take out of the picture, and taking one out is how you find
+        # out what it costs.
+        self.timers = {
+            "meter": lv.timer_create(_guarded(self._on_meter), METER_MS, None),
+            "status": lv.timer_create(_guarded(self._on_status), STATUS_MS,
+                                      None),
+        }
         if self.parser is not None:
-            lv.timer_create(_guarded(self._on_midi), MIDI_POLL_MS, None)
+            self.timers["midi"] = lv.timer_create(_guarded(self._on_midi),
+                                                  MIDI_POLL_MS, None)
 
     # --- USB ---------------------------------------------------------------
 
@@ -160,9 +223,17 @@ class AllAtOnce:
 
     def _on_midi(self, _t):
         n = self._usbif.midi_read(BUF)
-        if not n:
-            return
-        self.parser.feed(BUF, n)
+        if n:
+            self.feed(BUF, n)
+
+    def feed(self, buf, n):
+        """Act on `n` bytes of USB-MIDI. The same shape rack_midi.py has.
+
+        Split out from the timer above so a harness can hand the same bytes
+        in with no host attached: `midi_read()` puts its bytes here and
+        nowhere else, so everything above the USB endpoint is this method.
+        """
+        self.parser.feed(buf, n)
         for status, data in self.parser.drain():
             self.midi_count += 1
             kind = status >> 4
@@ -171,8 +242,25 @@ class AllAtOnce:
             elif kind == 0x8 or (kind == 0x9 and len(data) == 2):
                 if self.synth is not None:
                     self.synth.note_off(data[0])
+            elif kind == 0xB and len(data) == 2:
+                self._control_change(data[0], data[1])
             elif kind == 0xC and len(data) >= 1:
                 self._select(data[0] % len(PATCHES))
+
+    def _control_change(self, controller, value):
+        """A knob on your controller moves a knob on the pedalboard.
+
+        The same map as rack_midi.py, and nothing about it is magic: it is
+        a dict, and your own controller wants your own numbers in it.
+        """
+        where = CC_MAP.get(controller)
+        if where is None:
+            return
+        slot, macro = where
+        try:
+            self.live.knob(slot, macro, value)
+        except (IndexError, KeyError):
+            pass        # this pedal has no such knob; a CC is a wire message
 
     # --- the screen --------------------------------------------------------
 
@@ -212,13 +300,14 @@ class AllAtOnce:
         self.source_btn.add_event_cb(_guarded(self._on_source),
                                      lv.EVENT.CLICKED, None)
 
-        # A bar that sweeps across the panel. It has no meaning: it is here
-        # to make the display do real work every 30 ms, which is the load
-        # the audio has to survive. There is no tap on the pump yet, so this
-        # cannot be a level meter - nothing can read what is going out
-        # without standing in its path.
+        # A bar that sweeps across the panel. It has no meaning yet: there is
+        # no tap on the pump, so nothing can read what is going out without
+        # standing in its path. It is here to make the display do real work
+        # while the audio plays - but a STRIP, not a third of the screen,
+        # and eight times a second rather than thirty. See METER_MS above for
+        # what the greedy version cost and why it looked like a hang.
         self.meter = lv.bar(scr)
-        self.meter.set_size(hres - 2 * pad, vres // 3)
+        self.meter.set_size(hres - 2 * pad, METER_H)
         self.meter.align(lv.ALIGN.CENTER, 0, -unit // 2)
         self.meter.set_range(0, 100)
         self.meter.set_style_bg_color(PANEL, lv.PART.MAIN)
@@ -276,7 +365,9 @@ class AllAtOnce:
     # --- the numbers -------------------------------------------------------
 
     def _on_meter(self, _t):
-        self.phase = (self.phase + 4) % 200
+        # Bigger steps than the 30 ms version took, so eight frames a second
+        # still sweeps the bar across in about two and a half seconds.
+        self.phase = (self.phase + 10) % 200
         self.meter.set_value(self.phase if self.phase <= 100
                              else 200 - self.phase, 0)
 

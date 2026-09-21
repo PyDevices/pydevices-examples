@@ -110,6 +110,13 @@ DMA_FRAME = 128
 #: an instrument - so it is a constant an app opts into, not the default.
 DMA_DESC_GUI = 12
 
+#: Codec volume, 0-100, for every example here. Module-level for the same
+#: reason DMA_DESC is: a board file or a harness sets `audiolive.VOLUME = 50`
+#: once and every example follows, without editing three files. On the P4 the
+#: speaker and the microphone are two inches apart, so anything running
+#: `source="input"` in a room wants this down.
+VOLUME = 100
+
 # The Mixer is double-buffered, so its buffer in bytes is twice one block.
 BUFFER_SIZE = BLOCK * CHANNELS * 2 * 2
 
@@ -203,6 +210,11 @@ PEAK = 8200                      # about -12 dBFS
 LOCKED = hasattr(audiopump, "lock_stats")
 
 
+def _play_voice(mixer, sample, voice, loop):
+    """`mixer.play()` as a positional call, so `_safely` can wrap it."""
+    mixer.play(sample, voice=voice, loop=loop)
+
+
 def _safely(fn, *args):
     """Run a graph change without the pump reading a half-written graph."""
     if LOCKED:
@@ -288,6 +300,9 @@ class LiveAudio:
         self._source = None        # what the chain is fed from
         self._tail = None          # what the pump is pointed at
         self._mixer = None
+        self._voices = 0
+        self._built = {}           # name -> (audiosample, loop), cached
+        self._insts = {}           # name -> the instrument object itself
         self._riff = None
         self._instrument = None
         self._input = None
@@ -295,6 +310,10 @@ class LiveAudio:
         self._status = bytearray(audiopump.STATUS_BYTES)
         self._ring = None
         self._dma_at_start = 0
+        #: The most silence the speaker has ever had to invent since play(),
+        #: in bytes. See `status()` for why this is a high-water mark and not
+        #: the instantaneous gap.
+        self._starved_peak = 0
         self._retired = None
         self._rack = None
         # True from the moment a pump exists until we tear it down. The pump
@@ -383,29 +402,32 @@ class LiveAudio:
 
         Call this before you draw anything. `source("riff")` synthesises
         2.4 seconds of Karplus-Strong in pure Python -- 115 200 loop
-        iterations, about 1.4 s on an idle P4 -- and with a lit 720x720
-        panel above it the same loop did not finish in 300 s, with 30 MB of
-        heap free. It is not memory and it is not the pump's lock. What it
-        is is the price of the screen: measured inside a running `rack_all`
-        on the microphone, one `app.poll()` returns every **2.1 s** and
-        `time.sleep_ms(5)` takes **52 ms**, against 1 ms a poll with the
-        panel up and no pump. A long pure-Python loop underneath a lit LVGL
-        screen is the shape to avoid, whatever it is computing.
+        iterations, about 1.4 s on an idle P4. Under `rack_all` as it was
+        first written the same loop did not finish in 300 s, with 30 MB of
+        heap free: it was not memory and not the pump's lock, it was the
+        example's own animated meter. LVGL's tick is a soft callback that
+        runs between your bytecodes, so a repaint that costs more than the
+        tick period starves the interpreter of its own thread. See
+        `rack_all.METER_MS` for the numbers and the rule.
+
+        Even with a cheap meter this is worth calling. Building a source
+        while a screen is up costs whatever share of the thread the screen
+        is taking, and it is nicer to spend 1.4 s before the app is drawn
+        than in the middle of a tap.
 
         Everything here is cached, so the `source()` that follows is a
         Mixer, a Rack and a `retarget()` -- about 135 ms.
         """
         for name in names:
-            if name == "riff":
-                if self._riff is None:
-                    self._riff = riff(self.rate)
-            elif name != "input":
-                # An instrument's tables are built in its constructor, and
-                # that is the expensive part; keeping the object is the cache.
+            # `input` is left out: it is an I2S channel, not a computation,
+            # and it is cheap on demand. Everything else -- the riff's
+            # 115 200-iteration loop, an instrument's wavetables -- is built
+            # here and kept by `_make`'s cache.
+            if name != "input":
                 self._make(name)
         return self
 
-    def _make(self, name):
+    def _build(self, name):
         """One source, as an audiosample, plus whether it wants looping."""
         if name == "riff":
             if self._riff is None:
@@ -427,9 +449,27 @@ class LiveAudio:
                 frames=self.block)
             return self._input, False
         import audioinstruments
-        self._instrument = audioinstruments.create(
-            name, self.rate, channel_count=self.channels)
-        return self._instrument.output, False
+        inst = audioinstruments.create(name, self.rate,
+                                       channel_count=self.channels)
+        self._insts[name] = inst
+        return inst.output, False
+
+    def _make(self, name):
+        """One source, built the first time and kept after that.
+
+        An app that toggles between two sources should not pay to
+        synthesise the riff, re-open the microphone or rebuild an
+        instrument's wavetables every time somebody taps the button. The
+        cache is cleared by `recover()` and `stop()`, because an `Input`
+        belongs to an I2S channel that `shutdown()` closes.
+        """
+        made = self._built.get(name)
+        if made is None:
+            made = self._built[name] = self._build(name)
+        inst = self._insts.get(name)
+        if inst is not None:
+            self._instrument = inst
+        return made
 
     def source(self, what=None):
         """Point the chain at a source, or at several summed together.
@@ -442,6 +482,24 @@ class LiveAudio:
         if what is None:
             return self.source_name
         names = (what,) if isinstance(what, str) else tuple(what)
+        mixer = self._mixer
+        if mixer is not None and len(names) == self._voices:
+            # Same shape as the Mixer already feeding the chain, so re-point
+            # its voices where they stand. Nothing downstream changes: the
+            # Rack is still fed by this Mixer and the pump is still pointed
+            # at the Rack, so there is no graph to rebuild and no retarget.
+            # `Mixer.play()` is a control path like any other and the pump
+            # lock covers its swap.
+            #
+            # This is the difference between an app that feels instant and
+            # one that does not. Measured on the P4 inside `rack_all`, with
+            # the panel lit, the USB costume on and the pump playing:
+            # rebuilding cost 206-352 ms a tap and re-pointing costs ~10.
+            for voice, name in enumerate(names):
+                sample, loop = self._make(name)
+                _safely(_play_voice, mixer, sample, voice, loop)
+            self.source_name = what
+            return what
         mixer = audiomixer.Mixer(
             voice_count=len(names), sample_rate=self.rate,
             channel_count=self.channels, bits_per_sample=16,
@@ -454,6 +512,7 @@ class LiveAudio:
             mixer.voice[voice].level = self.level / len(names)
             mixer.play(sample, voice=voice, loop=loop)
         self._mixer = mixer
+        self._voices = len(names)
         self.source_name = what
         self._source = mixer
         if self.effects or audiopump.running():
@@ -530,9 +589,15 @@ class LiveAudio:
         self._retired = None
         self._rack = None
         self.effects = []
+        # shutdown() closed the I2S channel with the task, and an `Input`
+        # built on the old channel is stale with it -- so the whole source
+        # cache goes, and with it the Mixer that fed the chain. `self._riff`
+        # survives, which is the expensive part (a 115 200-iteration loop).
+        self._built = {}
+        self._insts = {}
+        self._mixer = None
+        self._voices = 0
         if self.on_board:
-            # shutdown() closed the I2S channel with the task, and an
-            # `Input` built on the old channel is stale with it.
             self._input = None
             if self.source_name == "input":
                 self._source = None
@@ -582,6 +647,7 @@ class LiveAudio:
         else:
             gc.collect()
             self._dma_at_start = self._dma()
+            self._starved_peak = 0
             if self.on_board:
                 # sink=True: every block the pump pulls goes straight into
                 # the I2S DMA, on the pump's own thread, with no Python in
@@ -676,7 +742,21 @@ class LiveAudio:
         frames = (w[1] // blocks) // (self.channels * 2) or self.block
         block_us = frames * 1000000 // self.rate
         dma = self._dma() - self._dma_at_start
-        starved = dma - w[15] if dma else 0
+        # `dma - written` is how far behind the pump is RIGHT NOW, and the
+        # screen was presenting it as silence already heard. It is not: it
+        # shrinks again when the pump catches up, so the panel read 88, 82,
+        # 2, 2 ms -- a decreasing sequence, which no cumulative count can
+        # produce, and a strict checker called that a failure.
+        #
+        # What a listener wants is total silence since play(), which never
+        # goes down. The gap can only rise when the DMA clocks out a byte the
+        # pump never wrote, and a byte of silence once heard stays heard, so
+        # the total is the gap's HIGH-WATER MARK. Recovery stops it growing;
+        # it does not give any back.
+        gap = dma - w[15] if dma else 0
+        if gap > self._starved_peak:
+            self._starved_peak = gap
+        starved = self._starved_peak
         out = {
             "blocks": w[0],
             "cost_us": w[12] // blocks,
@@ -686,6 +766,9 @@ class LiveAudio:
             "starved": starved if starved > 0 else 0,
             "starved_ms": (starved * 1000 // (self.rate * self.channels * 2)
                            if starved > 0 else 0),
+            # How far behind the pump is at this instant, which is what
+            # `starved` used to be. Useful while tuning a ring; not silence.
+            "starved_now": gap if gap > 0 else 0,
             "timeouts": w[14],
             "error": w[5],
             "fault": w[24],
@@ -729,5 +812,9 @@ class LiveAudio:
         self._rack = None
         self._retired = None
         self._input = None
+        self._built = {}
+        self._insts = {}
+        self._mixer = None
+        self._voices = 0
         self.effects = []
         gc.collect()
