@@ -54,7 +54,8 @@ to 64 ms later - a knob still feels immediate at that, and anything
 shallower leaks silence on this board. And **changing pedalboard does cost
 you a hole**: building the new Rack takes 395-1036 ms on the interpreter
 thread and drops up to 176 ms of audio. No ring depth reaches that, so the
-``0 ms`` above is a promise about the macro rows and not about PATCH.
+``0 ms`` above is a promise about the macro rows and not about PATCH. By
+ear it is a very short hole, and it has been judged fine for playing live.
 
 Two things this board does not do
 ---------------------------------
@@ -130,8 +131,9 @@ LEVEL = 0.5                # see the docstring: this board's only volume
 # seconds of continuous turning on a macro row adds 0 ms, five times out of
 # five. A CHANGE adds 0-176 ms, and costs 395-1036 ms on the interpreter
 # thread building the new Rack - so a 190 s run that keeps changing patch
-# reads 3749 ms starved at this same ring. Change pedalboards while you are
-# playing and you will hear it; turn a macro and you will not.
+# reads 3749 ms starved at this same ring. Heard on the board, the hole at a
+# pedalboard change is very short - acceptable even live - and a macro turn
+# has none.
 # Tracked: https://github.com/PyDevices/pydevices-examples/issues/126
 #
 # The P4 runs ``rack_gui`` at 12 x 128, because a lit 720x720 panel reads a
