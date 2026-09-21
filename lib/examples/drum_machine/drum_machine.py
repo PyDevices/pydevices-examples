@@ -380,6 +380,26 @@ class DrumMachine:
         return pos % N_STEPS if pos >= 0 else -1
 
     def _load_machine(self, name, start_audio=False):
+        # THE STEP TIMER IS PAUSED FOR THE WHOLE OF THIS. Building a kit
+        # takes a while -- `audioinstruments.create` plus a pre-warm of every
+        # drum -- and LVGL's tick arrives on `micropython.schedule`, between
+        # this function's own bytecodes. So `_on_step_timer` ran INSIDE the
+        # load, saw `audio_started` False after the stop, and called
+        # `_start_audio()` itself; the one at the bottom of this function
+        # then asked for an I2S peripheral its own re-entrant copy was
+        # already holding and got "Peripheral in use". The groove came off
+        # the audio clock on every kit change, and before this sitting put
+        # `CLK TIMER!` on the screen it did so in silence.
+        timer = getattr(self, "timer", None)
+        if timer is not None:
+            timer.pause()
+        try:
+            self._load_machine_locked(name)
+        finally:
+            if timer is not None:
+                timer.resume()
+
+    def _load_machine_locked(self, name):
         # Where the groove is, before the pump's clock is reset under it.
         step = max(self._playhead(), 0)
         if self.inst is not None:
