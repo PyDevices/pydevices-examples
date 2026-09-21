@@ -136,7 +136,7 @@ def main(argv=None):
     backend = getattr(board_peripherals, "_select_backend", lambda: "?")()
     print("board_peripherals backend:", backend)
 
-    # pcm_out is the raw PCM sink; no AudioOut and so no audioif needed.
+    # pcm_out is the raw PCM sink; no AudioOut and so no audiodsp needed.
     # test writes raw PCM directly, so it uses the transport underneath it.
     out = board_peripherals.pcm_out()
     fmt = out.format

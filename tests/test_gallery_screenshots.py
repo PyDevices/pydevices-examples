@@ -31,12 +31,12 @@ class TestGalleryScreenshots(unittest.TestCase):
             (package / "helper.py").write_text("from pdwidgets.button import Button\n")
             example = gallery.Example("demo", "lib/examples/demo/demo.py", "manifest")
             example.pyscript_files = ["demo/demo.py", "demo/helper.py"]
-            example.deps = ["palettes", "pygraphics", "pdwidgets", "audioif"]
+            example.deps = ["palettes", "pygraphics", "pdwidgets", "audiodsp"]
 
             with mock.patch("sys.stderr") as stderr:
                 gallery.validate_example_deps([example])
             warning = "".join(call.args[0] for call in stderr.write.call_args_list)
-            self.assertIn("declared # deps not imported: audioif", warning)
+            self.assertIn("declared # deps not imported: audiodsp", warning)
 
             example.deps.remove("pdwidgets")
             with mock.patch("sys.stderr"), self.assertRaisesRegex(

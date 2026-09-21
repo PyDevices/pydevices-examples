@@ -30,7 +30,7 @@ PACKAGE_ORDER = (
     "pydevices",
     "pydevices-audioif",
     # audioinstruments and audioeffects publish from PyDevices/audiocomponents
-    # and sit on audioif; drum_machine and piano need them installed. Added
+    # and sit on audiodsp; drum_machine and piano need them installed. Added
     # here so refresh-requirements stops trying to drop them (they reached
     # requirements.txt by hand in 0880cc63 and the check has been red since).
     "pydevices-audioinstruments",

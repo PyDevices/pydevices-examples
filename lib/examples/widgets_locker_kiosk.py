@@ -1,4 +1,4 @@
-# deps: audioif, pdwidgets
+# deps: audiodsp, pdwidgets
 """
 widgets_locker_kiosk
 ====================================================

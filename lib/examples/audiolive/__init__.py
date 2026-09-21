@@ -19,7 +19,7 @@ never has to know what a block is::
     live.stop()
 
 Everything above is safe to call while the audio is playing. The reason is
-in audioif's C: one recursive mutex that the pump holds for a block pull and
+in audiodsp's C: one recursive mutex that the pump holds for a block pull and
 every control path holds around its own final swap. You do not lock
 anything; you just call the setter.
 
@@ -59,7 +59,7 @@ try:
     # The pump's platform driver: the I2S channel, the microphone `Input` and
     # the round-trip probe. A separate module from `audiopump` because a
     # separate repo builds it -- the engine is portable and ships with
-    # audioif everywhere, this half exists only where there is hardware. On a
+    # audiodsp everywhere, this half exists only where there is hardware. On a
     # build without it these examples have nothing to play through, and they
     # say so rather than failing on the import line.
     import _audioif
@@ -203,7 +203,7 @@ LIGHT_PATCHES = (
 
 # What the pump publishes when it stops on its own, as sentences. Word 5 of
 # the status block is the pump's own reason for breaking out of its loop;
-# word 24 is the code audioif's funnel left behind on the way.
+# word 24 is the code audiodsp's funnel left behind on the way.
 PUMP_ERRORS = {
     1: "a node in the graph returned no buffer",
     2: "a node in the graph returned a null buffer",
@@ -223,7 +223,7 @@ NOTES = (164.81, 196.00, 246.94, 329.63, 246.94, 196.00)
 NOTE_MS = 400
 PEAK = 8200                      # about -12 dBFS
 
-# audioif's pump lock makes every control path safe by itself - the setter
+# audiodsp's pump lock makes every control path safe by itself - the setter
 # takes the lock around its own swap, so callers move knobs, press notes and
 # retarget the pump with no ceremony at all. Firmware built before the lock
 # landed has no such promise, and there the pump has to be parked at a block
