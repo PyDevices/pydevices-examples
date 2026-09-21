@@ -46,7 +46,15 @@ exactly as in ``appdev_encoder_test.py``.
 The bottom line is the one that matters. ``load`` is how much of each block
 of audio the effects use; anything under 100 is fine. ``starved`` is how many
 milliseconds of silence the speaker has had to invent because the effects
-were late. It should read ``0 ms`` however hard you spin the knob.
+were late. Spin the knob and it stays at ``0 ms``; that is what the ring
+below was chosen for, and the measurements are beside it.
+
+Two honest caveats. The ring is 64 ms deep, so a macro you move is heard up
+to 64 ms later - a knob still feels immediate at that, and anything
+shallower leaks silence on this board. And **changing pedalboard does cost
+you a hole**: building the new Rack takes 395-1036 ms on the interpreter
+thread and drops up to 176 ms of audio. No ring depth reaches that, so the
+``0 ms`` above is a promise about the macro rows and not about PATCH.
 
 Two things this board does not do
 ---------------------------------
@@ -95,16 +103,43 @@ PAD = 3
 STEP = 4                   # macro units per encoder detent
 LEVEL = 0.5                # see the docstring: this board's only volume
 
-# 4 x 128 descriptors = 10.7 ms. Measured on this board with the panel up and
-# a bar redrawing 237 times a second, which is a harder screen than this one:
-# 2 x 128 starved 1976 ms in twenty seconds and 4 x 128 starved nothing, and
-# nothing deeper bought anything. The P4 needs 12 x 128 for the same job,
-# because a lit 720x720 panel reads a megabyte of PSRAM per frame and an SPI
-# ST7789 reads none.
+# 12 x 256 descriptors = 12 288 bytes = 64 ms. It is the smallest ring that
+# starves nothing UNDER THE KNOB, and it is not enough to make a long run
+# read zero - be clear about which claim you are reading.
+#
+# Twenty seconds a row, the panel lit, a detent every 30 ms and a press every
+# 2 s, one fresh LiveAudio per row because ``starved_ms`` is a high-water mark
+# nothing in a boot can lower (``probes/s3_rack.py`` ``ringsweep()``):
+#
+#     4 x 128   10.7 ms   starved 426 ms
+#     8 x 128   21.3 ms   starved  85 ms
+#    12 x 128   32.0 ms   starved  93 ms
+#    16 x 128   42.7 ms   starved  18 ms
+#    12 x 256   64.0 ms   starved   0 ms      <- this
+#    16 x 256   85.3 ms   starved   0 ms
+#
+# What decides it is not the pump's average but its worst block: one pull of
+# ``Overdrive`` costs 89-90 % of the 5333 us a block lasts and the worst is
+# 8.4-8.7 ms, so a ring of 128-frame pieces cannot hold one late block
+# however many pieces it has. That is why 16 x 128 (42.7 ms) still leaks
+# where 12 x 256 (64 ms) does not, and why the note that used to be here -
+# "nothing deeper bought anything" - was wrong: it was measured at 128-frame
+# descriptors only.
+#
+# **What is left is the pedalboard change, and no ring cures it.** Thirty
+# seconds of continuous turning on a macro row adds 0 ms, five times out of
+# five. A CHANGE adds 0-176 ms, and costs 395-1036 ms on the interpreter
+# thread building the new Rack - so a 190 s run that keeps changing patch
+# reads 3749 ms starved at this same ring. Change pedalboards while you are
+# playing and you will hear it; turn a macro and you will not.
+# See ``docs/spikes/live-audio-path-s3.md``.
+#
+# The P4 runs ``rack_gui`` at 12 x 128, because a lit 720x720 panel reads a
+# megabyte of PSRAM per frame and an SPI ST7789 reads none.
 # A harness or a board file can choose the ring before this module is
 # imported; everything else gets the number this board was measured at.
-audiolive.DMA_DESC = getattr(audiolive, "RACK_DMA_DESC", 4)
-audiolive.DMA_FRAME = getattr(audiolive, "RACK_DMA_FRAME", 128)
+audiolive.DMA_DESC = getattr(audiolive, "RACK_DMA_DESC", 12)
+audiolive.DMA_FRAME = getattr(audiolive, "RACK_DMA_FRAME", 256)
 
 
 class RackKnob:
