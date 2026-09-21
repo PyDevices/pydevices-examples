@@ -166,9 +166,10 @@ is a board bug you will meet for the first time on a board.
   in place the attach needs no elevation, the kernel autoloads
   `snd-usb-audio`, and raw bytes written to `/dev/snd/midiC0D0` (group
   `audio`) are enough — no `amidi`, no `sudo`, no winmm.
-- **Nobody has heard `rack_knob` on the LilyGO T-Embed S3.** Its ring is
-  measured now — 12 × 256, the smallest that starves nothing — but every
-  number behind it is electrical.
+- **`rack_knob` has been heard on the LilyGO T-Embed S3** (2026-09-21, at
+  the 12 × 256 ring): patch and macros changed by hand, no clicks and no
+  gaps. The hole at a pedalboard change, below, is there if you listen for
+  it and was judged very short — acceptable even for playing live.
 - **A patch change builds a whole Rack on the UI thread.** One `app.poll()` in
   ten minutes on the P4 hit 222 ms at a patch change. It is a hitch, not a
   hang. On the T-Embed it is a hole you can hear: 395–1036 ms of interpreter
