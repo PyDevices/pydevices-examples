@@ -98,6 +98,13 @@ class AllAtOnce:
         self.phase = 0
         self.mic = True
 
+        # The riff, built here rather than when SOURCE is tapped. Tapping it
+        # used to appear to hang the app: the phrase is a long pure-Python
+        # loop, and under a lit panel the display timer's soft IRQ leaves
+        # the interpreter so little that it does not finish. See
+        # LiveAudio.prepare.
+        self.live.prepare("riff")
+
         # mic -> effect -> speaker. Capture and playback are the two halves
         # of ONE I2S channel pair on this board, so they share a clock tree
         # and cannot drift apart.
@@ -182,7 +189,7 @@ class AllAtOnce:
         self.buttons = []
         for i, (name, _chain) in enumerate(PATCHES):
             btn = lv.button(row)
-            btn.set_size(lv.pct(20), lv.pct(100))
+            btn.set_size(lv.pct(100 // (len(PATCHES) + 2)), lv.pct(100))
             btn.set_style_bg_color(ACCENT if i == 0 else PANEL, 0)
             lab = lv.label(btn)
             lab.set_text(name)

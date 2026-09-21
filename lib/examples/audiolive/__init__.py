@@ -110,25 +110,21 @@ BLOCKS_FOREVER = 0x7FFFFFFF
 # a name, or a (name, options) pair. Two effects rather than five on
 # purpose - LiveAudio.status() tells you what a third one costs before you
 # commit to it.
-# Measured on the P4 at 48 kHz stereo, 256-frame blocks, as a fraction of the
-# 5333 us a block of audio lasts: CRUNCH 41 %, DIRT 44 %, CLEAN 81 %,
-# LO-FI 16 %. Anything over 100 % cannot play, and two classes in the palette
-# are over it by themselves -- `Fuzz` is 553 % of a block and `Saturation` is
-# 697 %, against `Overdrive`'s 34 % for the same job. Do not put either of
-# those two in a chain you mean to hear; the speaker fills the gap with
-# silence.
+# Measured on the P4 at 48 kHz stereo as a fraction of one block of audio,
+# whole chain, ring at DMA_DESC_GUI: CRUNCH 41 %, DIRT 57 %, FUZZ 52 %,
+# CLEAN 41 %, LO-FI 16 %. Anything over 100 % cannot play and the speaker
+# fills the gap with silence, so `LiveAudio.status()` is how you find out
+# what a third pedal would cost before you commit to it.
 #
-# DIRT is a second, darker Overdrive voicing rather than a `Distortion`, and
-# that is a temporary choice with a reason. `Distortion` costs the same 36 %
-# and sounds right, but its Character macro crossing the middle of its travel
-# tears the class down and builds a new one -- and a live pump is holding the
-# old one. On the board that is the audio stopping dead under your finger.
-# About twenty classes in the palette replace their own output node after
-# construction like that; a stable output port on every Component is being
-# built now, and `Distortion` comes back here the day it lands.
+# Read `load_pct` against the block the chain actually returns, not the one
+# you asked for: a class chooses its own length, `SlapbackDelay` hands back
+# 512 frames where `Overdrive` hands back 256, and a percentage against the
+# wrong denominator reads exactly double. That mistake has cost this spike
+# three separate evenings.
 PATCHES = (
     ("CRUNCH", (("Overdrive", {}), ("TapeDelay", {"mix": 0.22}))),
-    ("DIRT", (("Overdrive", {"patch": 2}), ("SlapbackDelay", {}))),
+    ("DIRT", (("Distortion", {}), ("SlapbackDelay", {}))),
+    ("FUZZ", (("Fuzz", {}), ("TapeDelay", {"mix": 0.22}))),
     ("CLEAN", (("Compressor", {}), ("Reverb", {"mix": 0.30}))),
     ("LO-FI", (("Bitcrusher", {}), ("AnalogDelay", {}))),
 )
@@ -329,6 +325,33 @@ class LiveAudio:
         self.duplex = din >= 0
 
     # --- where the sound comes from --------------------------------------
+
+    def prepare(self, *names):
+        """Build now, while nothing is on screen, what `source()` will want.
+
+        Call this before you draw anything. `source("riff")` synthesises
+        2.4 seconds of Karplus-Strong in pure Python -- 115 200 loop
+        iterations, about 1.4 s on an idle P4 -- and with a lit 720x720
+        panel above it the same loop does not finish. It is not stuck and it
+        is not the pump: the display driver's 10 ms `machine.Timer` re-arms
+        from its slot rather than from the end of its work, so once
+        `lv.task_handler()` takes longer than 10 ms every tick fires, and a
+        soft IRQ that runs a whole LVGL pass between two bytecodes leaves
+        the interpreter almost nothing. A long Python loop underneath a
+        lit LVGL screen is the shape to avoid, whatever it is computing.
+
+        Everything here is cached, so the `source()` that follows is a
+        Mixer, a Rack and a `retarget()` -- about 135 ms.
+        """
+        for name in names:
+            if name == "riff":
+                if self._riff is None:
+                    self._riff = riff(self.rate)
+            elif name != "input":
+                # An instrument's tables are built in its constructor, and
+                # that is the expensive part; keeping the object is the cache.
+                self._make(name)
+        return self
 
     def _make(self, name):
         """One source, as an audiosample, plus whether it wants looping."""
