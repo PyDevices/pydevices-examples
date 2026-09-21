@@ -67,6 +67,15 @@ BUF = bytearray(256)
 MIDI_POLL_MS = 5          # the MIDI pump rides the display loop
 STATUS_MS = 500
 
+# Controller number -> (which pedal in the chain, which of its macros).
+# The same map rack_midi.py uses, so one controller drives either example.
+CC_MAP = {
+    1: (0, 0),          # mod wheel   -> first pedal, first knob (usually Drive)
+    74: (1, 0),         # brightness  -> second pedal, first knob
+    71: (0, 1),         # harmonics   -> first pedal, second knob
+    91: (1, 2),         # reverb send -> second pedal, third knob (usually Mix)
+}
+
 # THE METER: A SMALL STRIP, EIGHT TIMES A SECOND. Both of those numbers are
 # the point of this example, so here is what they cost.
 #
@@ -214,9 +223,17 @@ class AllAtOnce:
 
     def _on_midi(self, _t):
         n = self._usbif.midi_read(BUF)
-        if not n:
-            return
-        self.parser.feed(BUF, n)
+        if n:
+            self.feed(BUF, n)
+
+    def feed(self, buf, n):
+        """Act on `n` bytes of USB-MIDI. The same shape rack_midi.py has.
+
+        Split out from the timer above so a harness can hand the same bytes
+        in with no host attached: `midi_read()` puts its bytes here and
+        nowhere else, so everything above the USB endpoint is this method.
+        """
+        self.parser.feed(buf, n)
         for status, data in self.parser.drain():
             self.midi_count += 1
             kind = status >> 4
@@ -225,8 +242,25 @@ class AllAtOnce:
             elif kind == 0x8 or (kind == 0x9 and len(data) == 2):
                 if self.synth is not None:
                     self.synth.note_off(data[0])
+            elif kind == 0xB and len(data) == 2:
+                self._control_change(data[0], data[1])
             elif kind == 0xC and len(data) >= 1:
                 self._select(data[0] % len(PATCHES))
+
+    def _control_change(self, controller, value):
+        """A knob on your controller moves a knob on the pedalboard.
+
+        The same map as rack_midi.py, and nothing about it is magic: it is
+        a dict, and your own controller wants your own numbers in it.
+        """
+        where = CC_MAP.get(controller)
+        if where is None:
+            return
+        slot, macro = where
+        try:
+            self.live.knob(slot, macro, value)
+        except (IndexError, KeyError):
+            pass        # this pedal has no such knob; a CC is a wire message
 
     # --- the screen --------------------------------------------------------
 
