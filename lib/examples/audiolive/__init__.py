@@ -81,18 +81,44 @@ BLOCKS_FOREVER = 0x7FFFFFFF
 # purpose - LiveAudio.status() tells you what a third one costs before you
 # commit to it.
 # Measured on the P4 at 48 kHz stereo, 256-frame blocks, as a fraction of the
-# 5333 us a block of audio lasts: CRUNCH 41 %, DIRT ~83 %, CLEAN 81 %,
+# 5333 us a block of audio lasts: CRUNCH 41 %, DIRT 44 %, CLEAN 81 %,
 # LO-FI 16 %. Anything over 100 % cannot play, and two classes in the palette
 # are over it by themselves -- `Fuzz` is 553 % of a block and `Saturation` is
-# 697 %, against `Distortion`'s 36 % for the same job. So the dirty board here
-# is a Distortion. Do not put either of those two in a chain you mean to hear
-# until they are cheaper; the speaker fills the gap with silence.
+# 697 %, against `Overdrive`'s 34 % for the same job. Do not put either of
+# those two in a chain you mean to hear; the speaker fills the gap with
+# silence.
+#
+# DIRT is a second, darker Overdrive voicing rather than a `Distortion`, and
+# that is a temporary choice with a reason. `Distortion` costs the same 36 %
+# and sounds right, but its Character macro crossing the middle of its travel
+# tears the class down and builds a new one -- and a live pump is holding the
+# old one. On the board that is the audio stopping dead under your finger.
+# About twenty classes in the palette replace their own output node after
+# construction like that; a stable output port on every Component is being
+# built now, and `Distortion` comes back here the day it lands.
 PATCHES = (
     ("CRUNCH", (("Overdrive", {}), ("TapeDelay", {"mix": 0.22}))),
-    ("DIRT", (("Distortion", {}), ("SlapbackDelay", {}))),
+    ("DIRT", (("Overdrive", {"patch": 2}), ("SlapbackDelay", {}))),
     ("CLEAN", (("Compressor", {}), ("Reverb", {"mix": 0.30}))),
     ("LO-FI", (("Bitcrusher", {}), ("AnalogDelay", {}))),
 )
+
+# What the pump publishes when it stops on its own, as sentences. Word 5 of
+# the status block is the pump's own reason for breaking out of its loop;
+# word 24 is the code audioif's funnel left behind on the way.
+PUMP_ERRORS = {
+    1: "a node in the graph returned no buffer",
+    2: "a node in the graph returned a null buffer",
+    3: "the source ran out",
+    4: "the graph's memory was re-used under it",
+    5: "a node in the graph faulted",
+}
+PUMP_FAULTS = {
+    1: "something in the chain is not an audio node",
+    2: "something in the chain was released while it was playing",
+    3: "a file-backed source cannot be pulled by the pump",
+    4: "a read that would have raised inside the pull",
+}
 
 # A short riff to hear an effect working on. Six notes of E minor.
 NOTES = (164.81, 196.00, 246.94, 329.63, 246.94, 196.00)
@@ -200,6 +226,16 @@ class LiveAudio:
         self._status = bytearray(audiopump.STATUS_BYTES)
         self._ring = None
         self._dma_at_start = 0
+        self._retired = None
+        self._rack = None
+        # True from the moment a pump exists until we tear it down. The pump
+        # can stop by itself - a fault takes it out of its loop - and then
+        # `audiopump.running()` is False while the task is still registered,
+        # so `spawn()` refuses with "a pump is already spawned". That pair is
+        # the whole of the crash a GUI used to die with; `_recover()` below is
+        # the answer to it.
+        self._spawned = False
+        self.volume = volume
 
         audioeffects.configure(rate, channels)
 
@@ -236,8 +272,17 @@ class LiveAudio:
                 "this board's board_peripherals has no audio_power role, so "
                 "there is no way to power the codec without opening I2S; add "
                 "one, or drive the codec directly as probes/listen.py does")
-        power(True, volume=volume)
+        self._open_codec()
 
+    def _open_codec(self):
+        """Power the codec and open the I2S port. Also the recovery path.
+
+        `audiopump.shutdown()` closes the I2S channel as well as ending the
+        task, so anything that means to spawn again has to come back through
+        here first.
+        """
+        bp = self._bp
+        bp.audio_power(True, volume=self.volume)
         w = self.out_wire
         # din= opens the RX half of the SAME channel pair, so one clock tree
         # drives capture and playback and the two DMAs cannot drift. The
@@ -247,10 +292,10 @@ class LiveAudio:
         if self.in_wire is not None and self.in_wire.port == w.port:
             din = self.in_wire.sd
         self.cushion = audiopump.i2s_start(
-            w.port, w.sck, w.ws, w.sd, rate,
-            bits=16, channels=channels,
+            w.port, w.sck, w.ws, w.sd, self.rate,
+            bits=16, channels=self.channels,
             mclk=-1 if w.mck is None else w.mck, mclk_fs=w.mck_fs,
-            dma_desc=dma_desc, dma_frame=dma_frame, din=din)
+            dma_desc=self.dma_desc, dma_frame=self.dma_frame, din=din)
         self.duplex = din >= 0
 
     # --- where the sound comes from --------------------------------------
@@ -334,10 +379,63 @@ class LiveAudio:
         if isinstance(chain, str):
             chain = (chain,)
         self.chain = tuple(chain)
+        # A pump that stopped on its own is cleared away here, before
+        # anything is built, so that "play it again" is the whole of the
+        # recovery a user has to know about.
+        self.recover()
         if self._source is None:
             self.source(source)
         self._rebuild()
         return self.chain
+
+    def died(self):
+        """The reason the audio stopped by itself, or None if it is fine.
+
+        The pump breaks out of its loop rather than raising - it has no
+        interpreter thread to raise on - so this is how a stop reaches you.
+        """
+        if not self._spawned or audiopump.running():
+            return None
+        import struct
+        return self._why(struct.unpack("<%dQ" % audiopump.STATUS_WORDS,
+                                       self._status))
+
+    def _why(self, w):
+        if not self._spawned or audiopump.running():
+            return None
+        why = PUMP_FAULTS.get(w[24]) or PUMP_ERRORS.get(w[5])
+        return why or "the pump stopped (error %d, fault %d)" % (w[5], w[24])
+
+    def recover(self):
+        """Clear a stopped pump away so the next play() can start a new one.
+
+        Nothing else in the example has to know that a pump which has
+        faulted still holds its task and its I2S channel: it is not
+        `running()`, and `spawn()` refuses it all the same. Returns the
+        reason it stopped, or None if it was healthy.
+        """
+        why = self.died()
+        if why is None:
+            return None
+        print("audiolive: the audio stopped -", why, "- restarting")
+        audiopump.shutdown()
+        self._spawned = False
+        self._tail = None
+        self._retired = None
+        self._rack = None
+        self.effects = []
+        if self.on_board:
+            # shutdown() closed the I2S channel with the task, and an
+            # `Input` built on the old channel is stale with it.
+            self._input = None
+            if self.source_name == "input":
+                self._source = None
+                self.source_name = None
+            self._open_codec()
+        for i in range(len(self._status)):
+            self._status[i] = 0
+        gc.collect()
+        return why
 
     def _rebuild(self):
         """Build the new graph, then point the pump at it in one move."""
@@ -387,6 +485,7 @@ class LiveAudio:
             else:
                 audiopump.spawn(tail, BLOCKS_FOREVER, self._status,
                                 ring=self._ring, timeout_ms=500)
+            self._spawned = True
         gc.collect()
 
     def bypass(self, on=True):
@@ -456,10 +555,20 @@ class LiveAudio:
         import struct
         w = struct.unpack("<%dQ" % audiopump.STATUS_WORDS, self._status)
         blocks = w[0] or 1
-        # Measured, not assumed: a class chooses its own block length and
-        # ShimmerHall's is 512 frames, so dividing by the configured 256
-        # reports it at 113 % of a core when it is using half of one.
-        block_us = (w[16] // blocks) or (self.block * 1000000 // self.rate)
+        # A block of audio lasts as long as the frames in it, and a class
+        # chooses how many frames it hands back: `Fuzz` and `Saturation`
+        # return 512 where `Overdrive` returns 256. So the denominator is
+        # counted from the bytes that actually came out, not from the block
+        # size this object asked for - dividing by the configured 256
+        # reported Fuzz at 553 % of a block when it is 274 %, and every
+        # 512-frame class was overstated by exactly two.
+        #
+        # Wall time cannot be used for this while the pump is live: the pump
+        # publishes its wall clock once, when its loop ends. And a pump that
+        # is behind has a wall period equal to its own pull, which would read
+        # 100 % however far behind it is.
+        frames = (w[1] // blocks) // (self.channels * 2) or self.block
+        block_us = frames * 1000000 // self.rate
         dma = self._dma() - self._dma_at_start
         starved = dma - w[15] if dma else 0
         out = {
@@ -475,6 +584,9 @@ class LiveAudio:
             "error": w[5],
             "fault": w[24],
             "running": audiopump.running(),
+            # None while the audio is playing; a sentence once it has
+            # stopped by itself. A GUI shows this instead of dying.
+            "why": self._why(w),
         }
         if LOCKED:
             # How long the audio actually stood still inside somebody's swap.
@@ -500,6 +612,7 @@ class LiveAudio:
         Ctrl-D or a fresh `mpftp run` always leaves the board quiet.
         """
         audiopump.shutdown()
+        self._spawned = False
         power = getattr(self._bp, "audio_power", None) if self._bp else None
         if power is not None:
             try:
@@ -507,5 +620,8 @@ class LiveAudio:
             except Exception:
                 pass
         self._tail = None
+        self._rack = None
+        self._retired = None
+        self._input = None
         self.effects = []
         gc.collect()

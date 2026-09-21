@@ -311,6 +311,16 @@ class RackGUI:
 
     def _on_tick(self, _t):
         s = self.live.status()
+        if s["why"]:
+            # The pump stopped on its own. It cannot raise - it has no
+            # interpreter thread to raise on - so this line is how it tells
+            # you, and tapping any patch starts a fresh one. A GUI that died
+            # with a traceback because the audio stopped would be the worst
+            # of both.
+            self.readout.set_style_text_color(ACCENT, 0)
+            self.readout.set_text("audio stopped: %s - tap a patch" % s["why"])
+            return
+        self.readout.set_style_text_color(FG, 0)
         self.readout.set_text(
             "load %d%%  blk %d/%d us  starved %d ms"
             % (s["load_pct"], s["worst_us"], s["block_us"], s["starved_ms"]))
