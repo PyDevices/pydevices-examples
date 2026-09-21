@@ -314,7 +314,7 @@ class LiveAudio:
 
         audioeffects.configure(rate, channels)
 
-        self.on_board = hasattr(audiopump, "i2s_start")
+        self.on_board = hasattr(_audioif, "i2s_start")
         self.out_wire = None
         self.in_wire = None
         self.cushion = 0
@@ -413,7 +413,7 @@ class LiveAudio:
             return audiocore.RawSample(self._riff, sample_rate=self.rate,
                                        channel_count=self.channels), True
         if name == "input":
-            if not hasattr(audiopump, "Input"):
+            if not hasattr(_audioif, "Input"):
                 raise RuntimeError("this port has no audio input")
             if not self.duplex:
                 raise RuntimeError(
@@ -700,7 +700,7 @@ class LiveAudio:
         return out
 
     def _dma(self):
-        if hasattr(audiopump, "i2s_dma_bytes"):
+        if hasattr(_audioif, "i2s_dma_bytes"):
             return _audioif.i2s_dma_bytes()
         return 0
 
