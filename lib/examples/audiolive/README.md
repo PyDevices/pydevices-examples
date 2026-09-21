@@ -121,8 +121,13 @@ Lighting that 720 × 720 panel alone costs about eleven points of a block,
 because a megabyte of framebuffer is read out of PSRAM for every frame it
 clocks and the graph is in PSRAM too; no amount of priority reaches a
 bandwidth tax. On the **T-Embed's SPI panel** a lit screen costs nothing
-measurable and the knee is **4 × 128** (10.7 ms), with 6 and 8 buying nothing
-after it. `audiolive.DMA_DESC_GUI` is the P4 number and an app opts into it;
+measurable, but `rack_knob` needs a *deeper* ring than the P4 does, not a
+shallower one: 4 × 128 leaks 426 ms in twenty seconds and 16 × 128 still
+leaks 18 ms, while **12 × 256** — 64 ms — reads zero for as long as you turn
+a macro (changing pedalboard is another matter, below). What decides it is the
+worst block, 8.4–8.7 ms against a 5333 µs block, and a ring in 128-frame
+pieces cannot hold one however many of them there are.
+`audiolive.DMA_DESC_GUI` is the P4 number and an app opts into it;
 32 ms is inaudible for a pedalboard and far too much for playing an
 instrument.
 
@@ -161,9 +166,13 @@ is a board bug you will meet for the first time on a board.
   in place the attach needs no elevation, the kernel autoloads
   `snd-usb-audio`, and raw bytes written to `/dev/snd/midiC0D0` (group
   `audio`) are enough — no `amidi`, no `sudo`, no winmm.
-- **Nobody has heard `rack_knob` on the LilyGO T-Embed S3**, and it starved
-  2.5 % of the time at a 4 × 128 ring across its 190-second run. 8 × 128 is
-  better, not zero.
+- **Nobody has heard `rack_knob` on the LilyGO T-Embed S3.** Its ring is
+  measured now — 12 × 256, the smallest that starves nothing — but every
+  number behind it is electrical.
 - **A patch change builds a whole Rack on the UI thread.** One `app.poll()` in
   ten minutes on the P4 hit 222 ms at a patch change. It is a hitch, not a
-  hang.
+  hang. On the T-Embed it is a hole you can hear: 395–1036 ms of interpreter
+  building the new Rack, and up to 176 ms of silence that no ring depth
+  covers — a 190-second run that keeps changing pedalboard reads 3749 ms
+  starved at the same 12 × 256 that reads zero under the knob
+  ([#126](https://github.com/PyDevices/pydevices-examples/issues/126)).
