@@ -96,7 +96,7 @@ of a block, three of them a single pedal. Two classes are out of it entirely:
 `ShimmerHall` takes 92 % of its own block there and starves with nothing else
 running, and `Reverb` at 52 % leaves no room for a delay behind it.
 
-## Three lessons these paid for
+## Four lessons these paid for
 
 **Draw meters small and slow.** On MicroPython, LVGL's tick is delivered
 through `micropython.schedule`, so `lv.task_handler()` runs between the
@@ -136,10 +136,34 @@ redirected to a file, no saved preset, no `mip install` and no log while
 something is playing. That is why these examples hold their lines and write
 their results once, after teardown.
 
+**A timer tick re-enters your Python between its own bytecodes.** LVGL's tick
+and MicroPython's soft timers both arrive through `micropython.schedule`, so a
+callback does not wait for the function you are in to finish — it lands
+between two of its bytecodes and runs on the same thread. Anything both of
+them touch has to be guarded, and the tell is a symptom with no cause in the
+code you are reading: a kit change that asked for an I2S peripheral its own
+re-entrant copy was already holding and got "Peripheral in use"; a full
+pattern that raised `AttributeError` out of a press and read exactly like an
+exhausted voice pool, when it was a top-up tick re-arming the keyboard while
+the bar was still being laid. Pause the timer across anything that rearranges
+state, as `drum_machine._load_machine` does, or hold a flag the callback
+checks. A desktop cannot show you this without injecting the interrupt, so it
+is a board bug you will meet for the first time on a board.
+
 ## Not finished
 
-- **USB MIDI over the wire is unproven from WSL.** Everything above the
-  endpoint works in a live `rack_all` — notes, CC, program change,
-  `midi_read()` at 4 µs — but attaching the board's MIDI costume into WSL
-  needs a `usbipd bind` against the identity it wears with MIDI on, which is a
-  different device from the one a CDC+MSC bind covers.
+- **Driving the board's MIDI from WSL needs one policy set once per host.**
+  The wire itself is proven: on the Waveshare ESP32-P4, notes, CC 1 and two
+  program changes reached a live `rack_all` — `patch: LO-FI`, then
+  `patch: CRUNCH` — with `err=0 fault=0`. What it took was `usbipd`'s
+  **AutoBind** policy on the board's busid, because the identity it wears with
+  MIDI on is a different device from the one a CDC+MSC bind covers. With that
+  in place the attach needs no elevation, the kernel autoloads
+  `snd-usb-audio`, and raw bytes written to `/dev/snd/midiC0D0` (group
+  `audio`) are enough — no `amidi`, no `sudo`, no winmm.
+- **Nobody has heard `rack_knob` on the LilyGO T-Embed S3**, and it starved
+  2.5 % of the time at a 4 × 128 ring across its 190-second run. 8 × 128 is
+  better, not zero.
+- **A patch change builds a whole Rack on the UI thread.** One `app.poll()` in
+  ten minutes on the P4 hit 222 ms at a patch change. It is a hitch, not a
+  hang.

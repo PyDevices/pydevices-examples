@@ -17,6 +17,28 @@ or a garbage collection then cannot move a hit. Where it does not, the same
 pattern is fired from the wall-clock timer at the bottom of
 ``_on_step_timer`` and nothing about the example changes.
 
+**The corner of the screen says which clock you are on.** ``CLK AUDIO`` is
+the queue; ``CLK TIMER!`` means the pump is in this firmware and did not take
+this graph, and the reason is printed once. ``TIMER`` in grey is a firmware
+with no pump at all, which is not a warning. That label is worth having on
+your own app: it caught two real bugs on its first runs, both of them a kit
+change quietly dropping the groove back onto the timer.
+
+It schedules ``AHEAD_MS`` of steps in advance -- 300 ms, three steps at
+120 BPM and four at 200. The number is in milliseconds rather than steps
+because what it has to cover is the longest the interpreter can be away, and
+that has nothing to do with the tempo: with the matrix repainting and a
+collector storm running, the worst gap between two calls of the 15 ms step
+timer was 100 ms, and 300 is three times that. The other end of the trade is
+the player -- a step is read when it is scheduled, so toggling a cell inside
+the window would be heard a bar late. ``Sequencer.relay()`` takes the
+unsounded ones back and reads the pattern again, which is why the window can
+be set by the stall and not by the editing.
+
+On the Waveshare ESP32-P4 panel, full pattern at 200 BPM with the screen
+redrawing: 0 late, 0 dropped, 0 refused, with the worst gap between top-ups
+at 54 ms against that 300 ms window.
+
 Designed on a 720×720 touch panel and laid out for 720×480 here, which fits
 a browser window; other resolutions lay out proportionally.
 Requires the ``audioinstruments`` package (``mip.install("audioinstruments",
