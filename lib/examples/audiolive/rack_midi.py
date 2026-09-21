@@ -107,7 +107,7 @@ def wait_for_mount(timeout_ms=MOUNT_TIMEOUT_MS):
 
 class MidiRack:
     def __init__(self, patch=0):
-        self.live = audiolive.LiveAudio(volume=100)
+        self.live = audiolive.LiveAudio(volume=audiolive.VOLUME)
         self.patch = patch
         # An instrument rather than the looped riff: this one is played.
         self.live.play(PATCHES[patch][1], source=INSTRUMENT)

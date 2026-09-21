@@ -103,7 +103,7 @@ class RackGUI:
         # 4 x 128 this example starves continuously; at 12 x 128 it reads zero.
         # 32 ms of latency you cannot hear moving a slider.
         audiolive.DMA_DESC = audiolive.DMA_DESC_GUI
-        self.live = audiolive.LiveAudio(volume=100)
+        self.live = audiolive.LiveAudio(volume=audiolive.VOLUME)
         self.patch = 0
         self.slot = 0                     # which effect in the chain has focus
         self.sliders = []
