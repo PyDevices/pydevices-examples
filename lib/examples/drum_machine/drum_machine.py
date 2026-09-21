@@ -123,6 +123,11 @@ BG = lv.color_hex(0x101418)
 FG = lv.color_hex(0xE0E0E0)
 ACCENT = lv.color_hex(0xB00020)
 STEP_OFF = lv.color_hex(0x2A2F36)
+# The clock indicator. Green when the sequencer keeps time off the audio
+# clock, amber when it has fallen back to the old step timer on a firmware
+# that HAS a pump -- that is a different app and the screen has to say so.
+CLOCK_OK = lv.color_hex(0x35C46A)
+CLOCK_BAD = lv.color_hex(0xE8A317)
 
 
 def _guarded(fn):
@@ -326,10 +331,42 @@ class DrumMachine:
                 print("drum_machine: audio is not open yet -", err)
             self.audio_started = False
             self._audio_retry_ms = ticks_ms()
+            self._refresh_clock()
             return False
         self.audio_started = True
         self._arm_sequencer(step)
+        self._refresh_clock()
         return True
+
+    def _refresh_clock(self):
+        """Say on the SCREEN which clock the pattern is keeping time on.
+
+        A firmware with a pump and an example that is not using it is the
+        failure this exists for: the sequencer falls back to the old step
+        timer, the console gets one line, and every number after that is
+        about a different app. It was missed exactly that way once.
+        """
+        label = getattr(self, "clock_label", None)
+        if label is None:
+            return
+        if audio_pump is None:
+            # No pump in this firmware. The timer IS the clock here and
+            # saying so quietly is the honest answer, not a warning.
+            label.set_text("TIMER")
+            label.set_style_text_color(STEP_OFF, 0)
+            return
+        on_pump = bool(getattr(self.audio_out, "pumped", False))
+        if on_pump and self.seq is not None:
+            label.set_text("CLK AUDIO")
+            label.set_style_text_color(CLOCK_OK, 0)
+            return
+        why = getattr(self.audio_out, "pump_refused", None)
+        if why is None and self.seq is None:
+            why = "this kit is not schedulable"
+        label.set_text("CLK TIMER!")
+        label.set_style_text_color(CLOCK_BAD, 0)
+        print("drum_machine: keeping time on the OLD step timer -",
+              why or "the pump did not take this graph")
 
     def _playhead(self):
         """The cell the audio is in, or -1 when nothing is playing.
@@ -434,6 +471,10 @@ class DrumMachine:
         self.bpm_label = lv.label(bar)
         self.bpm_label.set_text("120 BPM")
         self.bpm_label.set_style_text_color(FG, 0)
+        # Which clock this is keeping time on. See `_refresh_clock`.
+        self.clock_label = lv.label(bar)
+        self.clock_label.set_text("")
+        self.clock_label.set_style_text_color(FG, 0)
         _toolbar_button(
             bar, "+", unit * 3 // 5,
             lambda e: self._change_bpm(BPM_STEP), lv.EVENT.CLICKED,
@@ -639,6 +680,7 @@ class DrumMachine:
                 self.seq.stop()
                 self.seq = None
                 self._next_step_ms = None
+                self._refresh_clock()
             else:
                 # The queue keeps the time. This tick only tops it up and
                 # moves the light, and it may be as late as it likes at both.
