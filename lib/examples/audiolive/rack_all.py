@@ -58,6 +58,11 @@ from audiolive import PATCHES
 BUF = bytearray(256)
 MIDI_POLL_MS = 5          # the MIDI pump rides the display loop
 METER_MS = 30             # the animation that keeps the display busy
+# Read this as an upper bound, not a rate. On the microphone the pump reads
+# 91 % of a block and ONE LVGL pass through `app.poll()` measured 2.1 s, so
+# an LVGL timer asking for 30 ms fires once a pass like every other. The
+# panel, the effect graph and the audio all live in PSRAM and they are
+# competing for it; the bar is the visible part of that bill.
 STATUS_MS = 500
 
 BG = lv.color_hex(0x101014)
