@@ -267,6 +267,10 @@ class LiveAudio:
         self._status = bytearray(audiopump.STATUS_BYTES)
         self._ring = None
         self._dma_at_start = 0
+        #: The most silence the speaker has ever had to invent since play(),
+        #: in bytes. See `status()` for why this is a high-water mark and not
+        #: the instantaneous gap.
+        self._starved_peak = 0
         self._retired = None
         self._rack = None
         # True from the moment a pump exists until we tear it down. The pump
@@ -590,6 +594,7 @@ class LiveAudio:
         else:
             gc.collect()
             self._dma_at_start = self._dma()
+            self._starved_peak = 0
             if self.on_board:
                 # sink=True: every block the pump pulls goes straight into
                 # the I2S DMA, on the pump's own thread, with no Python in
@@ -684,7 +689,21 @@ class LiveAudio:
         frames = (w[1] // blocks) // (self.channels * 2) or self.block
         block_us = frames * 1000000 // self.rate
         dma = self._dma() - self._dma_at_start
-        starved = dma - w[15] if dma else 0
+        # `dma - written` is how far behind the pump is RIGHT NOW, and the
+        # screen was presenting it as silence already heard. It is not: it
+        # shrinks again when the pump catches up, so the panel read 88, 82,
+        # 2, 2 ms -- a decreasing sequence, which no cumulative count can
+        # produce, and a strict checker called that a failure.
+        #
+        # What a listener wants is total silence since play(), which never
+        # goes down. The gap can only rise when the DMA clocks out a byte the
+        # pump never wrote, and a byte of silence once heard stays heard, so
+        # the total is the gap's HIGH-WATER MARK. Recovery stops it growing;
+        # it does not give any back.
+        gap = dma - w[15] if dma else 0
+        if gap > self._starved_peak:
+            self._starved_peak = gap
+        starved = self._starved_peak
         out = {
             "blocks": w[0],
             "cost_us": w[12] // blocks,
@@ -694,6 +713,9 @@ class LiveAudio:
             "starved": starved if starved > 0 else 0,
             "starved_ms": (starved * 1000 // (self.rate * self.channels * 2)
                            if starved > 0 else 0),
+            # How far behind the pump is at this instant, which is what
+            # `starved` used to be. Useful while tuning a ring; not silence.
+            "starved_now": gap if gap > 0 else 0,
             "timeouts": w[14],
             "error": w[5],
             "fault": w[24],
