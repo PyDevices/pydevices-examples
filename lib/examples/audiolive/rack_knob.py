@@ -101,8 +101,10 @@ LEVEL = 0.5                # see the docstring: this board's only volume
 # nothing deeper bought anything. The P4 needs 12 x 128 for the same job,
 # because a lit 720x720 panel reads a megabyte of PSRAM per frame and an SPI
 # ST7789 reads none.
-audiolive.DMA_DESC = 4
-audiolive.DMA_FRAME = 128
+# A harness or a board file can choose the ring before this module is
+# imported; everything else gets the number this board was measured at.
+audiolive.DMA_DESC = getattr(audiolive, "RACK_DMA_DESC", 4)
+audiolive.DMA_FRAME = getattr(audiolive, "RACK_DMA_FRAME", 128)
 
 
 class RackKnob:
