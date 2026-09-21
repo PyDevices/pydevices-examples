@@ -332,13 +332,13 @@ class LiveAudio:
         Call this before you draw anything. `source("riff")` synthesises
         2.4 seconds of Karplus-Strong in pure Python -- 115 200 loop
         iterations, about 1.4 s on an idle P4 -- and with a lit 720x720
-        panel above it the same loop does not finish. It is not stuck and it
-        is not the pump: the display driver's 10 ms `machine.Timer` re-arms
-        from its slot rather than from the end of its work, so once
-        `lv.task_handler()` takes longer than 10 ms every tick fires, and a
-        soft IRQ that runs a whole LVGL pass between two bytecodes leaves
-        the interpreter almost nothing. A long Python loop underneath a
-        lit LVGL screen is the shape to avoid, whatever it is computing.
+        panel above it the same loop did not finish in 300 s, with 30 MB of
+        heap free. It is not memory and it is not the pump's lock. What it
+        is is the price of the screen: measured inside a running `rack_all`
+        on the microphone, one `app.poll()` returns every **2.1 s** and
+        `time.sleep_ms(5)` takes **52 ms**, against 1 ms a poll with the
+        panel up and no pump. A long pure-Python loop underneath a lit LVGL
+        screen is the shape to avoid, whatever it is computing.
 
         Everything here is cached, so the `source()` that follows is a
         Mixer, a Rack and a `retarget()` -- about 135 ms.
