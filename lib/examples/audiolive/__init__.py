@@ -48,7 +48,13 @@ from array import array
 import audiocore
 import audiomixer
 import audioeffects
-import audiopump
+try:
+    # The pump's portable engine. Both halves are guarded, because an example
+    # that dies on its import line tells a reader nothing about why -- see
+    # `available()` and `why()` below for what says so instead.
+    import audiopump
+except ImportError:
+    audiopump = None
 try:
     # The pump's platform driver: the I2S channel, the microphone `Input` and
     # the round-trip probe. A separate module from `audiopump` because a
@@ -59,6 +65,22 @@ try:
     import _audioif
 except ImportError:
     _audioif = None
+
+
+def available():
+    """True when this firmware carries the pump these examples need."""
+    return audiopump is not None
+
+
+def why():
+    """One sentence about what this firmware can do, for an app to print."""
+    if audiopump is None:
+        return ("this firmware has no audio pump: audiopump is not built in, "
+                "so nothing here can sound")
+    if _audioif is None or not hasattr(_audioif, "i2s_start"):
+        return ("the pump is here and the platform driver is not, so this "
+                "plays into a RAM ring you drain yourself, not into I2S")
+    return "the pump owns the I2S channel on this board"
 
 RATE = 48000
 CHANNELS = 2
@@ -289,6 +311,8 @@ class LiveAudio:
         # example here follows.
         dma_desc = DMA_DESC if dma_desc is None else dma_desc
         dma_frame = DMA_FRAME if dma_frame is None else dma_frame
+        if audiopump is None:
+            raise RuntimeError(why())
         if audiopump.running():
             raise RuntimeError("a pump is already running; stop() it first")
         self.rate = rate

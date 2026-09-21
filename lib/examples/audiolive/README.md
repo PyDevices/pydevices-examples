@@ -138,15 +138,6 @@ their results once, after teardown.
 
 ## Not finished
 
-- **`rack_all` still draws the wide bar every 30 ms on this branch.** The
-  meter measured above is the one in the file; the 696 × 40 strip at 8 Hz that
-  fixes it, and the `LiveAudio.source()` change that took a SOURCE tap from
-  206–352 ms to 1–7 ms, are on `spike/live-audio-path` and are carried onto
-  this line with the rest of that sitting's work.
-- **`status()["starved_ms"]` is an instantaneous difference, not a total**,
-  and the screens present it as accumulated silence. A strict checker reading
-  88, 82, 2, 2 ms called that a failure, and a cumulative count cannot
-  decrease — so the reading is right and the label is wrong.
 - **USB MIDI over the wire is unproven from WSL.** Everything above the
   endpoint works in a live `rack_all` — notes, CC, program change,
   `midi_read()` at 4 µs — but attaching the board's MIDI costume into WSL
