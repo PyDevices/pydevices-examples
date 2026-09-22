@@ -228,6 +228,24 @@ class TestGalleryFrame(unittest.TestCase):
         assert "_quiet_install(mip_mod, module_url(name), target=MANIFEST_MIP_TARGET)" in loader
         assert "_quiet_install(mip_mod, manifest_url(name), **manifest_kw)" in loader
 
+    def test_pyodide_loaders_mirror_their_console_to_the_browser(self):
+        """A dead Pyodide demo has to look different from a live one.
+
+        Both Pyodide pages rebind ``builtins.print`` into the on-page console
+        element. Until they also kept the interpreter's own print, nothing a
+        demo said -- including its traceback -- reached the browser console,
+        so a running card and a card that died on an import emitted exactly
+        the same four boot lines. That cost a false bug report (#134).
+        """
+        for path in (PYODIDE_LOADER, PYODIDE_COMPACT_LOADER):
+            source = _read(path)
+            assert "_console_print = print" in source, path
+            assert "_console_print(*args, **kwargs)" in source, path
+            # Captured before the rebind, or it captures itself.
+            assert source.index("_console_print = print") < source.index(
+                "builtins.print = _log_print"
+            ), path
+
     def test_gallery_uses_local_theme_toggle_and_syncs_the_frame(self):
         source = _read(INDEX)
         theme = _read(THEME)
