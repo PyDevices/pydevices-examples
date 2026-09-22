@@ -103,11 +103,19 @@ ACCENT = color565(255, 176, 64)
 METER = color565(80, 220, 140)
 METER_BG = color565(38, 42, 54)
 
-live = audiolive.LiveAudio(volume=audiolive.VOLUME)
-# Synthesised before anything is on screen: `riff` is 115 200 Python loop
-# iterations, and paying for it while a timer is already ticking is how an
-# example ends up looking wedged on its first frame.
-live.prepare("riff")
+# `available()` and `why()` exist for exactly this: a runtime without the pump
+# built in cannot play any of this, and an example that dies on its
+# constructor tells a reader nothing. The Pyodide half of the gallery is that
+# runtime, and so is a firmware built without the audiodsp usermod.
+_no_sound = None if audiolive.available() else audiolive.why()
+
+live = None
+if _no_sound is None:
+    live = audiolive.LiveAudio(volume=audiolive.VOLUME)
+    # Synthesised before anything is on screen: `riff` is 115 200 Python loop
+    # iterations, and paying for it while a timer is already ticking is how an
+    # example ends up looking wedged on its first frame.
+    live.prepare("riff")
 
 # The pump's engine, through audiodev's accessor rather than a bare import:
 # `module()` is the supported way to ask for it, and `threaded()` is the
@@ -119,25 +127,26 @@ _pump = pumpdev.module()
 # pump fills a RAM ring and SOMEBODY has to drain it into a sink -- that is
 # true on a desktop as much as in a browser. Whether that somebody also has to
 # *run* the pump is the second question, and only WebAssembly answers yes.
-_drains = not live.on_board
+_drains = live is not None and not live.on_board
 _services = _drains and not pumpdev.threaded()
 
 _sink = None
 _sink_open = False
-_sink_why = None
 if _drains:
     from audiodev import auto as audioauto  # noqa: E402
 
     try:
         _sink = audioauto.pcm_out()
     except Exception as exc:  # a desktop with no audio backend installed
-        _sink_why = str(exc)
+        _no_sound = str(exc)
         _drains = _services = False
 
 _WHERE = (
-    "on the board, straight into I2S"
-    if live.on_board
-    else ("in the browser, serviced by a timer" if _services else "into a ring you drain")
+    audiolive.why()
+    if _no_sound is not None
+    else ("on the board, straight into I2S" if live.on_board
+          else ("in the browser, serviced by a timer" if _services
+                else "into a ring you drain"))
 )
 
 _buf = bytearray(DRAIN_BYTES)
@@ -167,8 +176,10 @@ def _sink_ready():
     there is no sink here at all -- the pump owns the I2S port itself.
     """
     global _sink_open
+    if _no_sound is not None:
+        return False
     if _sink is None:
-        return _sink_why is None
+        return True
     if _sink_open:
         return True
     try:
@@ -299,10 +310,10 @@ def _draw_tick(_=None):
     y += 16 + 12
 
     if not _started:
-        if _sink_why is not None:
-            pygraphics.text(display_drv, "NO AUDIO OUTPUT", pad, y, ACCENT, scale=2)
+        if _no_sound is not None:
+            pygraphics.text(display_drv, "NO SOUND HERE", pad, y, ACCENT, scale=2)
             y += 22
-            for line in _wrap(_sink_why, COLS):
+            for line in _wrap(_no_sound, COLS):
                 pygraphics.text(display_drv, line, pad, y, DIM, scale=1)
                 y += ROW
             return
@@ -355,7 +366,8 @@ def _draw_tick(_=None):
 
 
 def _on_quit(_e=None):
-    live.stop()
+    if live is not None:
+        live.stop()
     if _sink is not None and _sink_open:
         _sink.close()
     display_drv.quit()
