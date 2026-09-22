@@ -655,11 +655,40 @@ def remove_stale_example_json(stale: list[str], check: bool) -> None:
 
 
 def gallery_example_files() -> list[str]:
+    """What the host stages into ``/examples`` before it imports a card."""
     files: set[str] = set()
     for ex in discover():
         if not ex.in_gallery:
             continue
         files.update(ex.pyscript_files)
+    return sorted(files)
+
+
+def deployed_example_files() -> list[str]:
+    """What the published site has to carry: the staged files, and more.
+
+    A card's ``# manifests:`` packages are installed by URL out of
+    ``packages/<name>.json``, whose sources are relative to the deployed tree
+    -- so a package nothing copies is a 404 in the browser and an ImportError
+    on the card, however well the card itself was staged. It is not hypothetical:
+    the first card to declare a package whose own header says
+    ``# gallery: skip`` shipped exactly that, and a local server cannot show it,
+    because a local server has the whole repo behind it
+    (pydevices-examples#129).
+
+    They are not staged as well. The mip install puts them in ``lib/``, which
+    comes before ``examples`` on the path, so staging them too would be five
+    more fetches at boot for files nothing would import.
+    """
+    files = set(gallery_example_files())
+    for ex in discover():
+        if not ex.in_gallery:
+            continue
+        for name in ex.extra_manifests:
+            # A manifest naming a package this repo does not hold is somebody
+            # else's tree, fetched from github at runtime; nothing to copy.
+            if (EXAMPLES_DIR / name).is_dir():
+                files.update(discover_package_py_files(name))
     return sorted(files)
 
 
@@ -681,7 +710,7 @@ def tracked_utility_files() -> list[str]:
 
 def copy_gallery_examples(dest: Path) -> int:
     n = 0
-    for rel in gallery_example_files():
+    for rel in deployed_example_files():
         src = EXAMPLES_DIR / rel
         dst = dest / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
