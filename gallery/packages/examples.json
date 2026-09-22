@@ -29,6 +29,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/audio_out_test.py"
     ],
     [
+      "audiolive_rack.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive_rack.py"
+    ],
+    [
       "bmp565_scroll.py",
       "github:PyDevices/pydevices-examples/lib/examples/bmp565_scroll.py"
     ],
