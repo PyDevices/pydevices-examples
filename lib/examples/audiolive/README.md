@@ -1,6 +1,6 @@
 # audiolive — an effect rack you can play
 
-Four examples that put a guitar pedalboard on a dev board. A riff (or the
+Five examples that put a guitar pedalboard on a dev board. A riff (or the
 microphone, or a note you play from a DAW) runs through a chain of effects and
 out of the speaker, and you change the sound while it plays — with your
 fingers on a touchscreen, with a knob, or with a MIDI controller.
@@ -18,6 +18,16 @@ a codec register.
 | [`rack_midi.py`](rack_midi.py) | the same P4 | The board is a USB MIDI instrument. Play it from a DAW; CCs move the pedals; a program change swaps the whole board |
 | [`rack_all.py`](rack_all.py) | the same P4 | All three at once — screen, USB MIDI and the microphone through the pedals — with STARVED on screen in numbers you can read across the room |
 | [`rack_knob.py`](rack_knob.py) | LilyGO T-Embed S3 | The same pedalboard for a board with one encoder and no touchscreen |
+| [`../audiolive_rack.py`](../audiolive_rack.py) | any browser | The same rack with no board at all — a timer services the pump and drains it into Web Audio. [Play it](https://pydevices.github.io/pydevices-examples/gallery/) |
+
+## Playing it without a board
+
+The WebAssembly gallery carries
+[`audiolive_rack.py`](../audiolive_rack.py): click the card, click the canvas,
+and the same riff comes out of your speakers through the same effects. What
+changes in a browser is only who runs the pump — there is no second thread, so
+a timer calls `audiopump.service()` and hands the blocks to Web Audio. The file
+says how, and it runs unchanged on a board and on a desktop.
 
 ## Putting one on a board
 

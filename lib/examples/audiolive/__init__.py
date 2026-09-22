@@ -1,5 +1,7 @@
 # deps: audioeffects, audioinstruments, pygraphics
 # gallery: skip
+# (this is a library with no main(); the gallery's card for it is the
+#  app beside the package, ../audiolive_rack.py)
 """audiolive - one object that owns the codec, the graph and the audio pump.
 
 The audio pump (``audiopump``) is a C task that pulls your effect graph on

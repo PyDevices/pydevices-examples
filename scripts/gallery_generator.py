@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+from collections.abc import Iterable
 import json
 from pathlib import Path
 import re
@@ -242,8 +243,17 @@ def discover_package_py_files(name: str) -> list[str]:
     return sorted(paths, key=_py_sort_key)
 
 
-def discover_local_py_imports(entry_path: Path, text: str) -> list[str]:
-    """Same-directory modules and ``examples/<pkg>/`` packages imported by entry."""
+def discover_local_py_imports(
+    entry_path: Path, text: str, installed: Iterable[str] = ()
+) -> list[str]:
+    """Same-directory modules and ``examples/<pkg>/`` packages imported by entry.
+
+    ``installed`` names packages the entry declares in ``# manifests:``. Those
+    arrive as a MIP install into ``lib/``, so staging their ``__init__.py``
+    beside the entry would fetch one file of a package the host already has
+    whole -- and put its stem, ``__init__``, in the card's ``?modules=`` list.
+    """
+    skip = {name.strip() for name in installed if name.strip()}
     found: list[str] = []
     seen: set[str] = set()
     parent = entry_path.parent
@@ -261,6 +271,8 @@ def discover_local_py_imports(entry_path: Path, text: str) -> list[str]:
         same_dir = parent / f"{top}.py"
         if same_dir.is_file():
             add(same_dir.relative_to(EXAMPLES_DIR).as_posix())
+            continue
+        if top in skip:
             continue
         pkg_init = EXAMPLES_DIR / top / "__init__.py"
         if pkg_init.is_file():
@@ -293,7 +305,9 @@ def resolve_py_files(path: Path, kind: str, name: str, lines: list[str], text: s
         return discover_package_py_files(name)
 
     py_files = [entry_rel]
-    py_files.extend(discover_local_py_imports(path, text))
+    py_files.extend(
+        discover_local_py_imports(path, text, parse_header_list(lines, "# manifests:"))
+    )
     for raw in extra_modules:
         rel = normalize_py_path(raw)
         if rel not in py_files:
