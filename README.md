@@ -17,6 +17,9 @@ This repository is the examples, integration documentation, and browser gallery
 for the PyDevices driver ecosystem. The reusable product source lives in
 **[pydevices](https://github.com/PyDevices/pydevices)**:
 
+New here? Read the [newcomer's guide](docs/newcomers.md) for the fastest
+entrypoints, application ownership, and examples-to-product boundary.
+
 - `displaydev` and `audiodev` provide portable display and audio interfaces.
 - `events`, `keys`, and `multimer` provide shared event, key, and timing primitives.
 - `appdev` is an optional application traffic controller for non-LVGL apps.
