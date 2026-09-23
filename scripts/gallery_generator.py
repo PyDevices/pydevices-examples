@@ -62,14 +62,22 @@ if str(_scripts) not in sys.path:
 from personal_examples import PERSONAL_EXAMPLE_DIRS  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# The sibling pydevices checkout's tools/. Walk up rather than look one level
+# up only: from a git worktree under .worktrees/ the sibling is further away.
 _browser_tools = next(
-    path
-    for path in (
-        REPO_ROOT.parent / "pydevices" / "tools",
-        REPO_ROOT / "pydevices" / "tools",
-    )
-    if (path / "_browser_url.py").is_file()
+    (
+        path
+        for path in [REPO_ROOT / "pydevices" / "tools"]
+        + [parent / "pydevices" / "tools" for parent in REPO_ROOT.parents]
+        if (path / "_browser_url.py").is_file()
+    ),
+    None,
 )
+if _browser_tools is None:
+    raise SystemExit(
+        "gallery_generator: no pydevices/tools/_browser_url.py beside this "
+        "checkout or above it; clone PyDevices/pydevices as a sibling"
+    )
 sys.path.insert(0, str(_browser_tools))
 from _browser_url import query as browser_query  # noqa: E402
 
