@@ -1,5 +1,4 @@
 # deps: lvgl
-# modules: gphotos_engine, gphotos_sim, gphotos_lvgl
 # SPDX-FileCopyrightText: 2026 Brad Barnett
 #
 # SPDX-License-Identifier: MIT
