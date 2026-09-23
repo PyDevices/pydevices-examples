@@ -47,12 +47,18 @@ token for hour-long access tokens.
 1. **Google Cloud project** — <https://console.cloud.google.com/>: create a
    project (any name), then *APIs & Services → Library → enable
    **Google Photos Picker API***.
-2. **OAuth consent screen** — user type *External*. Fill in the app name and
-   your e-mail. Then either **publish to Production** (an unverified app is
-   fine for personal use; Google shows a warning you click through once) or
-   stay in *Testing* and add your account as a test user. Testing refresh
-   tokens expire after **7 days**, so Production is the one that keeps
-   working. A Google Workspace account can use *Internal* instead.
+2. **OAuth consent screen** (*Google Auth Platform* in the current console)
+   — user type *External*. To keep the sign-in working indefinitely,
+   **publish the app to Production** on the *Audience* page. Google keeps
+   *Publish app* greyed out until the *Branding* page has an app name, a
+   support e-mail, a home page URL and a privacy policy URL; this example's
+   page and its [Privacy](#privacy) section serve for the last two. An
+   unverified app is fine for personal use: the sign-in shows a "Google
+   hasn't verified this app" warning once (*Advanced → Go to …*).
+   Alternatively stay in *Testing* and add your account under *Test users*,
+   but Testing refresh tokens expire after **7 days**, and an account that
+   isn't listed gets "Error 403: access_denied". A Google Workspace account
+   can use *Internal* instead.
 3. **Credentials** — *Create credentials → OAuth client ID → Desktop app*.
    Download the JSON (`client_secret_….json`). It has to be *Desktop app*:
    a *TVs and Limited Input devices* client downloads as an identical-looking
@@ -100,6 +106,17 @@ The slideshow interval is `slideshow_s` in the prefs file (default 5).
 | `~/.gphotos_cache/` | `/gphotos_cache/` | `<hash>_<w>x<h>[c].jpg\|png` thumbnails, at most 48 files |
 
 Override with `GPHOTOS_TOKENS`, `GPHOTOS_PREFS`, `GPHOTOS_CACHE`.
+
+## Privacy
+
+This example has no server. Everything it stores stays on your own PC or
+board, in the three files above. It talks only to Google: the one-time
+sign-in (`accounts.google.com`, `oauth2.googleapis.com`), the Photos Picker
+API (`photospicker.googleapis.com`), and the image links Google returns for
+the photos you picked. It can't see any photo you didn't pick. The QR code
+is drawn on the device, not fetched from a service. To revoke its access,
+remove the app at <https://myaccount.google.com/permissions> and delete
+the tokens file.
 
 ## Images on each platform
 
