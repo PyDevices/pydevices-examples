@@ -489,6 +489,8 @@ class DinoGame:
                 self._draw_number(self.high_score, WIDTH - 24, score_color)
 
         display_drv.blit_rect(self.canvas.buffer, 0, 0, WIDTH, HEIGHT)
+        # A PixelDisplay has no needs_refresh, so appdev.App never presents it.
+        display_drv.show()
 
     def tick(self, _timer=None):
         app.poll()

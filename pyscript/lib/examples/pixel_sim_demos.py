@@ -94,6 +94,8 @@ def _randint(a, b):
 
 def _present(dest):
     display_drv.blit_rect(dest.buffer, 0, 0, GRID_W, GRID_H)
+    # A PixelDisplay has no needs_refresh, so appdev.App never presents it.
+    display_drv.show()
 
 
 # --- scroll -----------------------------------------------------------------
