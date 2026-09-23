@@ -123,11 +123,15 @@ def _block_if_batch():
         app.run()  # "none": blocking service loop (async timers: asyncio.run)
         return
     # "ambient" was chosen at import time; the timer already drives the app,
-    # so just hold the main thread until the window closes.
-    import time
+    # so just hold the main thread until the window closes. Hold it with the
+    # timer backend's own sleep, never time.sleep: on Windows the timer fires
+    # only while this thread is in an alertable wait (SleepEx), and a plain
+    # time.sleep starves it -- the window then never repaints and Windows
+    # marks it "Not Responding".
+    from multimer import auto as timer
 
     while not app.quit_requested:
-        time.sleep(0.05)
+        timer.sleep_ms(50)
 
 
 main()
