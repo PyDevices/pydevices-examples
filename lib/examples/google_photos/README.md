@@ -54,7 +54,11 @@ token for hour-long access tokens.
    tokens expire after **7 days**, so Production is the one that keeps
    working. A Google Workspace account can use *Internal* instead.
 3. **Credentials** — *Create credentials → OAuth client ID → Desktop app*.
-   Download the JSON (`client_secret_….json`).
+   Download the JSON (`client_secret_….json`). It has to be *Desktop app*:
+   a *TVs and Limited Input devices* client downloads as an identical-looking
+   file, and the sign-in then fails with Google's "Error 400:
+   invalid_request" ("Localhost URI is not allowed for 'NATIVE_DEVICE'
+   client type").
 4. **Sign in on the PC** (CPython 3.8+, stdlib only):
 
    ```bash
