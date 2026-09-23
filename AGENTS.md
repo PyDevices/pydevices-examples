@@ -30,7 +30,7 @@ Board configs never own an `appdev.App`. `AutoDisplay` is imported from
 - **Cursor Cloud (multi-repo workspace):** do not use a local
   `.cursor/environment.json` in this repo. The canonical cloud environment lives
   in [PyDevices/.github](https://github.com/PyDevices/.github) — start Cloud
-  Agents from that repo (or `cmods`) with the saved **Pydevices Cloud
+  Agents from that repo with the saved **Pydevices Cloud
   Workspace** environment. Its install command is
   `bash scripts/cloud-workspace-install.sh` (relative to the `.github` checkout),
   which symlinks `/agent/repos/*` into `~/gh/pydevices/`. See

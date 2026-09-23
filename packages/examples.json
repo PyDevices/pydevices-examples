@@ -29,6 +29,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/audio_out_test.py"
     ],
     [
+      "audiolive_rack.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive_rack.py"
+    ],
+    [
       "bmp565_scroll.py",
       "github:PyDevices/pydevices-examples/lib/examples/bmp565_scroll.py"
     ],
@@ -263,6 +267,26 @@
     [
       "apollo/dsky.py",
       "github:PyDevices/pydevices-examples/lib/examples/apollo/dsky.py"
+    ],
+    [
+      "audiolive/__init__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive/__init__.py"
+    ],
+    [
+      "audiolive/rack_all.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive/rack_all.py"
+    ],
+    [
+      "audiolive/rack_gui.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive/rack_gui.py"
+    ],
+    [
+      "audiolive/rack_knob.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive/rack_knob.py"
+    ],
+    [
+      "audiolive/rack_midi.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audiolive/rack_midi.py"
     ],
     [
       "car_cluster/__init__.py",

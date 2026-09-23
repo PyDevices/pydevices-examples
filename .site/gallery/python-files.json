@@ -6,6 +6,7 @@
   "appdev_encoder_test.py",
   "appdev_touch_coords.py",
   "appdev_touch_test.py",
+  "audiolive_rack.py",
   "bouncing_balls.py",
   "boxlines.py",
   "calc_engine.py",

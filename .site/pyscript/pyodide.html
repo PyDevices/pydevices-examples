@@ -241,6 +241,12 @@
         import utils.path  # noqa: F401
         import ps_loader
 
+        # The interpreter's own print, captured before the rebind below. Every
+        # line this page prints goes to the on-page console; send it to the
+        # browser console as well, or anyone watching from outside sees the
+        # same four boot lines whether the demo is running or dead.
+        _console_print = print
+
         def _log_print(*args, **kwargs):
             el = document.getElementById("log")
             if el is not None:
@@ -248,6 +254,10 @@
                 end = kwargs.get("end", "\n")
                 el.textContent += sep.join(str(a) for a in args) + end
                 el.scrollTop = el.scrollHeight
+            try:
+                _console_print(*args, **kwargs)
+            except Exception:
+                pass
 
         builtins.print = _log_print
 

@@ -1,5 +1,5 @@
 # gallery: featured
-# deps: audioif, pygraphics
+# deps: audiodsp, pygraphics
 """Two-octave landscape piano (480x320) with polyphonic touch and chords.
 
 Plays real ``synthio.Note``\\ s through ``board_peripherals.audio_out()`` --

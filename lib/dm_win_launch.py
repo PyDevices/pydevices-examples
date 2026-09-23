@@ -5,7 +5,7 @@ import sys
 
 sys.path[:0] = [
     "examples",
-    "../../audioif/lib",
+    "../../audiodsp/lib",
     "../../pydevices/lib",
     "../../pydevices/utils",
 ]
