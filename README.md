@@ -27,6 +27,9 @@ Those libraries are designed to work across MicroPython, CircuitPython, and
 CPython on microcontrollers, Linux, Windows, Android, browsers, and notebooks.
 This repo demonstrates that portability; it is not the package source of truth.
 
+New here? Read the [newcomer's guide](docs/newcomers.md) for the fastest
+entrypoints, application ownership, and examples-to-product boundary.
+
 > **Alpha quality.** The organization is being prepared for its first external
 > users, so names and APIs may still evolve.
 
