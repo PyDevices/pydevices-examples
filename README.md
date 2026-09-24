@@ -39,7 +39,13 @@ The fastest route is the interactive
 **[PyScript gallery](https://PyDevices.github.io/pydevices-examples/pyscript/)**. It runs
 the real examples directly in a modern web browser.
 To start a standalone browser app or offline PWA, use the
-**[pyscript-template](https://github.com/PyDevices/pyscript-template)**.
+**[pyscript-template](https://github.com/PyDevices/pyscript-template)**; its
+[bigger-app page](https://github.com/PyDevices/pyscript-template/blob/main/docs/packages.md)
+turns piano and the drum machine into installable apps.
+
+To run an example on an Android phone without building anything, install the
+prebuilt Runner and stage the script from this clone with `android.py`; see
+[pydevices' Android page](https://github.com/PyDevices/pydevices/blob/main/docs/android.md#staging-a-script-with-androidpy).
 
 For a desktop clone:
 
@@ -147,6 +153,7 @@ a single `pydevices` package, not one per component.
 - [pygraphics](https://github.com/PyDevices/pygraphics),
   [palettes](https://github.com/PyDevices/palettes), and
   [pdwidgets](https://github.com/PyDevices/pdwidgets) — companion packages
+- [android-runner](https://github.com/PyDevices/android-runner) — the prebuilt Runner APK that `android.py` stages examples onto
 - [android-template](https://github.com/PyDevices/android-template) — Android application packaging
 - [pyscript-template](https://github.com/PyDevices/pyscript-template) — standalone PyScript application template
 
