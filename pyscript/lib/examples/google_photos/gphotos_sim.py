@@ -203,8 +203,9 @@ class GPhotosSimEngine(GPhotosEngine):
         self.session["mediaItemsSet"] = done
         return done
 
-    def delete_session(self):
-        self.session = None
+    def delete_session(self, session=None):
+        if session is None:
+            self.session = None
         return True
 
     def list_items(self):

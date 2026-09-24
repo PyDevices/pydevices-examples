@@ -861,12 +861,35 @@ class GPhotosEngine:
         self.last_error = self._api_error("poll session", status, data)
         return False
 
-    def delete_session(self):
-        """Drop the picker session (Google forgets the picks); keeps the list."""
-        s = self.session
-        self.session = None
-        self._urls_at = None
+    def snapshot(self):
+        """The current session + picked list, for :meth:`put_back`.
+
+        A new session clears the list (its picks replace it). Take a snapshot
+        first when the user may back out of picking and want the old list.
+        """
+        return (self.session, list(self.items), self._urls_at)
+
+    def put_back(self, snap):
+        """Restore a :meth:`snapshot`; returns the session it replaced."""
+        replaced = self.session
+        self.session, items, self._urls_at = snap
+        self.items = list(items)
         self._save_prefs()
+        return replaced
+
+    def delete_session(self, session=None):
+        """Drop the picker session (Google forgets the picks); keeps the list.
+
+        With ``session``, delete that one at Google and leave ``self.session``
+        alone (an abandoned session after :meth:`put_back`).
+        """
+        if session is not None:
+            s = session
+        else:
+            s = self.session
+            self.session = None
+            self._urls_at = None
+            self._save_prefs()
         if not s or not s.get("id"):
             return True
         status, data = self._api("DELETE", PICKER_BASE + "/sessions/" + quote(s["id"]))
