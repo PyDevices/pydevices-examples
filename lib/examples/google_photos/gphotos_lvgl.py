@@ -10,10 +10,12 @@ Google Photos picker, list, viewer, and slideshow built with LVGL.
 
 Pages:
 
-* **connect** -- QR code of the Picker session link. Scan it with your
-  phone, choose photos in Google Photos, tap Done; the device polls the
-  session and jumps to the list. Desktop hosts also get OPEN (opens the
-  link in the local browser).
+* **connect** -- QR code of the Picker session link, with the three steps
+  spelled out: scan it with your phone, choose photos in Google Photos,
+  tap Done there. A live "Waiting for your picks" line counts up while the
+  device polls the session; it jumps to the list by itself. **New link**
+  starts a fresh session; desktop hosts also get **Open on this PC**
+  (opens the link in the local browser); **Back** returns to the list.
 * **list** -- paged rows of thumbnail + file name + date. PICK starts a new
   session, SLIDES starts the slideshow, MORE pages through long picks.
 * **view** -- one photo fitted to the panel with BACK / PREV / PLAY / NEXT;
@@ -329,6 +331,13 @@ class _GPhotosLvgl:
         self._pending_view = None
         self._pending_list = False
         self._pending_connect = False
+        self._creating = False
+        self._picked = False
+        self._before_pick = None  # engine.snapshot() of the list PICK replaces
+        self._pending_back = False
+        self._wait_lbl = None
+        self._wait_short = False
+        self._last_wait_text = None
         self._poll_busy = False
         self._poll_at = None
         self._session_started = None
@@ -530,6 +539,7 @@ class _GPhotosLvgl:
         root = self._page_root
         self._page_root = None
         self._rows = {}
+        self._wait_lbl = None
         self.view_img = None
         self.view_msg = None
         self.play_lbl = None
@@ -569,48 +579,88 @@ class _GPhotosLvgl:
     # connect ------------------------------------------------------------
 
     def _build_connect(self, parent):
+        """QR + three plain steps + a live waiting line + self-explaining buttons.
+
+        Portrait panels stack steps, QR, waiting line and buttons; landscape
+        panels put the QR on the left and everything else beside it.
+        """
         W, H = self._content_metrics()
         pad = self.pad
         gap = pad
         btn_h = max(36, H // 11)
-        session = self.engine.session
+        session = None if self._creating else self.engine.session
         uri = (session or {}).get("pickerUri") or ""
         self._set_title("Google Photos")
         self._set_count("")
+        self._wait_lbl = None
+        self._last_wait_text = None
 
-        labels = [("RETRY", "ui", self._start_pick)]
+        labels = []
         if uri and _webbrowser is not None and not self.engine.sim:
-            labels.insert(0, ("OPEN", "accent", self._open_browser))
+            labels.append(("Open on this PC", "accent", self._open_browser))
+        labels.append(("New link", "accent" if not labels else "ui", self._start_pick))
         if self.engine.items:
-            labels.append(("BACK", "ui", self._goto_list))
+            labels.append(("Back", "ui", self._goto_list))
+        elif self._before_pick is not None:
+            labels.append(("Back", "ui", self._cancel_pick))
+
+        landscape = W > H + H // 8
+        if landscape:
+            qr_side = min(H - 2 * gap, (W * 45) // 100, 320)
+            col_x = qr_side + 3 * pad
+            col_w = W - col_x - pad
+        else:
+            col_x = pad
+            col_w = W - 2 * pad
+
+        # Buttons: one row when every label gets a fair width, else the first
+        # button on its own row and the rest sharing the row below it.
         n = len(labels)
-        w = W - 2 * pad
-        bw = (w - (n - 1) * gap) // n
-        y_btn = H - btn_h
-        for i, (text, role, cb) in enumerate(labels):
-            self._button(parent, text, pad + i * (bw + gap), y_btn, bw, btn_h, role, cb)
+        need = max(self._text_w(text, self.font_sm) for text, _r, _c in labels) + 4 * pad
+        rows = [labels] if n == 1 or (col_w - (n - 1) * gap) // n >= need else [labels[:1], labels[1:]]
+        y = H - btn_h
+        for row in reversed(rows):
+            bw = (col_w - (len(row) - 1) * gap) // len(row)
+            for i, (text, role, cb) in enumerate(row):
+                self._button(parent, text, col_x + i * (bw + gap), y, bw, btn_h, role, cb, self.font_sm)
+            y -= btn_h + gap
+        buttons_top = y + btn_h + gap
 
-        caption = lv.label(parent)
-        caption.set_width(w)
-        self._long_mode(caption, "WRAP")
-        caption.set_style_text_color(_hex(_COL["text"]), 0)
-        _apply_font(caption, self.font_sm)
-        ta = getattr(lv, "TEXT_ALIGN", None)
-        center = getattr(ta, "CENTER", None) if ta is not None else None
-        if center is not None:
+        tight = (H if landscape else W) < 260
+        self._wait_short = col_w < 200
+        steps = self._text(parent, col_w, _COL["text"], self.font_sm)
+        if tight:
+            steps.set_text("Scan with your phone, pick photos, tap Done. This screen moves on by itself.")
+        else:
+            steps.set_text(
+                "1. Scan this code with your phone.\n"
+                "2. Pick photos in Google Photos.\n"
+                "3. Tap Done. This screen moves on by itself."
+            )
+        steps.set_pos(col_x, 0 if landscape else gap)
+
+        wait = self._text(parent, col_w, _COL["accent"], self.font_sm)
+        self._long_mode(wait, "CLIP")
+        self._wait_lbl = wait
+        self._update_wait()
+        wait.set_pos(col_x, buttons_top - gap - self._line_h(self.font_sm))
+
+        if not landscape:
             try:
-                caption.set_style_text_align(center, 0)
+                steps.update_layout()
+                steps_h = int(steps.get_height())
             except Exception:
-                pass
-        caption_h = max(2 * 16, 2 * (self.unit // 16))
-        caption.align(lv.ALIGN.BOTTOM_MID, 0, -(btn_h + gap))
+                steps_h = 4 * self._line_h(self.font_sm)
+            top = gap + steps_h + gap
+            bottom = buttons_top - 2 * gap - self._line_h(self.font_sm)
+            qr_side = min(W - 4 * pad, bottom - top, 320)
+            qr_x = (W - qr_side) // 2
+            qr_y = top + max(0, (bottom - top - qr_side) // 2)
+        else:
+            qr_x = pad
+            qr_y = (H - qr_side) // 2
 
-        qr_side = min(W - 4 * pad, y_btn - caption_h - 3 * gap, 320)
         if uri:
-            if self.engine.sim:
-                caption.set_text("Simulator: a real session shows a Google Photos link here.\nPicks arrive by themselves in a moment.")
-            else:
-                caption.set_text("Scan with your phone, pick photos in Google Photos, tap Done.")
             qr_cls = getattr(lv, "qrcode", None)
             if qr_cls is not None and qr_side >= 48:
                 try:
@@ -622,25 +672,82 @@ class _GPhotosLvgl:
                         qr.set_quiet_zone(True)
                     raw = uri.encode("utf-8")  # bytes: buffer protocol on every binding
                     qr.update(raw, len(raw))
-                    qr.align(lv.ALIGN.TOP_MID, 0, gap)
+                    qr.set_pos(int(qr_x), int(qr_y))
                 except Exception as err:
-                    self._link_label(parent, uri, w, "QR unavailable (%s)" % err)
+                    self._link_label(parent, uri, col_w, "QR unavailable (%s)" % err)
             else:
-                self._link_label(parent, uri, w, "")
-            if not self.engine.sim:
-                print("google_photos: open this link in Google Photos:\n  " + uri)
-            if self._poll_timed_out:
-                self._set_status("picker timed out - tap RETRY")
-            else:
-                self._set_status("waiting for your picks...")
-        else:
-            caption.set_text("Tap RETRY to start a picker session.")
-            if self.engine.last_error:
-                self._set_status(self.engine.last_error)
-            elif not self.engine.has_credentials():
-                self._set_status("no tokens file - see README")
-            else:
-                self._set_status("starting picker session...")
+                self._link_label(parent, uri, col_w, "")
+            self._set_status(
+                "simulator: picks arrive by themselves" if self.engine.sim else "pick photos on your phone"
+            )
+        elif self._creating:
+            self._set_status("pick photos on your phone")
+        elif self.engine.last_error:
+            self._set_status(self.engine.last_error)
+        elif not self.engine.has_credentials():
+            self._set_status("no tokens file - see README")
+
+    def _text(self, parent, w, color, font):
+        lbl = lv.label(parent)
+        lbl.set_width(int(w))
+        self._long_mode(lbl, "WRAP")
+        lbl.set_style_text_color(_hex(color), 0)
+        _apply_font(lbl, font)
+        return lbl
+
+    @staticmethod
+    def _text_w(text, font):
+        """Pixel width of one line of ``text`` (a rough estimate if LVGL can't say)."""
+        try:
+            lbl = lv.label(lv.screen_active())
+            _apply_font(lbl, font)
+            lbl.set_text(text)
+            lbl.update_layout()
+            w = int(lbl.get_width())
+            lbl.delete()
+            return w
+        except Exception:
+            return len(text) * 8
+
+    @staticmethod
+    def _line_h(font):
+        try:
+            return int(font.get_line_height())
+        except Exception:
+            try:
+                return int(font.line_height)
+            except Exception:
+                return 16
+
+    def _wait_text(self):
+        """The live line under the QR: what the screen is doing right now."""
+        if self._creating:
+            return "Getting a link from Google..."
+        if self._picked:
+            return "Got your picks - loading them..."
+        session = self.engine.session
+        if not session:
+            return "Tap New link to get a code."
+        if self._poll_timed_out:
+            return "This code timed out. Tap New link."
+        started = self._session_started
+        secs = ticks_diff(ticks_ms(), started) // 1000 if started is not None else 0
+        dots = "." * (1 + secs % 3)
+        if self._wait_short:
+            return "Waiting%s %d:%02d" % (dots + " " * (3 - len(dots)), secs // 60, secs % 60)
+        return "Waiting for your picks%s  %d:%02d" % (dots + " " * (3 - len(dots)), secs // 60, secs % 60)
+
+    def _update_wait(self):
+        lbl = self._wait_lbl
+        if lbl is None:
+            return
+        text = self._wait_text()
+        if text != self._last_wait_text:
+            self._last_wait_text = text
+            try:
+                lbl.set_text(text)
+            except Exception:
+                pass
 
     def _link_label(self, parent, uri, w, note):
         lbl = lv.label(parent)
@@ -657,24 +764,37 @@ class _GPhotosLvgl:
             return
         try:
             _webbrowser.open(uri)
-            self._set_status("opened in your browser - pick, then tap Done")
+            self._set_status("opened in your browser - pick, then tap Done there")
         except Exception as err:
             self._set_status("browser: %s" % err)
 
     def _start_pick(self, rebuild=True):
-        """Create a fresh picker session in the background, then show its QR."""
+        """Create a fresh picker session in the background, then show its QR.
+
+        Until the new session arrives the page says so instead of showing a
+        leftover session's code (a restored one from the last run, or the
+        one New link is replacing). The link is printed once, here, when
+        Google hands out a new session -- not on every redraw of the page.
+        """
         self._poll_timed_out = False
         self._session_started = None
         self._poll_at = None
         self._poll_busy = False
+        self._picked = False
+        self._creating = True
         self.slideshow = False
         self.list_offset = 0
         engine = self.engine
+        if engine.items:
+            self._before_pick = engine.snapshot()
 
         def _work():
             s = engine.create_session()
+            self._creating = False
             if s:
                 self._session_started = ticks_ms()
+                if not engine.sim:
+                    print("google_photos: new picker session; open this link in Google Photos:\n  " + s.get("pickerUri", ""))
             else:
                 self._pending_status = engine.last_error or "could not start a session"
             self._pending_connect = True
@@ -683,16 +803,40 @@ class _GPhotosLvgl:
         if rebuild:
             self._show_page("connect")
 
+    def _cancel_pick(self):
+        """Back from a PICK: put the old list back and drop the new session."""
+        snap = self._before_pick
+        self._before_pick = None
+        if snap is None:
+            self._goto_list()
+            return
+        self._creating = True  # no polling of the session we are abandoning
+        engine = self.engine
+
+        def _work():
+            abandoned = engine.put_back(snap)
+            self._creating = False
+            if abandoned is not None and abandoned is not snap[0]:
+                engine.delete_session(abandoned)
+            self._pending_back = True
+
+        self._run_bg(_work)
+
     def _poll_pick(self):
         engine = self.engine
         self._poll_busy = True
 
         def _work():
+            if self._pending_back or self._creating:  # Back was tapped meanwhile
+                self._poll_busy = False
+                return
             try:
                 done = engine.poll_session()
                 if done:
+                    self._picked = True
                     items = engine.list_items()
                     if items is None:
+                        self._picked = False
                         self._pending_status = engine.last_error
                         self._pending_connect = True
                     else:
@@ -1115,8 +1259,15 @@ class _GPhotosLvgl:
             if text:
                 self._set_status(text)
 
+        if self._pending_back:
+            self._pending_back = False
+            self._pending_connect = False
+            self._goto_list()
+            return
+
         if self._pending_list:
             self._pending_list = False
+            self._before_pick = None
             self.list_offset = 0
             self.index = 0
             self._show_page("list")
@@ -1149,16 +1300,16 @@ class _GPhotosLvgl:
 
         if self.page == "connect":
             session = self.engine.session
-            if session and not self._poll_busy and not self._poll_timed_out:
+            if session and not self._creating and not self._poll_busy and not self._poll_timed_out:
                 started = self._session_started
                 timeout_ms = int(float(session.get("timeoutIn") or 1800.0) * 1000)
                 if started is not None and ticks_diff(ticks_ms(), started) > timeout_ms:
                     self._poll_timed_out = True
-                    self._set_status("picker timed out - tap RETRY")
                 else:
                     interval = int(self.engine.poll_interval_s() * 1000)
                     if self._poll_at is None or ticks_diff(ticks_ms(), self._poll_at) >= interval:
                         self._poll_pick()
+            self._update_wait()
 
         if (
             self.page == "view"

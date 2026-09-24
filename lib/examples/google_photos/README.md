@@ -85,7 +85,8 @@ token for hour-long access tokens.
    overrides the path.
 
 Then run the example, tap **PICK**, scan the code with your phone, pick
-photos, tap **Done** — the list appears on the board.
+photos, tap **Done** in Google Photos — the board notices by itself and the
+list appears. There is nothing to press on the board.
 
 ## Using it
 
@@ -93,7 +94,7 @@ photos, tap **Done** — the list appears on the board.
 |---|---|
 | **list** | **PICK** new session · **SLIDES** slideshow from the first photo · **MORE** next page (long picks are paged to keep RAM bounded) · tap a row to view it |
 | **view** | **BACK** · **PREV** · **PLAY / PAUSE** slideshow · **NEXT** · tapping the photo also advances |
-| **connect** | QR code of the session link · **OPEN** (desktop only: opens the link in the local browser) · **RETRY** new session · **BACK** to the list |
+| **connect** | QR code of the session link, the three steps (scan, pick, tap Done), and a live "Waiting for your picks" line; the page moves on by itself when you tap Done · **Open on this PC** (desktop only: opens the link in the local browser) · **New link** fresh session · **Back** to the list you had |
 
 The slideshow interval is `slideshow_s` in the prefs file (default 5).
 

@@ -362,6 +362,27 @@ class SessionTests(EngineTestCase):
         self.assertIsNone(eng.session)
         self.assertEqual(self.transport.calls[-1][0], "DELETE")
 
+    def test_snapshot_put_back_after_abandoned_pick(self):
+        # PICK then Back: the old list comes back and the new session is dropped.
+        self.transport.route("DELETE", ge.PICKER_BASE + "/sessions/", lambda u, h, b: (200, {}))
+        eng = self.make()
+        eng.create_session()
+        eng.list_items()
+        old_session = eng.session
+        snap = eng.snapshot()
+        new_session = eng.create_session()
+        self.assertEqual(eng.items, [])
+        replaced = eng.put_back(snap)
+        self.assertIs(replaced, new_session)
+        self.assertIs(eng.session, old_session)
+        self.assertEqual(len(eng.items), 3)
+        self.assertTrue(eng.delete_session(replaced))
+        self.assertIs(eng.session, old_session)  # only the abandoned one went
+        self.assertEqual(self.transport.calls[-1][0], "DELETE")
+        other = self.make()
+        self.assertTrue(other.restore())
+        self.assertEqual(len(other.items), 3)
+
 
 class FakeSocketModule:
     """Enough of ``socket`` for ``_socket_request`` (plain HTTP only)."""
