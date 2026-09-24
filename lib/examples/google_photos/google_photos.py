@@ -64,10 +64,15 @@ _MCU_PLATFORMS = (
     "zephyr",
 )
 if getattr(sys, "platform", "") not in _MCU_PLATFORMS:
-    env_set("PYDEVICES_WIDTH", _WIDTH)
-    env_set("PYDEVICES_HEIGHT", _HEIGHT)
-    if _SCALE is not None:
-        env_set("PYDEVICES_SCALE", _SCALE)
+    # None leaves the environment alone, so PYDEVICES_WIDTH / _HEIGHT set by
+    # the caller (or tools/screenshot.py --resolution) still apply.
+    for _name, _value in (
+        ("PYDEVICES_WIDTH", _WIDTH),
+        ("PYDEVICES_HEIGHT", _HEIGHT),
+        ("PYDEVICES_SCALE", _SCALE),
+    ):
+        if _value is not None:
+            env_set(_name, _value)
 
 import gphotos_engine  # noqa: E402
 from gphotos_sim import make_engine  # noqa: E402
@@ -113,7 +118,7 @@ def _block_if_batch():
         from appdev import _hostloop
         from display_driver import app
 
-        if not _hostloop.batch() or _hostloop.ambient():
+        if not _launched_with_m(_hostloop) or _hostloop.ambient():
             return
         if getattr(getattr(sys, "flags", None), "interactive", 0):
             return
@@ -132,6 +137,25 @@ def _block_if_batch():
 
     while not app.quit_requested:
         timer.sleep_ms(50)
+
+
+def _launched_with_m(_hostloop):
+    """``-m`` / ``-c`` launch, even where the OS command line is unreadable.
+
+    ``_hostloop.batch()`` reads the real command line. On micropython.exe that
+    read fails (pydevices <= 0.5.0 decodes it with a UTF-16 codec MicroPython
+    doesn't have), so a ``-m`` launch looked like a script run and the process
+    returned after ~2 s (#142). MicroPython's own tell is ``sys.argv``: ``-m
+    pkg`` leaves ``["pkg"]``, a script leaves its ``.py`` path, a REPL ``[]``
+    or ``[""]``.
+    """
+    if _hostloop.batch():
+        return True
+    if getattr(sys.implementation, "name", "") != "micropython":
+        return False
+    argv = getattr(sys, "argv", None) or [""]
+    first = argv[0] or ""
+    return bool(first) and not first.endswith(".py") and not first.endswith(".mpy")
 
 
 main()
