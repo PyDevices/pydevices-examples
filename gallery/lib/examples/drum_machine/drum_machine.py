@@ -20,7 +20,9 @@ pattern is fired from the wall-clock timer at the bottom of
 **The corner of the screen says which clock you are on.** ``CLK AUDIO`` is
 the queue; ``CLK TIMER!`` means the pump is in this firmware and did not take
 this graph, and the reason is printed once. ``TIMER`` in grey is a firmware
-with no pump at all, which is not a warning. That label is worth having on
+with no pump at all -- every desktop, Android and browser build today -- and
+``CLK LIVE`` in grey is a kit that plays live by design (``acoustickit``);
+neither is a warning. That label is worth having on
 your own app: it caught two real bugs on its first runs, both of them a kit
 change quietly dropping the groove back onto the timer.
 
@@ -371,24 +373,43 @@ class DrumMachine:
         label = getattr(self, "clock_label", None)
         if label is None:
             return
-        if audio_pump is None:
-            # No pump in this firmware. The timer IS the clock here and
-            # saying so quietly is the honest answer, not a warning.
-            label.set_text("TIMER")
-            label.set_style_text_color(STEP_OFF, 0)
+        if self.queue is None:
+            # No pump in this firmware: `audiodev.pump` imports everywhere,
+            # but without the C engine it has no event queue. That is every
+            # desktop, Android and browser build today. The timer IS the
+            # clock here and saying so quietly is the honest answer, not a
+            # warning.
+            self._show_clock(label, "TIMER", STEP_OFF)
             return
         on_pump = bool(getattr(self.audio_out, "pumped", False))
         if on_pump and self.seq is not None:
-            label.set_text("CLK AUDIO")
-            label.set_style_text_color(CLOCK_OK, 0)
+            self._show_clock(label, "CLK AUDIO", CLOCK_OK)
+            return
+        if self.inst is not None and not self.inst.schedulable:
+            # acoustickit: a strike is more than a press, so it plays live
+            # off the timer by design. Nothing is wrong.
+            self._show_clock(label, "CLK LIVE", STEP_OFF)
+            return
+        if not self.audio_started:
+            # A browser before its first gesture: nothing is sounding yet,
+            # and _start_audio() calls this again once it is.
+            self._show_clock(label, "TIMER", STEP_OFF)
             return
         why = getattr(self.audio_out, "pump_refused", None)
-        if why is None and self.seq is None:
-            why = "this kit is not schedulable"
-        label.set_text("CLK TIMER!")
-        label.set_style_text_color(CLOCK_BAD, 0)
-        print("drum_machine: keeping time on the OLD step timer -",
-              why or "the pump did not take this graph")
+        if why is None and Sequencer is None:
+            why = "this audioinstruments has no sequencer"
+        if self._show_clock(label, "CLK TIMER!", CLOCK_BAD):
+            print("drum_machine: keeping time on the OLD step timer -",
+                  why or "the pump did not take this graph")
+
+    def _show_clock(self, label, text, color):
+        """Set the clock label; True when that changed what it says."""
+        label.set_style_text_color(color, 0)
+        if text == getattr(self, "_clock_text", None):
+            return False
+        self._clock_text = text
+        label.set_text(text)
+        return True
 
     def _playhead(self):
         """The cell the audio is in, or -1 when nothing is playing.
