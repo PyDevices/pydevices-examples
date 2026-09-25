@@ -6,3 +6,11 @@
 | ![paint.png](paint.png) | ![proverbs.png](proverbs.png) | ![testris.png](testris.png) |
 | ![tiny_toasters.gif](tiny_toasters.gif) | ![piano.png](piano.png) | ![google_photos.png](google_photos.png) |
 | ![google_photos_view.png](google_photos_view.png) | ![google_photos_connect.png](google_photos_connect.png) |  |
+
+On Android (the PyDevices Runner) and as an installed PWA:
+
+| Image | Image | Image |
+|-------|-------|-------|
+| ![dogfood-android-piano.png](dogfood-android-piano.png) | ![dogfood-android-drum.png](dogfood-android-drum.png) | ![dogfood-android-drum-panel.png](dogfood-android-drum-panel.png) |
+| ![dogfood-pwa-piano.png](dogfood-pwa-piano.png) | ![dogfood-pwa-drum.png](dogfood-pwa-drum.png) | ![dogfood-pwa-drum-panel.png](dogfood-pwa-drum-panel.png) |
+| ![calc_lvgl_android.png](calc_lvgl_android.png) | ![paint_android.png](paint_android.png) |  |
