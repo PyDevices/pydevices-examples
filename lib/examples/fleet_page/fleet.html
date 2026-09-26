@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Board fleet</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1b1f24;--dim:#5b6470;--line:#d9dde3;--accent:#2563eb;--ok:#15803d;--bad:#b91c1c;--warn:#a16207;--chip:#eef1f5}
+@media (prefers-color-scheme:dark){:root{--bg:#111418;--card:#1a1f25;--ink:#e8ebef;--dim:#98a2ae;--line:#2c333b;--accent:#6ea0ff;--ok:#4ade80;--bad:#f87171;--warn:#facc15;--chip:#232a32}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+h1{font-size:18px;margin:0;font-weight:600}
+.dim{color:var(--dim)}
+.sp{flex:1}
+button,select,input{font:inherit;color:inherit}
+button{padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+main{padding:16px;display:grid;gap:14px;max-width:1100px}
+#boards{display:grid;gap:14px}
+.board{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.board h2{font-size:16px;margin:0;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.routes{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.route{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--bad);display:inline-block}
+.dot.ok{background:var(--ok)}
+.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 16px;margin:6px 0}
+.fact .k{font-size:12px;color:var(--dim)}
+.fact .v{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.libs{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.chip{background:var(--chip);border-radius:4px;padding:1px 7px;font-size:13px;font-family:ui-monospace,Consolas,monospace}
+.src{font-size:12px;color:var(--dim);margin-top:6px}
+.update{display:none;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+body.changes .update{display:flex}
+.update input{padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);min-width:180px}
+.update select{padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+#jobs{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+#jobs h2{font-size:15px;margin:0 0 6px}
+.job{border-top:1px solid var(--line);padding:6px 0;font-size:13px}
+.job pre{white-space:pre-wrap;max-height:160px;overflow:auto;margin:4px 0 0;color:var(--dim);font-size:12px}
+.running{color:var(--warn)}.done{color:var(--ok)}.failed{color:var(--bad)}
+label.toggle{display:flex;gap:6px;align-items:center;font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Board fleet</h1>
+  <span class="dim" id="summary"></span>
+  <span class="sp"></span>
+  <span class="dim" id="blenote"></span>
+  <button id="rescan" title="Lists ports and remembered Wi-Fi boards; talks to no board">Rescan ports</button>
+  <label class="toggle" id="allowwrap"><input type="checkbox" id="allow"> Allow changes</label>
+</header>
+<main>
+  <div id="boards"></div>
+  <section id="jobs"><h2>Jobs</h2><div id="joblist" class="dim">Nothing has run yet.</div></section>
+</main>
+<datalist id="pkgs"></datalist>
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ROUTE = {serial: "Serial", wifi: "Wi-Fi", ble: "Bluetooth"};
+let state = null, packages = {};
+
+function ago(t) {
+  if (!t) return "";
+  const s = Math.max(0, Math.round(state.now - t));
+  return s < 60 ? `${s} s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`;
+}
+function uptime(s) {
+  if (s == null) return "–";
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return d ? `${d} d ${h} h` : h ? `${h} h ${m} min` : `${m} min ${s % 60} s`;
+}
+const kb = n => n == null ? "–" : n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.round(n / 1024) + " KB";
+
+function probeLabel(route) {
+  return route === "serial" ? "Probe (stops the program, restarts main.py)"
+       : route === "wifi" ? "Probe over WebREPL (stops the program)" : "Probe over Bluetooth (stops the program)";
+}
+
+function renderBoard(b) {
+  const i = b.info || {};
+  const busy = state.busy.includes(b.id);
+  const routes = Object.entries(b.routes).map(([k, r]) => `
+    <span class="route"><span class="dot ${r.reachable ? "ok" : ""}"></span>
+      <b>${ROUTE[k]}</b> ${esc(r.address)} <span class="dim">${esc(r.detail || "")}${r.rssi != null ? ` · ${r.rssi} dBm` : ""}</span>
+      <button data-probe="${k}" ${busy || !r.reachable || (k === "wifi" && !r.password) ? "disabled" : ""}
+        title="${k === "wifi" && !r.password ? "mpftp has no WebREPL password for this board" : ""}">${probeLabel(k)}</button></span>`).join("");
+  const fw = i.impl ? `${i.impl} ${i.version || ""}` : "–";
+  const facts = [
+    ["Firmware", fw + (i.firmware ? `<div class="dim" style="font-size:12px">${esc(i.firmware)}</div>` : "")],
+    ["Board", esc(i.machine || "–")],
+    ["Uptime", uptime(i.uptime_s)],
+    ["Wi-Fi RSSI", i.rssi != null ? `${i.rssi} dBm` : "–"],
+    ["Free memory", kb(i.mem_free)],
+    ["IP", esc(i.ip || "–")],
+  ].map(([k, v]) => `<div class="fact"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+  const libs = (i.lib || []).map(n => `<span class="chip">${esc(n)}</span>`).join("") || `<span class="dim">–</span>`;
+  const firstRoute = Object.keys(b.routes).find(k => b.routes[k].reachable) || Object.keys(b.routes)[0];
+  const routeOpts = Object.keys(b.routes).map(k => `<option value="${k}" ${k === firstRoute ? "selected" : ""}>${ROUTE[k]}</option>`).join("");
+  return `<article class="board" data-id="${esc(b.id)}">
+    <h2>${esc(i.hub || b.name || b.id)} <span class="dim" style="font-size:12px;font-weight:400">${esc(i.hub && b.name ? b.name + " · " : "")}${esc(b.id)}</span>
+      ${busy ? `<span class="running" style="font-size:13px">working…</span>` : ""}</h2>
+    <div class="routes">${routes}</div>
+    <div class="facts">${facts}</div>
+    <div class="fact"><div class="k">/lib</div><div class="libs">${libs}</div></div>
+    <div class="src">${b.info_from ? `From ${esc(b.info_from)}, ${ago(b.info_at)}.` : "No details yet. Probe to read them."}</div>
+    <div class="update">
+      <b>Update /lib</b>
+      <input list="pkgs" placeholder="package, e.g. pydevices" data-pkg>
+      <select data-index>${Object.keys(state.indexes).map(n => `<option>${n}</option>`).join("")}</select>
+      <select data-route>${routeOpts}</select>
+      <button class="primary" data-update ${busy ? "disabled" : ""}>Install</button>
+    </div>
+  </article>`;
+}
+
+function render() {
+  const focused = document.activeElement && document.activeElement.closest(".update");
+  if (focused) return;  // don't rebuild the form someone is typing in
+  $("#boards").innerHTML = state.boards.map(renderBoard).join("") ||
+    `<p class="dim">No boards yet. Plug one in and press Rescan ports.</p>`;
+  const up = state.boards.filter(b => Object.values(b.routes).some(r => r.reachable)).length;
+  $("#summary").textContent = `${state.boards.length} boards, ${up} reachable`;
+  $("#blenote").textContent = `Bluetooth: ${state.ble}`;
+  $("#joblist").innerHTML = state.jobs.map(j => `<div class="job"><b class="${j.state}">${j.state}</b>
+      ${esc(j.title)} <span class="dim">on ${esc(j.board)}</span>${j.log ? `<pre>${esc(j.log)}</pre>` : ""}</div>`).join("")
+    || "Nothing has run yet.";
+}
+
+async function refresh() {
+  try {
+    state = await (await fetch("/api/state")).json();
+    if (!state.allow_changes) $("#allowwrap").style.display = "none";
+    render();
+  } catch (e) { $("#summary").textContent = "The fleet server is not answering."; }
+}
+
+async function post(path, body) {
+  const r = await fetch(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const j = await r.json();
+  if (!r.ok) alert(j.error || r.statusText);
+  refresh();
+}
+
+document.addEventListener("click", e => {
+  const art = e.target.closest(".board");
+  if (e.target.dataset.probe && art) {
+    post("/api/probe", {id: art.dataset.id, route: e.target.dataset.probe, restart: true});
+  } else if ("update" in e.target.dataset && art) {
+    const pkg = $("[data-pkg]", art).value.trim(), index = $("[data-index]", art).value, route = $("[data-route]", art).value;
+    if (!pkg) return alert("Name a package first.");
+    const b = state.boards.find(x => x.id === art.dataset.id);
+    if (confirm(`Install ${pkg} from ${index} into /lib on ${(b.info && b.info.hub) || b.name || b.id}, over ${ROUTE[route]}?\n\nThis stops the program running on the board, then restarts main.py.`))
+      post("/api/update", {id: art.dataset.id, route, package: pkg, index});
+  }
+});
+$("#rescan").onclick = () => post("/api/rescan", {});
+$("#allow").onchange = e => {
+  document.body.classList.toggle("changes", e.target.checked);
+  if (e.target.checked && !Object.keys(packages).length)
+    fetch("/api/packages").then(r => r.json()).then(p => {
+      packages = p;
+      $("#pkgs").innerHTML = [...new Set(Object.values(p).flat())].map(n => `<option value="${esc(n)}">`).join("");
+    });
+};
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

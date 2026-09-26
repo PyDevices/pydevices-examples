@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sensor hub</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1b1f24;--dim:#5b6470;--line:#d9dde3;--accent:#2563eb;--ok:#15803d;--bad:#b91c1c}
+@media (prefers-color-scheme:dark){:root{--bg:#111418;--card:#1a1f25;--ink:#e8ebef;--dim:#98a2ae;--line:#2c333b;--accent:#6ea0ff;--ok:#4ade80;--bad:#f87171}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line)}
+h1{font-size:18px;margin:0;font-weight:600}
+.pill{font-size:13px;padding:2px 10px;border-radius:99px;border:1px solid var(--line);color:var(--dim)}
+.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.bad{color:var(--bad);border-color:var(--bad)}
+#rate{margin-left:auto;color:var(--dim);font-size:13px;font-variant-numeric:tabular-nums}
+main{padding:16px;display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.node{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.node h2{font-size:15px;margin:0 0 2px;display:flex;gap:8px;align-items:baseline}
+.node .meta{color:var(--dim);font-size:12px;margin-bottom:8px;font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.tile{border-top:1px solid var(--line);padding-top:6px}
+.tile .k{color:var(--dim);font-size:12px}
+.tile .v{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+.tile.flash .v{color:var(--accent)}
+svg{display:block;width:100%;height:34px}
+svg polyline{fill:none;stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke}
+#empty{color:var(--dim);padding:24px 16px}
+</style>
+</head>
+<body>
+<header><h1 id="title">Sensor hub</h1><span id="conn" class="pill">connecting</span><span id="rate"></span></header>
+<div id="empty">Waiting for a node to publish.</div>
+<main id="nodes"></main>
+<script>
+const qs = new URLSearchParams(location.search);
+const host = qs.get("hub") || location.host;
+const nodes = {};           // node -> {el, via, seen, series: {k: [values]}}
+let received = 0, lastCount = 0;
+const $ = (s, el = document) => el.querySelector(s);
+
+function fmt(v) {
+  if (typeof v !== "number") return String(v);
+  const a = Math.abs(v);
+  return a >= 1000 || Number.isInteger(v) ? v.toLocaleString() : v.toFixed(a >= 10 ? 1 : 2);
+}
+
+function spark(vals) {
+  if (vals.length < 2) return "";
+  const lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1;
+  return vals.map((v, i) => `${(i / (vals.length - 1) * 100).toFixed(1)},${(30 - (v - lo) / span * 28).toFixed(1)}`).join(" ");
+}
+
+function nodeEl(name) {
+  let n = nodes[name];
+  if (n) return n;
+  const el = document.createElement("section");
+  el.className = "node";
+  el.innerHTML = `<h2><span class="name"></span><span class="pill via"></span></h2><div class="meta"></div><div class="tiles"></div>`;
+  $(".name", el).textContent = name;
+  $("#nodes").appendChild(el);
+  $("#empty").hidden = true;
+  return nodes[name] = {el, series: {}, seen: 0, via: ""};
+}
+
+function tileEl(n, k) {
+  let t = $(`[data-k="${CSS.escape(k)}"]`, n.el);
+  if (t) return t;
+  t = document.createElement("div");
+  t.className = "tile"; t.dataset.k = k;
+  t.innerHTML = `<div class="k"></div><div class="v"></div><svg viewBox="0 0 100 32" preserveAspectRatio="none"><polyline/></svg>`;
+  $(".k", t).textContent = k;
+  $(".tiles", n.el).appendChild(t);
+  return t;
+}
+
+function draw(name, flash) {
+  const n = nodes[name];
+  $(".via", n.el).textContent = n.via;
+  for (const [k, vals] of Object.entries(n.series)) {
+    const t = tileEl(n, k);
+    $(".v", t).textContent = fmt(vals[vals.length - 1]);
+    $("polyline", t).setAttribute("points", spark(vals));
+    if (flash) { t.classList.add("flash"); setTimeout(() => t.classList.remove("flash"), 250); }
+  }
+}
+
+function ages() {
+  const now = Date.now();
+  for (const [name, n] of Object.entries(nodes)) {
+    const s = Math.round((now - n.seen) / 1000);
+    $(".meta", n.el).textContent = s < 2 ? "just now" : `${s} s ago`;
+  }
+  $("#rate").textContent = `${received - lastCount} readings/s · ${received} total`;
+  lastCount = received;
+}
+setInterval(ages, 1000);
+
+function onMessage(msg) {
+  if (msg.type === "snapshot") {
+    $("#title").textContent = msg.hub || "Sensor hub";
+    for (const [name, s] of Object.entries(msg.nodes)) {
+      const n = nodeEl(name);
+      n.via = s.via; n.seen = Date.now() - s.age_ms; n.series = s.series;
+      draw(name, false);
+    }
+  } else if (msg.type === "reading") {
+    received++;
+    const n = nodeEl(msg.node);
+    n.via = msg.via; n.seen = Date.now();
+    for (const [k, v] of Object.entries(msg.readings)) {
+      (n.series[k] ||= []).push(v);
+      if (n.series[k].length > 40) n.series[k].shift();
+    }
+    draw(msg.node, true);
+  }
+}
+
+let delay = 500;
+function connect() {
+  const ws = new WebSocket(`ws://${host}/ws`);
+  const conn = $("#conn");
+  ws.onopen = () => { conn.textContent = "live"; conn.className = "pill ok"; delay = 500; };
+  ws.onmessage = e => { try { onMessage(JSON.parse(e.data)); } catch (err) { console.error(err); } };
+  ws.onclose = () => {
+    conn.textContent = "reconnecting"; conn.className = "pill bad";
+    setTimeout(connect, delay); delay = Math.min(delay * 2, 8000);
+  };
+}
+connect();
+</script>
+</body>
+</html>
