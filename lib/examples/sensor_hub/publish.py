@@ -75,13 +75,14 @@ def main(argv):
     ap.add_argument("--via", choices=("udp", "http"), default="udp")
     ap.add_argument("--node", default="pc")
     ap.add_argument("--every", type=float, default=1.0, help="seconds between readings")
+    ap.add_argument("--port", type=int, default=None, help="the hub's UDP or HTTP port, if not 5005 or 80")
     ap.add_argument("--count", type=int, default=0, help="stop after this many (0: forever)")
     a = ap.parse_args(argv)
     t0 = time.time()
     n = 0
     while not a.count or n < a.count:
         r = pc_readings(time.time() - t0)
-        send(a.hub, a.node, r, a.via)
+        send(a.hub, a.node, r, a.via, a.port)
         n += 1
         print(n, a.via, r, flush=True)
         time.sleep(a.every)
