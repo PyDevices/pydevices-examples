@@ -58,6 +58,35 @@ ROKU_PORT = 8060
 # owns launch). The example kit imports front ends directly, so leave False.
 _LAUNCHER_OWNS_RUN = False
 
+# Send lock. Nothing but a GET leaves this process for a TV -- no keypress,
+# launch, input or power -- until something calls ``enable_sends()`` (or the
+# host sets ``ROKU_SENDS=1``). The check sits where the bytes leave, in
+# ``http_request``, ``_http_request_socket`` and the keep-alive keypress, so
+# no front end, harness or REPL call can get past it. Queries still work, and
+# so does the simulator, which never opens a socket.
+_SENDS_ENABLED = False
+
+
+class SendsLocked(OSError):
+    """Raised instead of sending an ECP POST while sends are locked."""
+
+
+def enable_sends(on=True):
+    """Allow (or, with ``on=False``, forbid again) ECP POSTs to a TV."""
+    global _SENDS_ENABLED
+    _SENDS_ENABLED = bool(on)
+    return _SENDS_ENABLED
+
+
+def sends_enabled():
+    return _SENDS_ENABLED
+
+
+def _check_send(method):
+    if not _SENDS_ENABLED and (method or "GET").upper() != "GET":
+        raise SendsLocked("sends locked")
+
+
 SSDP_ADDR = "239.255.255.250"
 SSDP_PORT = 1900
 SSDP_ST = "roku:ecp"
@@ -501,6 +530,7 @@ def _http_request_socket(method, url, timeout=5.0, data=b"", read_response=True)
     peek). Roku ECP applies ``/keypress/`` on request; a 120ms peek was adding
     idle stall to every MCU tap on the LVGL pump thread.
     """
+    _check_send(method)
     host, port, path = _parse_http_url(url)
     if isinstance(data, str):
         data = data.encode("utf-8")
@@ -586,6 +616,7 @@ def http_request(method, url, timeout=5.0, data=None):
     expanded and host ``urequests`` is often missing).
     """
     method = method.upper()
+    _check_send(method)
     body = data if data is not None else b""
     if isinstance(body, str):
         body = body.encode("utf-8")
@@ -1304,6 +1335,11 @@ def _env_get(name):
         except Exception:
             return None
     return None
+
+
+# A desktop host can open the send lock for a whole run with ROKU_SENDS=1.
+if (_env_get("ROKU_SENDS") or "").strip().lower() in ("1", "true", "yes", "on"):
+    enable_sends()
 
 
 def _path_join(base, name):
@@ -2227,6 +2263,7 @@ class RokuEngine:
         ``drain=False``: send only (Roku acts on the request). Response is
         consumed on the next ensure/reuse so tap→wire stays a few ms.
         """
+        _check_send("POST")
         path = "/keypress/" + key
         host = (self.host or "").strip()
         host_hdr = host if int(self.port) == 80 else "%s:%d" % (host, int(self.port))

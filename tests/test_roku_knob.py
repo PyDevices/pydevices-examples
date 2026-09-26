@@ -11,6 +11,7 @@ request and answers from canned ECP replies.
 import os
 import sys
 import tempfile
+import time
 import types
 import unittest
 
@@ -63,8 +64,11 @@ _appdev.App = _App
 sys.modules["board_config"] = _board
 sys.modules["appdev"] = _appdev
 
+os.environ.pop("ROKU_SENDS", None)
 import roku_engine  # noqa: E402
 
+# Read before any test touches it: a fresh import must come up locked.
+_LOCKED_AT_IMPORT = not roku_engine.sends_enabled()
 roku_engine._LAUNCHER_OWNS_RUN = True
 import roku_knob  # noqa: E402
 
@@ -197,6 +201,93 @@ class KnobTests(unittest.TestCase):
         k.button(False)
         self.assertEqual(k.page, "tvs")
         self.assertEqual(fake.posts, [])
+
+
+class _Recorder:
+    """A local HTTP server that records the request line of every request."""
+
+    def __init__(self):
+        import socket
+        import threading
+
+        self.lines = []
+        self.sock = socket.socket()
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(("127.0.0.1", 0))
+        self.sock.listen(8)
+        self.port = self.sock.getsockname()[1]
+        self.stop = False
+        threading.Thread(target=self._serve, daemon=True).start()
+
+    def _serve(self):
+        while not self.stop:
+            try:
+                conn, _ = self.sock.accept()
+            except OSError:
+                return
+            conn.settimeout(2)
+            try:
+                data = conn.recv(4096)
+                if data:
+                    self.lines.append(data.split(b"\r\n", 1)[0].decode())
+                    conn.sendall(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 13\r\n"
+                        b"Connection: close\r\n\r\n<device-info>"
+                    )
+            except OSError:
+                pass
+            finally:
+                conn.close()
+
+    def close(self):
+        self.stop = True
+        self.sock.close()
+
+
+class SendLockTests(unittest.TestCase):
+    """No ECP POST reaches the network until sends are enabled."""
+
+    def setUp(self):
+        roku_engine.enable_sends(False)
+        self.srv = _Recorder()
+        self.eng = roku_engine.RokuEngine(host="127.0.0.1", port=self.srv.port)
+
+    def tearDown(self):
+        roku_engine.enable_sends(False)
+        self.srv.close()
+
+    def _settle(self):
+        time.sleep(0.2)
+
+    def test_locked_by_default_on_every_path(self):
+        self.assertTrue(_LOCKED_AT_IMPORT)
+        self.assertFalse(self.eng.press("VolumeUp"))
+        self.assertIn("locked", self.eng.last_error)
+        self.assertFalse(self.eng.press("VolumeUp", wait=False))
+        self.assertFalse(self.eng.launch("837"))
+        self.assertFalse(self.eng.keydown("Up"))
+        with self.assertRaises(roku_engine.SendsLocked):
+            roku_engine.http_request("POST", "http://127.0.0.1:%d/x" % self.srv.port)
+        # A query still goes out.
+        self.eng.query_device_info()
+        self._settle()
+        self.assertEqual(
+            [ln.rsplit(" ", 1)[0] for ln in self.srv.lines], ["GET /query/device-info"]
+        )
+
+    def test_knob_shows_the_lock(self):
+        k = roku_knob.KnobRemote(engine=self.eng, start_page="remote")
+        k.turn(1)
+        _pump(k, 2)
+        self._settle()
+        self.assertFalse(any(ln.startswith("POST") for ln in self.srv.lines))
+        self.assertIn("locked", k.message[0])
+
+    def test_enabled_sends_reach_the_tv(self):
+        roku_engine.enable_sends()
+        self.assertTrue(self.eng.press("VolumeUp"))
+        self._settle()
+        self.assertIn("POST /keypress/VolumeUp", [ln.rsplit(" ", 1)[0] for ln in self.srv.lines])
 
 
 class LauncherTests(unittest.TestCase):

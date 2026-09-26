@@ -317,7 +317,8 @@ class KnobRemote:
         # next press: a fresh connect per detent costs 50-450 ms on an S3.
         ok = self.engine.press(key, timeout=1.5, wait=not _ON_MCU)
         if not ok:
-            self._flash("%s failed" % key, WARN)
+            why = self.engine.last_error or "failed"
+            self._flash("%s: %s" % (key, why), WARN)
 
     def _refresh(self):
         self.engine.refresh_playback()
@@ -553,9 +554,14 @@ class KnobRemote:
         self._footer("turn: scroll|press: pick|hold: play/pause")
 
 
+remote = None  # the running KnobRemote, for a REPL or a harness to reach
+
+
 def create(engine=None, start_page="devices"):
     """Build the knob front end (the app keeps itself alive)."""
-    return KnobRemote(engine=engine, start_page=start_page)
+    global remote
+    remote = KnobRemote(engine=engine, start_page=start_page)
+    return remote
 
 
 def run(engine=None, start_page="devices"):
