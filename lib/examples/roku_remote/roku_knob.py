@@ -38,6 +38,32 @@ too.
 The now-playing page shows what ECP gives: the app in front, and for the
 apps that report it, play / pause and the position. ECP has no volume read,
 so the volume bar shows the steps you just sent rather than a level.
+
+Nothing reaches the TV until you unlock it
+------------------------------------------
+``roku_engine`` starts with its send lock closed: it reads the TV but sends
+no key until ``roku_engine.enable_sends()`` runs (on a desktop,
+``ROKU_SENDS=1`` does the same). While it's locked, a turn or a press shows
+``sends locked`` at the bottom of the screen. Unlock it in ``main.py`` when
+you want the knob to drive the TV.
+
+Run it on the LilyGO T-Embed S3
+-------------------------------
+Its ``board_config`` and ``wifi.py`` with ``secrets.py`` go on first, as in
+board bring-up. Then put ``roku_engine``, ``roku_sim``, ``roku_knob`` and
+``roku_remote`` in ``/lib`` (``mpy-cross -march=xtensawin`` makes them load
+faster) and use this as ``/main.py``::
+
+    import wifi
+
+    wifi.connect_from_secrets()
+
+    import roku_engine
+
+    roku_engine.enable_sends()  # leave this out and the knob only watches
+    import roku_remote  # picks this front end on a knob-only board
+
+It starts on the TV you used last, or on ``Pick TV`` the first time.
 """
 
 import sys
