@@ -1230,7 +1230,7 @@ def main():
     else:
         _start_round()
 
-    app.every(_tick, period=16, async_=app.timer_async)
+    app.every(_tick, period=16)
 
 
 main()

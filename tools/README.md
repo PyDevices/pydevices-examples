@@ -68,95 +68,44 @@ concrete launcher used in automation.
 .venv/bin/python -m unittest discover -s tests
 ```
 
-### Preferred method (parallel interpreters, fail-fast, both timer modes)
+### Preferred method (parallel interpreters, fail-fast)
 
-For thorough verification (timer/multimer/interpreter changes, or “run the full
-matrix”), prefer **example-by-example**, **all selected interpreters in parallel**
-per example (`--jobs 0`, default), **`--fail-fast`**, and **both**
-`PYDEVICES_TIMER_ASYNC` modes as separate kit runs.
+For thorough verification (timer/multimer/interpreter changes, or "run the full
+matrix"), prefer **example-by-example**, **all selected interpreters in parallel**
+per example (`--jobs 0`, default) and **`--fail-fast`**. There is one timer
+mode: multimer delivers on every host by itself, so the old sync/async split
+(`PYDEVICES_TIMER_ASYNC`) is gone; the kit still accepts the variable and
+ignores it.
 
-| Mode | Interpreters |
-|------|----------|
-| Sync (`PYDEVICES_TIMER_ASYNC=0`) | **5** desktop SDL: `micropython`, `micropython.exe`, `circuitpython`, `cpython-venv`, `python.exe` |
-| Async (`PYDEVICES_TIMER_ASYNC=1`) | **7** — the five above plus `pyscript`, `jupyter` |
-| Android (opt-in) | `android` — `pydevices/bin/android.py` (or `~/bin/android.py` on PATH) + emulator/device + `org.pydevices.runner` APK; **not** in the default 5/7 lists (`--only-interpreter android`) |
+| Interpreters |
+|----------|
+| **7** — desktop SDL: `micropython`, `micropython.exe`, `circuitpython`, `cpython-venv`, `python.exe`; plus `pyscript`, `jupyter` |
+| Android (opt-in) | `android` — `pydevices/bin/android.py` (or `~/bin/android.py` on PATH) + emulator/device + `org.pydevices.runner` APK; **not** in the default list (`--only-interpreter android`) |
 
 Default timing is already short (`duration_s=2`, `timeout_s=15` in the
-interpreters/manifest defaults). After each example’s parallel wave finishes, if
+interpreters/manifest defaults). After each example's parallel wave finishes, if
 any cell failed, stop before the next example; fix the root cause, then resume.
 
 ```bash
-# PyScript needs the static server (async mode)
+# PyScript needs the static server
 python tools/serve.py   # separate terminal; reuse if already on :8000
 
 export SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy PYTHONUNBUFFERED=1
 mkdir -p /tmp/pydevices-examples-matrix
 
-SYNC_RT="micropython micropython.exe circuitpython cpython-venv python.exe"
-ASYNC_RT="$SYNC_RT pyscript jupyter"
+RT="micropython micropython.exe circuitpython cpython-venv python.exe pyscript jupyter"
 
 set -o pipefail   # keep kit exit status through tee
 
-# Sync — 5 interpreters concurrently per example
-PYDEVICES_TIMER_ASYNC=0 stdbuf -oL -eL \
+stdbuf -oL -eL \
   .venv/bin/python tools/example_test_kit.py --no-unit-tests --fail-fast \
-  --only-interpreter $SYNC_RT \
-  --results-json /tmp/pydevices-examples-matrix/sync.json \
-  2>&1 | stdbuf -oL -eL tee /tmp/pydevices-examples-matrix/sync.log
-
-# After sync is clean — async, all 7
-PYDEVICES_TIMER_ASYNC=1 stdbuf -oL -eL \
-  .venv/bin/python tools/example_test_kit.py --no-unit-tests --fail-fast \
-  --only-interpreter $ASYNC_RT \
-  --results-json /tmp/pydevices-examples-matrix/async.json \
-  2>&1 | stdbuf -oL -eL tee /tmp/pydevices-examples-matrix/async.log
-```
-
-Live log lines: `Running <example> @ N interpreter(s) in parallel...`, then
-`start` / `done` per interpreter. `--fail-fast` waits for the current example’s
-workers, then exits if any cell failed. Resume with `--only-example`
-(remaining ids) or by restarting that mode from the failed example. Use
-`--jobs 1` for fully serial interpreters when isolating races. See
-[Windows PE under WSL](#windows-pe-under-wsl) for PE window / quit notes.
-
-`--curated-only` is a smoke shortcut, not a substitute for the preferred gate.
-
-### Matrix commands (scoped / smoke)
-
-```bash
-# Curated set across available interpreters (smoke)
-.venv/bin/python tools/example_test_kit.py --curated-only
-
-# Scope (space-separated ids on one flag; see note below)
-.venv/bin/python tools/example_test_kit.py --only-example calculator --only-interpreter micropython
-.venv/bin/python tools/example_test_kit.py --no-unit-tests --only-interpreter cpython-venv micropython
-.venv/bin/python tools/example_test_kit.py --no-unit-tests \
-  --only-example calc_lvgl lv_test_timer --only-interpreter circuitpython
-
-# Order: --order examples (default) / --order interpreters
-# Broader: --all-except-harness
-```
-
-`--only-example` and `--only-interpreter` use `nargs="+"`: pass multiple ids
-space-separated after **one** occurrence of the flag. Repeating the flag
-silently keeps only the last list (`--only-interpreter circuitpython --only-interpreter
-python.exe` runs just `python.exe`). Same rule for `lv_timer_test_kit.py`
-`--only` / `--modes`.
-
-**Headless desktop** (dummy SDL — default for matrix/smoke):
-
-```bash
-SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy \
-  .venv/bin/python tools/example_test_kit.py --no-unit-tests --only-interpreter cpython-venv
+  --only-interpreter $RT \
+  --results-json /tmp/pydevices-examples-matrix/all.json \
+  2>&1 | stdbuf -oL -eL tee /tmp/pydevices-examples-matrix/all.log
 ```
 
 Unix subprocesses see that shell export. Windows `.exe` behavior is different —
 see [Windows PE under WSL](#windows-pe-under-wsl).
-
-**Async timers on desktop:** the kit forwards `PYDEVICES_TIMER_ASYNC` as wrapper
-`--timer-async` (uses `env_set`, works for Windows PE under WSL). Shell export
-is the preferred way to select mode for a full kit run (see Preferred method
-above). Semantics: [App and board config — timer_async](https://github.com/PyDevices/pydevices/blob/main/docs/app-and-board-config.md#timer_async-in-srclibboard_configpy).
 
 ### Windows PE under WSL
 

@@ -102,4 +102,4 @@ def _tick(_=None):
     st["pos_i"] = (st["pos_i"] + 1) % len(positions)
 
 
-app.every(_tick, period=100, async_=app.timer_async)
+app.every(_tick, period=100)

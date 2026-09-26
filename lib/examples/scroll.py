@@ -80,4 +80,4 @@ def _tick(_=None):
     poll()
 
 
-app.every(_tick, period=10, async_=app.timer_async)
+app.every(_tick, period=10)

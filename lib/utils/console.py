@@ -664,7 +664,7 @@ class Console(io.IOBase):
             self._subscription = self._app.every(self._refresh_ms, self._tick)
             return
         try:
-            from multimer import auto as multimer
+            import multimer
         except ImportError:
             return
         if not multimer.Timer:

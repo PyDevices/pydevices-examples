@@ -38,7 +38,7 @@ import time
 
 from board_config import display_drv
 from displaydev import env_get
-from multimer import auto as timer
+import multimer
 
 # Optional logical orientation for LVGL (hw MADCTL/SDL/PG or software rotate).
 _lv_rot = env_get("PYDEVICES_LV_ROTATION")
@@ -61,7 +61,7 @@ _RESULT_PREFIX = "KIT_RESULT="
 
 
 def _mode_label():
-    return "async" if getattr(app, "timer_async", False) else "sync"
+    return multimer.info().get("source") or "sync"
 
 
 def get_state():
@@ -124,18 +124,9 @@ def _lvgl_label():
 
 
 def _timer_type():
-    # Deliberately not named ``timer``: that would shadow the module-level
-    # ``multimer.auto`` import this function falls back to, and the fallback
-    # then reads None on any provider that has not armed yet.
-    armed = getattr(app, "_timer", None)
-    if armed is not None:
-        return _format_timer_type(type(armed))
-    try:
-        from multimer import AsyncTimer
-
-        return _format_timer_type(AsyncTimer if app.timer_async else timer.Timer)
-    except ImportError:
-        return "?"
+    # multimer has one Timer class; what differs per host is the wake source.
+    info = multimer.info()
+    return "%s/%s" % (info.get("source"), info.get("delivery"))
 
 
 def get_platform_info():
@@ -285,9 +276,8 @@ def _inject_click(cx, cy):
     try:
         deadline = time.time() + 1.5
         while (pending or get_state()["taps"] < 1) and time.time() < deadline:
-            # Pump: the host queue is drained from the app tick, which
-            # pump-based backends only deliver while the main thread sleeps here.
-            timer.sleep_ms(10)
+            # multimer.sleep_ms delivers on every host while this thread waits.
+            multimer.sleep_ms(10)
     finally:
         queue_dev._read = orig_read
     return get_state()["taps"]
@@ -364,10 +354,9 @@ def _run_kit_sync():
     deadline = time.time() + _DURATION_S
     clicked_taps = None
     while time.time() < deadline:
-        # timer.sleep_ms, not time.sleep: pump-based backends (threading on
-        # CircuitPython / Windows CPython, SDL2) deliver callbacks only
-        # while the main thread pumps. For librt this resolves to a plain sleep.
-        timer.sleep_ms(10)
+        # multimer.sleep_ms, not time.sleep: a host with no wake source
+        # (CircuitPython) delivers only while this thread waits here.
+        multimer.sleep_ms(10)
         if clicked_taps is None and get_state()["seconds"] >= 2:
             cx, cy = _button_center(btn)
             clicked_taps = _inject_click(cx, cy)
@@ -405,7 +394,7 @@ def run_kit():
     ``app.poll()`` while LVGL owns the host queue.
     """
     try:
-        if app.timer_async:
+        if multimer.loop_running():
             payload = app.run_async(_run_kit_async)
             if payload is not None and hasattr(payload, "done"):
                 _quit_and_exit(1)

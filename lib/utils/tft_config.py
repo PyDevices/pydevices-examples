@@ -19,7 +19,7 @@ BUFFERED = False
 if BUFFERED:
     from displaybuf import DisplayBuffer
 
-    from multimer import auto as timer
+    import multimer
 
 
 font_dir = sep.join(tft_text.__file__.split(sep)[:-1]) + sep + "fonts"
@@ -61,9 +61,9 @@ def config(rotation=None, buffer_size=0, options=0):
 
         display.show = show
         display.draw = display
-        tim = timer.Timer()
+        tim = multimer.Timer()
         tim.init(
-            mode=timer.Timer.PERIODIC,
+            mode=multimer.Timer.PERIODIC,
             period=33,
             callback=lambda t: display.show(),
         )
