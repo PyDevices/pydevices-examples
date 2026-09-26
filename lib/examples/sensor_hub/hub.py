@@ -102,6 +102,7 @@ class Hub:
         # to fail. Nothing else reads it.
         self.plant = plant
         self.ble_state = "off"
+        self.ble_name = None
 
     # -- the table
 
@@ -153,6 +154,7 @@ class Hub:
             "clients": len(self.feed),
             "counts": self.counts,
             "ble": self.ble_state,
+            "ble_name": self.ble_name,
         }
         try:
             u = os.uname()
@@ -263,15 +265,19 @@ async def _send_file(writer, path, ctype):
             await writer.drain()
 
 
-async def main(port=80, udp_port=5005, ble=True, name="sensor-hub", plant=None):
+async def main(port=80, udp_port=5005, ble=True, name="sensor-hub", plant=None, ble_name=None):
+    """``ble_name`` is what Bluetooth shows: 8 characters at most, so it fits
+    in the advertisement itself (Chrome's chooser can miss a name that only
+    arrives in the scan response). It defaults to the first 8 of ``name``."""
     hub = Hub(name, plant=plant)
+    hub.ble_name = (ble_name or name)[:8]
     server = await asyncio.start_server(hub.http, "0.0.0.0", port)
     tasks = [asyncio.create_task(hub.udp(udp_port))]
     if ble:
         try:
             from . import blefeed
 
-            tasks.append(asyncio.create_task(blefeed.serve(hub, name=name)))
+            tasks.append(asyncio.create_task(blefeed.serve(hub, name=hub.ble_name)))
         except ImportError as e:
             hub.ble_state = "unavailable: {}".format(e)
     print("hub: http :{}  udp :{}  ble {}".format(port, udp_port, "on" if len(tasks) > 1 else "off"))

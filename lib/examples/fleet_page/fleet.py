@@ -223,7 +223,8 @@ class Fleet:
         for uid in [u for u in self.boards if u.startswith("ble-")]:
             name = uid[4:]
             same = [b for b in self.boards.values()
-                    if not b["id"].startswith("ble-") and name in (b["name"], b["info"].get("hub"))]
+                    if not b["id"].startswith("ble-")
+                    and name in (b["name"], b["info"].get("hub"), b["info"].get("ble_name"))]
             if same:
                 same[0]["routes"]["ble"] = self.boards.pop(uid)["routes"]["ble"]
 
@@ -244,7 +245,8 @@ class Fleet:
                 continue
             found += 1
             same = [x for x in self.boards.values()
-                    if d["name"] in (x["name"], x["info"].get("hub")) and not x["id"].startswith("ble-")]
+                    if d["name"] in (x["name"], x["info"].get("hub"), x["info"].get("ble_name"))
+                    and not x["id"].startswith("ble-")]
             b = same[0] if same else self.board("ble-" + d["name"], name=d["name"])
             b["routes"]["ble"] = {"address": d["name"], "detail": ", ".join(kinds),
                                   "rssi": d["rssi"], "reachable": True, "seen": now}
