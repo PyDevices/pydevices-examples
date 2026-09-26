@@ -80,6 +80,36 @@ one is connected.
 | `/api/status` | firmware, uptime, RSSI, free memory and `/lib`, without interrupting anything. The [fleet page](../fleet_page/README.md) reads it |
 | `POST /api/publish` | one reading |
 
+## A FunHouse as a node
+
+The Adafruit FunHouse (ESP32-S2) reports its own temperature, humidity,
+pressure, light and motion to a hub every 2 s, and shows them on its screen.
+Its five DotStars are switched off at start.
+
+It runs stock MicroPython (`ESP32_GENERIC_S2`), brought up as in
+[board bring-up](https://github.com/PyDevices/pydevices/blob/main/docs/board-bringup.md)
+with the `board_configs/busdisplay/spi/funhouse` package. Then:
+
+```bash
+mpftp mkdir -d COM30 /lib/sensor_hub
+for f in __init__.py publish.py funhouse_node.py; do
+  mpftp put -d COM30 lib/examples/sensor_hub/$f /lib/sensor_hub/$f
+done
+mpftp put -d COM30 lib/examples/sensor_hub/funhouse_main.py /main.py
+```
+
+Set `HUB` and `NODE` at the top of `/main.py`, then reset it with
+`machine.reset()`. On the FunHouse, `mpftp hard-reset` leaves the S2 in ROM
+download mode behind a dead COM port (see
+[mpftp#71](https://github.com/PyDevices/mpftp/issues/71)).
+
+It posts over HTTP because the P4's house app serves the hub on port 80 only.
+The series are `temp`, `humidity`, `light` and `motion`, which the house panel
+draws, plus `pressure` (hPa) and `rssi`.
+
+The panel can't be read back, so `funhouse_node.save_screen()` writes out the
+pixels it has sent to the panel (240x240 RGB565) as a capture.
+
 ## Check it
 
 `check_hub.py` opens the feed, publishes a fresh random number over UDP and

@@ -25,6 +25,14 @@
       "../lib/examples/sensor_hub/check_hub.py"
     ],
     [
+      "sensor_hub/funhouse_main.py",
+      "../lib/examples/sensor_hub/funhouse_main.py"
+    ],
+    [
+      "sensor_hub/funhouse_node.py",
+      "../lib/examples/sensor_hub/funhouse_node.py"
+    ],
+    [
       "sensor_hub/hub.py",
       "../lib/examples/sensor_hub/hub.py"
     ],
