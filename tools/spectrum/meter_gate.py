@@ -1,4 +1,4 @@
-"""Audio meter spike gate, board half. Mode set by the host before upload.
+"""Audio meter gate, board half. Mode set by the host before upload.
 
 MODE 'off'  : sound card pump only (soundcard.py's configuration).
 MODE 'c'    : plus the C meter analysing, nothing drawn.
@@ -42,7 +42,7 @@ dev = usbif.auto.device()
 w = bp.AUDIO_OUT.wire
 bp.audio_power(True, volume=VOLUME)
 dev.functions("cdc", "uac")
-kw = dict(rate=WIRE, bits=bp.AUDIO_OUT.default.bits, channels=bp.AUDIO_OUT.default.channels)
+kw = {"rate": WIRE, "bits": bp.AUDIO_OUT.default.bits, "channels": bp.AUDIO_OUT.default.channels}
 if w.mck is not None and w.mck >= 0:
     kw["mclk"] = w.mck
     kw["mclk_multiple"] = w.mck_fs
@@ -83,10 +83,23 @@ while k < WINDOWS:
         an = (cur[4] - prev[4]) / dt
         fps = spectrum.last_report if spectrum else ""
         dma = (cur[8] - prev[8]) / dt / 2
-        log("MEASURE host=%d wire=%d pkts/s=%.1f pump%%=%.3f timeouts=%d "
+        log(
+            "MEASURE host=%d wire=%d pkts/s=%.1f pump%%=%.3f timeouts=%d "
             "dma_rate=%.1f meter: %.1f/s feed=%.2f%% fft=%.2f%% worst=%dus | %s"
-            % (host, wire, pk, 100 * pump / (2 * wire) if wire else 0,
-               cur[3] - prev[3], dma, an, feed, fft, mt[5], fps))
+            % (
+                host,
+                wire,
+                pk,
+                100 * pump / (2 * wire) if wire else 0,
+                cur[3] - prev[3],
+                dma,
+                an,
+                feed,
+                fft,
+                mt[5],
+                fps,
+            )
+        )
         if CAPTURE_AT and k == CAPTURE_AT and spectrum:
             spectrum.capture("/spectrum.raw")
             log("CAPTURED /spectrum.raw %dx%d" % (spectrum.view.width, spectrum.view.height))
@@ -98,8 +111,10 @@ if spectrum and TRACK:
     from spectrum_view import band_centres
 
     for i, hz in enumerate(band_centres(spectrum.view.bands)):
-        log("BAND %2d %7.1f Hz max=%6.1f mean=%6.1f min=%6.1f dB" % (
-            i, hz, tr[0][i] / 2 - 100, tr[2][i] / n / 2 - 100, tr[1][i] / 2 - 100))
+        log(
+            "BAND %2d %7.1f Hz max=%6.1f mean=%6.1f min=%6.1f dB"
+            % (i, hz, tr[0][i] / 2 - 100, tr[2][i] / n / 2 - 100, tr[1][i] / 2 - 100)
+        )
     log("BANDS analyses=%d" % tr[3])
 log("MEASURE done")
 if spectrum:

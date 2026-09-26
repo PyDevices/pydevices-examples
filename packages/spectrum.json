@@ -31,14 +31,6 @@
     [
       "spectrum/spectrum_view.py",
       "../lib/examples/spectrum/spectrum_view.py"
-    ],
-    [
-      "spectrum/spike/meter_gate.py",
-      "../lib/examples/spectrum/spike/meter_gate.py"
-    ],
-    [
-      "spectrum/spike/play_src.py",
-      "../lib/examples/spectrum/spike/play_src.py"
     ]
   ],
   "version": "0.0.1"

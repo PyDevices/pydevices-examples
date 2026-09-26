@@ -6,8 +6,7 @@ The real source behind the same interface as ``fake_music.FakeMusic``:
 C, in usbif's UAC pump task, where the audio from the PC already passes. This
 file only asks for the bands once and reads the latest levels each frame.
 
-It needs a firmware whose ``_usbif`` has ``uac_pump_levels`` (usbif branch
-``spike/audio-meter``) and something else running the sound card's pump,
+It needs a firmware whose ``_usbif`` has ``uac_pump_levels`` (usbif#50) and something else running the sound card's pump,
 such as ``soundcard.py``. With no audio flowing the levels stop advancing, and
 after ``STALE_MS`` this returns zeros so the bars fall.
 

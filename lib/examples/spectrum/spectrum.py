@@ -218,7 +218,7 @@ def start(bands=None, height=None, y=None, style=None):
     _t0 = ticks_ms()
     _last = _t0
     _stats = [0, 0, 0, 0, _t0]
-    timer = app.every(_tick, period=FRAME_MS, async_=app.timer_async)
+    timer = app.every(_tick, period=FRAME_MS)
     return view
 
 

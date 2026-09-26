@@ -107,6 +107,13 @@ quit = "poll"
 deps = ["core"]
 timeout_s = 45
 
+[examples.spectrum]
+import = "spectrum"
+script = "examples/spectrum/spectrum.py"
+kind = "async"
+quit = "poll"
+deps = ["core"]
+
 [examples.appdev_simpletest]
 import = "appdev_simpletest"
 script = "examples/appdev_simpletest.py"

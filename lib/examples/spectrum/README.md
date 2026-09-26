@@ -57,24 +57,24 @@ On desktop MicroPython at 800x480 with 48 bands, a frame costs about 0.2 ms to
 generate the data, 0.7–1.5 ms to draw and 0.9 ms to blit to the SDL window.
 The timer caps it at 50 fps.
 
-## On the ESP32-P4 panel, beside the sound card (spike)
+## On the ESP32-P4 panel, beside the sound card
 
 ![The P4 panel's framebuffer, music playing](../../../docs/screenshots/spectrum_p4_music.png)
 
-This needs a firmware built from usbif's `spike/audio-meter` branch, which adds
-`uac_pump_meter()` and `uac_pump_levels()`. Import `spectrum` before
+This needs a firmware with usbif's meter ([usbif#50](https://github.com/PyDevices/usbif/pull/50)),
+which adds `uac_pump_meter()` and `uac_pump_levels()`. Import `spectrum` before
 running `soundcard.py`, and the meter draws from a timer while the sound card
 runs. `pump_levels.py` is the real source.
 
-What the spike found (2026-09-25):
+What the measurements found (2026-09-25):
 
 - **Drawing costs no USB packets, once one setting changes.** A cache
   writeback (`esp_cache_msync`) runs with interrupts off, and syncing the
   panel held the USB interrupt off long enough to drop delivery to
   98.7-99.4 %, under the 99.5 % gate. With the writeback sliced
-  ([spike/sdkconfig.msync_chunked](spike/sdkconfig.msync_chunked)), meter on
-  and meter off match to within 0.03 %: 99.75-99.88 % against 99.77-99.86 %.
-  That setting isn't in a board definition yet.
+  (`CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS`), meter on and meter off match
+  to within 0.03 %: 99.75-99.88 % against 99.77-99.86 %. The P4 panel's board
+  definition carries that setting since micropython-pydevices#23.
 - **The sound card's own baseline** settles near 99.8 % a window or two into a
   48 kHz stream, with or without the meter. A 24 kHz wire holds 100 %.
 - **The cost in the pump** is 1.05 % of a 360 MHz core for the feed plus
@@ -87,5 +87,6 @@ What the spike found (2026-09-25):
   empty. From 35 Hz up, every bar moves. The top four bars (10-20 kHz) also
   hover near the floor.
 
-`spike/meter_gate.py` (board) and `spike/play_src.py` (Windows Python)
+[`tools/spectrum/meter_gate.py`](../../../tools/spectrum/meter_gate.py) (board) and
+[`tools/spectrum/play_src.py`](../../../tools/spectrum/play_src.py) (Windows Python)
 reproduce the numbers.

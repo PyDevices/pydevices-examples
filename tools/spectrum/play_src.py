@@ -63,9 +63,13 @@ else:
     data = data[:, :2] / max(1e-9, np.max(np.abs(data)))
 pcm = np.clip(data * gain * 32767, -32768, 32767).astype(np.int16)
 
-dev = [i for i, d in enumerate(sd.query_devices())
-       if "Espressif" in d["name"] and d["max_output_channels"]
-       and sd.query_hostapis(d["hostapi"])["name"] == "Windows WASAPI"][0]
+dev = next(
+    i
+    for i, d in enumerate(sd.query_devices())
+    if "Espressif" in d["name"]
+    and d["max_output_channels"]
+    and sd.query_hostapis(d["hostapi"])["name"] == "Windows WASAPI"
+)
 state = {"pos": 0, "frames": 0, "under": 0}
 
 
@@ -80,11 +84,19 @@ def cb(out, frames, t, status):
     state["frames"] += frames
 
 
-with sd.OutputStream(device=dev, samplerate=RATE, channels=2, dtype="int16",
-                     callback=cb, extra_settings=sd.WasapiSettings(exclusive=excl),
-                     latency="high"):
+with sd.OutputStream(
+    device=dev,
+    samplerate=RATE,
+    channels=2,
+    dtype="int16",
+    callback=cb,
+    extra_settings=sd.WasapiSettings(exclusive=excl),
+    latency="high",
+):
     t0 = time.perf_counter()
     time.sleep(secs)
     el = time.perf_counter() - t0
-print("HOST src=%s gain=%.3f exclusive=%s frames/s=%.1f underflows=%d"
-      % (src, gain, excl, state["frames"] / el, state["under"]))
+print(
+    "HOST src=%s gain=%.3f exclusive=%s frames/s=%.1f underflows=%d"
+    % (src, gain, excl, state["frames"] / el, state["under"])
+)
