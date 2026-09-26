@@ -5,10 +5,11 @@ same JSON or text form the other doors take (``phone batt=81 tilt=12``). It
 takes up to 200 bytes, which fits one write once the link has negotiated a
 large MTU (Chrome on Android asks for one; boards answer 247).
 
-The hub advertises the service UUID and its name, so Web Bluetooth can
-filter on the service (Chrome on Android never matches a name that only
-arrived in the scan response). One central at a time; after it leaves, the
-hub advertises again.
+The hub advertises the service UUID and a name of up to 8 characters, which
+is all that fits beside a 128-bit UUID in the advertisement. Web Bluetooth
+filters on the service; a longer name would only arrive in the scan
+response, and Chrome's chooser then lists "Unknown or Unsupported Device".
+One central at a time; after it leaves, the hub advertises again.
 
 Needs ``bledev`` (from pydevices) and ``aioble`` on the board.
 """
@@ -38,6 +39,6 @@ async def serve(hub, name="sensor-hub"):
     asyncio.create_task(writes())
     while True:
         hub.ble_state = "advertising"
-        connection = await ble.advertise(name=name[:12], services=[HUB_SERVICE])
+        connection = await ble.advertise(name=name[:8], services=[HUB_SERVICE])
         hub.ble_state = "connected"
         await connection.disconnected()

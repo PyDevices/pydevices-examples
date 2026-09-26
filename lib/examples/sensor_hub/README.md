@@ -25,8 +25,10 @@ mpftp put -d COM5 lib/examples/sensor_hub/board_main.py /main.py
 mpftp hard-reset -d COM5
 ```
 
-Then open `http://<board's IP>/` on anything on the same network. Change the
-hub's name in `board_main.py`; Bluetooth shows its first 12 characters.
+Then open `http://<board's IP>/` on anything on the same network. Name the
+hub in `board_main.py`. Its Bluetooth name can be 8 characters at most, which
+is all that fits in the advertisement beside the service UUID; a longer one
+shows up in Chrome's chooser as "Unknown or Unsupported Device".
 
 ## Send it readings
 
@@ -93,6 +95,8 @@ To see it fail, start a hub whose feed drops everything:
 `micropython -m examples.sensor_hub --port 8099 --no-ble --plant drop_feed`
 from `lib`, then check `127.0.0.1 --port 8099`.
 
-On the T-Embed at -80 dBm, a reading reached the browser feed in about 0.1 s
-with nothing else going on. One run with a Bluetooth publisher connecting at
-the same moment took 1.4 s.
+On the T-Embed, which sits at -80 to -84 dBm from the router, a reading
+reached the browser feed in 0.1 to 3.5 s over a dozen runs, and a plain
+status request took 0.3 to 2.2 s. Two runs in a row found the board briefly
+unreachable. That's what a weak signal looks like; put a hub closer to the
+router before blaming the code.
