@@ -505,6 +505,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/roku_remote/roku_graphics.py"
     ],
     [
+      "roku_remote/roku_knob.py",
+      "github:PyDevices/pydevices-examples/lib/examples/roku_remote/roku_knob.py"
+    ],
+    [
       "roku_remote/roku_lvgl.py",
       "github:PyDevices/pydevices-examples/lib/examples/roku_remote/roku_lvgl.py"
     ],

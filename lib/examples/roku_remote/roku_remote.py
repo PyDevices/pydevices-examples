@@ -15,6 +15,9 @@ when its serial still matches, then starts the chosen front end:
 * :mod:`roku_lvgl`     -- LVGL front end (default)
 * :mod:`roku_widgets`  -- ``pdwidgets`` front end
 * :mod:`roku_graphics` -- ``pygraphics.FrameBuffer`` front end
+* :mod:`roku_knob`     -- one rotary knob and its button, small screen, no
+  touch (picked on its own on a board like the T-Embed, or with
+  ``ROKU_FRONTEND=knob``)
 
 Switching front ends from MORE writes prefs then calls
 :func:`roku_engine.restart_app` (MCU ``reset``, else exit ``42`` after clean
@@ -69,8 +72,12 @@ _MCU_PLATFORMS = (
     "zephyr",
 )
 if getattr(sys, "platform", "") not in _MCU_PLATFORMS:
-    env_set("PYDEVICES_WIDTH", _WIDTH)
-    env_set("PYDEVICES_HEIGHT", _HEIGHT)
+    # ``None`` leaves the variable alone, so a size set in the shell (or by
+    # tools/screenshot.py --resolution) still reaches board_config.
+    if _WIDTH is not None:
+        env_set("PYDEVICES_WIDTH", _WIDTH)
+    if _HEIGHT is not None:
+        env_set("PYDEVICES_HEIGHT", _HEIGHT)
     if _SCALE is not None:
         env_set("PYDEVICES_SCALE", _SCALE)
 
@@ -84,11 +91,15 @@ from roku_sim import make_engine  # noqa: E402
 
 
 # Front ends that allocate a full-panel Python ``bytearray`` (RGB565).
-_PYTHON_FB_FRONTENDS = ("widgets", "pygraphics")
+_PYTHON_FB_FRONTENDS = ("widgets", "pygraphics", "knob")
 
 
 def _import_frontend(name):
     """Import one front-end module by prefs id."""
+    if name == "knob":
+        import roku_knob as mod
+
+        return mod
     if name == "widgets":
         import roku_widgets as mod
 
@@ -100,6 +111,34 @@ def _import_frontend(name):
     import roku_lvgl as mod
 
     return mod
+
+
+def _knob_board():
+    """True on a board with a rotary encoder and no touch or host input."""
+    try:
+        import board_config
+    except ImportError:
+        return False
+    return (
+        getattr(board_config, "encoder_read", None) is not None
+        and getattr(board_config, "touch_read", None) is None
+        and getattr(board_config, "host_read", None) is None
+    )
+
+
+def _wanted_frontend():
+    """``ROKU_FRONTEND`` wins, then a knob-only board, then prefs."""
+    try:
+        from displaydev import env_get
+
+        forced = (env_get("ROKU_FRONTEND", "") or "").strip()
+    except ImportError:
+        forced = ""
+    if forced:
+        return forced
+    if _knob_board():
+        return "knob"
+    return get_frontend()
 
 
 def _frontend_candidates(preferred):
@@ -160,7 +199,7 @@ def main():
         )
     )
 
-    preferred = get_frontend()
+    preferred = _wanted_frontend()
     fb_ok = None
     last_err = None
     for name in _frontend_candidates(preferred):

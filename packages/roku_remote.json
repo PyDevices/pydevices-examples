@@ -17,6 +17,10 @@
       "../lib/examples/roku_remote/roku_graphics.py"
     ],
     [
+      "roku_remote/roku_knob.py",
+      "../lib/examples/roku_remote/roku_knob.py"
+    ],
+    [
       "roku_remote/roku_lvgl.py",
       "../lib/examples/roku_remote/roku_lvgl.py"
     ],
