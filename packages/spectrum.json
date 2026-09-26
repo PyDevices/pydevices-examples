@@ -1,0 +1,37 @@
+{
+  "urls": [
+    [
+      "spectrum/__init__.py",
+      "../lib/examples/spectrum/__init__.py"
+    ],
+    [
+      "spectrum/capture.py",
+      "../lib/examples/spectrum/capture.py"
+    ],
+    [
+      "spectrum/fake_music.py",
+      "../lib/examples/spectrum/fake_music.py"
+    ],
+    [
+      "spectrum/loopback_levels.py",
+      "../lib/examples/spectrum/loopback_levels.py"
+    ],
+    [
+      "spectrum/make_captures.py",
+      "../lib/examples/spectrum/make_captures.py"
+    ],
+    [
+      "spectrum/pump_levels.py",
+      "../lib/examples/spectrum/pump_levels.py"
+    ],
+    [
+      "spectrum/spectrum.py",
+      "../lib/examples/spectrum/spectrum.py"
+    ],
+    [
+      "spectrum/spectrum_view.py",
+      "../lib/examples/spectrum/spectrum_view.py"
+    ]
+  ],
+  "version": "0.0.1"
+}

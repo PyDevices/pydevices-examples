@@ -5,9 +5,14 @@ import sys
 import unittest
 
 _ROOT = Path(__file__).resolve().parents[1]
+# The sibling pydevices checkout: next to this repo, inside it (CI), or next to
+# an ancestor when this is a worktree under .worktrees/.
 _TOOLS = next(
     path
-    for path in (_ROOT.parent / "pydevices" / "tools", _ROOT / "pydevices" / "tools")
+    for path in (
+        _ROOT / "pydevices" / "tools",
+        *(parent / "pydevices" / "tools" for parent in _ROOT.parents),
+    )
     if (path / "_browser_url.py").is_file()
 )
 sys.path.insert(0, str(_TOOLS))
