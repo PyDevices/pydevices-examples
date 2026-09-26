@@ -41,7 +41,9 @@ WARN = rgb(255, 170, 40)
 TXT = rgb(230, 230, 230)
 DIM = rgb(120, 140, 160)
 
-_CW = W // 2  # 1x text width in px; drawn at 2x
+X0 = 8  # text inset, inside the one-pixel border
+TW = W - 2 * X0  # text width on screen: 224 px, 14 characters at 2x
+_CW = TW // 2  # 1x text width in px; drawn at 2x
 _mono = bytearray(_CW // 8 * 8)
 _mfb = framebuf.FrameBuffer(_mono, _CW, 8, framebuf.MONO_HLSB)
 _tables = {}  # color -> 256 entries: one mono byte -> 16 px (2x wide) of RGB565
@@ -71,7 +73,7 @@ def _table(color):
 
 def line(row, text, color=TXT):
     """Draw one 16-px-tall line (8x8 font at 2x) at text row ``row``, if it changed."""
-    text = text[: W // 16]
+    text = text[: TW // 16]
     if _shown.get(row) == (text, color):
         return
     _shown[row] = (text, color)
@@ -86,8 +88,10 @@ def line(row, text, color=TXT):
         rows.append(r)
     buf = bytearray(b"".join(rows))
     y0 = 8 + row * 20
-    _shadow[y0 * W * 2 : (y0 + 16) * W * 2] = buf
-    display_drv.blit_rect(buf, 0, y0, W, 16)
+    for y in range(16):
+        o = ((y0 + y) * W + X0) * 2
+        _shadow[o : o + TW * 2] = buf[y * TW * 2 : (y + 1) * TW * 2]
+    display_drv.blit_rect(buf, X0, y0, TW, 16)
 
 
 def dotstars_off():
@@ -136,6 +140,17 @@ def clear():
     display_drv.fill_rect(0, 0, W, 320, BG)
     _shown.clear()
     _shadow[:] = bytes(len(_shadow))
+    border(DIM)
+
+
+def border(color):
+    """A one-pixel frame on the four outermost rows and columns of the glass."""
+    H = display_drv.height
+    for x, y, w, h in ((0, 0, W, 1), (0, H - 1, W, 1), (0, 0, 1, H), (W - 1, 0, 1, H)):
+        display_drv.fill_rect(x, y, w, h, color)
+        px = bytes((color & 0xFF, color >> 8))
+        for yy in range(y, y + h):
+            _shadow[(yy * W + x) * 2 : (yy * W + x + w) * 2] = px * w
 
 
 def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http", repaint=30):
@@ -149,7 +164,7 @@ def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http", repaint=30)
     sta = network.WLAN(network.STA_IF)
     ip = sta.ifconfig()[0]
     line(1, ip, DIM)
-    line(2, "hub " + hub, DIM)
+    line(2, "hub " + hub[-9:], DIM)
     s = Sensors()
     sent = failed = 0
     last_ok = None
@@ -178,7 +193,7 @@ def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http", repaint=30)
             clear()  # a full repaint now and then
             line(0, node, OK)
             line(1, ip, DIM)
-            line(2, "hub " + hub, DIM)
+            line(2, "hub " + hub[-9:], DIM)
         rate = sent * 1000 / max(1, time.ticks_diff(time.ticks_ms(), t0))
         print(node, sent, failed, r)
         line(3, "T  %.1f C" % r.get("temp", float("nan")))
@@ -187,8 +202,8 @@ def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http", repaint=30)
         line(6, "L  %.0f %%" % r.get("light", float("nan")))
         line(7, "PIR " + ("MOTION" if r["motion"] else "-"), WARN if r["motion"] else TXT)
         line(8, "RSSI %s dBm" % r.get("rssi", "?"))
-        line(9, "sent %d fail %d" % (sent, failed), OK if not failed else WARN)
-        line(10, "%.2f/s mem %dk" % (rate, gc.mem_free() // 1024), DIM)
+        line(9, "ok %d err %d" % (sent, failed), OK if not failed else WARN)
+        line(10, "%.2f/s %dk" % (rate, gc.mem_free() // 1024), DIM)
         gc.collect()
         wait = int(every * 1000) - time.ticks_diff(time.ticks_ms(), t)
         if wait > 0:
