@@ -127,8 +127,19 @@ class Sensors:
         return r
 
 
-def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http"):
-    display_drv.fill_rect(0, 0, W, display_drv.height, BG)
+def clear():
+    """Blank the panel and forget what was drawn, so the next frame repaints every line.
+
+    Clears all 320 rows of the ST7789's RAM, not only the 240 on the glass, so
+    nothing drawn before (another program, another orientation) survives.
+    """
+    display_drv.fill_rect(0, 0, W, 320, BG)
+    _shown.clear()
+    _shadow[:] = bytes(len(_shadow))
+
+
+def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http", repaint=30):
+    clear()
     dotstars_off()
     line(0, node, OK)
     line(1, "joining wifi", DIM)
@@ -162,6 +173,12 @@ def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http"):
                     wifi.connect_from_secrets()
                 except Exception as e2:
                     print("reconnect failed:", repr(e2))
+        frames = sent + failed
+        if repaint and frames % repaint == 0:
+            clear()  # a full repaint now and then
+            line(0, node, OK)
+            line(1, ip, DIM)
+            line(2, "hub " + hub, DIM)
         rate = sent * 1000 / max(1, time.ticks_diff(time.ticks_ms(), t0))
         print(node, sent, failed, r)
         line(3, "T  %.1f C" % r.get("temp", float("nan")))
