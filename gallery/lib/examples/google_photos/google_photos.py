@@ -115,7 +115,7 @@ def _block_if_batch():
     path, MCU REPL, PyScript, the example kit) keeps the app alive by itself.
     """
     try:
-        from appdev import _hostloop
+        from multimer import _hostloop
         from display_driver import app
 
         if not _launched_with_m(_hostloop) or _hostloop.ambient():
@@ -124,19 +124,16 @@ def _block_if_batch():
             return
     except Exception:
         return
-    if app.strategy != _hostloop.AMBIENT or app.timer_async:
-        app.run()  # "none": blocking service loop (async timers: asyncio.run)
+    if app.strategy != _hostloop.AMBIENT:
+        app.run()  # "none": blocking service loop
         return
     # "ambient" was chosen at import time; the timer already drives the app,
-    # so just hold the main thread until the window closes. Hold it with the
-    # timer backend's own sleep, never time.sleep: on Windows the timer fires
-    # only while this thread is in an alertable wait (SleepEx), and a plain
-    # time.sleep starves it -- the window then never repaints and Windows
-    # marks it "Not Responding".
-    from multimer import auto as timer
+    # so just hold the main thread until the window closes, delivering on
+    # the way (multimer.sleep_ms serves the timers on every host).
+    import multimer
 
     while not app.quit_requested:
-        timer.sleep_ms(50)
+        multimer.sleep_ms(50)
 
 
 def _launched_with_m(_hostloop):

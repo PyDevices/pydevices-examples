@@ -90,5 +90,5 @@ def main():
         tft_bitmap.bitmap(tft, alien, col, row)
         st["last_col"], st["old_row"] = col, row
 
-    app.every(_tick, period=10, async_=app.timer_async)
+    app.every(_tick, period=10)
 main()

@@ -545,5 +545,5 @@ def _tick(timer=None):
     game.tick(timer)
 
 
-_tick_subscription = app.every(_tick, period=FRAME_MS, async_=app.timer_async)
+_tick_subscription = app.every(_tick, period=FRAME_MS)
 game.draw()

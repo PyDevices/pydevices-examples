@@ -80,4 +80,4 @@ def _tick(_=None):
         app.request_quit()
 
 
-app.every(_tick, period=1, async_=app.timer_async)
+app.every(_tick, period=1)

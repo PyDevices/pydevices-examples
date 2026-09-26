@@ -11,7 +11,7 @@ app = appdev.App(board_config)
 import appdev
 import events
 
-from multimer import auto as timer
+import multimer
 
 FG, BG, ARM = 0xFFFF, 0x0000, 12
 W, H = display_drv.width, display_drv.height
@@ -66,13 +66,13 @@ def _on_up(e):
             % (gx, gy, tx, ty, gx - tx, gy - ty)
         )
         idx += 1
-        timer.sleep_ms(400)
+        multimer.sleep_ms(400)
         if idx >= len(TARGETS):
             _out("done %s" % (results,))
             display_drv.fill_rect(0, 0, W, H, BG)
         else:
             _show()
-            timer.sleep_ms(400)
+            multimer.sleep_ms(400)
     finally:
         _busy = False
 

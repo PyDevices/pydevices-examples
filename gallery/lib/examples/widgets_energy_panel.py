@@ -255,6 +255,6 @@ def _on_spike(_s=None, _e=None):
 seg.set_change_cb(_on_seg)
 spike_btn.add_event_cb(pd.events.MOUSEBUTTONDOWN, _on_spike)
 
-app.every(_live_tick, period=500, async_=app.timer_async)
+app.every(_live_tick, period=500)
 
 screen.visible = True

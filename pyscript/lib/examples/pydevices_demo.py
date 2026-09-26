@@ -152,5 +152,5 @@ def _on_click(e):
 
 setup_scroll()
 redraw()
-app.every(_scroll_tick, period=40, async_=app.timer_async)
+app.every(_scroll_tick, period=40)
 app.on(app.events.MOUSEBUTTONDOWN, _on_click)

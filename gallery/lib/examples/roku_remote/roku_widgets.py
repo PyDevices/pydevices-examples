@@ -297,7 +297,6 @@ class _RemoteUI:
             self._pump_sub = self.app.every(
                 self._pump,
                 period=250,
-                async_=getattr(self.app, "timer_async", False),
             )
         except Exception:
             self._pump_sub = None

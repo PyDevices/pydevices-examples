@@ -314,4 +314,4 @@ def _on_tick(_=None):
 
 draw_board()
 app.on(events.MOUSEBUTTONUP, _on_up)
-app.every(_on_tick, period=20, async_=getattr(app, "timer_async", False))
+app.every(_on_tick, period=20)
