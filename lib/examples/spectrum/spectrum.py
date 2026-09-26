@@ -43,7 +43,7 @@ from board_config import display_drv  # noqa: E402
 from multimer import ticks_diff, ticks_ms  # noqa: E402
 
 from fake_music import FakeMusic  # noqa: E402
-from spectrum_view import SpectrumView  # noqa: E402
+from spectrum_view import SpectrumView, band_count_for  # noqa: E402
 from pygraphics import RGB565, FrameBuffer  # noqa: E402
 
 try:
@@ -65,8 +65,13 @@ _present_rows = bool(getattr(display_drv, "needs_refresh", False)) and hasattr(
     getattr(display_drv, "_raw_buffer", None), "refresh_rect"
 )
 app = appdev.App(board_config, refresh_period=0 if _present_rows else None)
+# Half as many bars, half as high as the panel allows: Brad's trade for frame
+# rate under loud music (2026-09-26). The meter takes the top half of the panel.
 view = SpectrumView(
-    display_drv.width, display_drv.height, style=env_get("SPECTRUM_STYLE") or "smooth"
+    display_drv.width,
+    display_drv.height // 2,
+    bands=band_count_for(display_drv.width) // 2,
+    style=env_get("SPECTRUM_STYLE") or "smooth",
 )
 
 
