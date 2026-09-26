@@ -14,3 +14,9 @@ On Android (the PyDevices Runner) and as an installed PWA:
 | ![dogfood-android-piano.png](dogfood-android-piano.png) | ![dogfood-android-drum.png](dogfood-android-drum.png) | ![dogfood-android-drum-panel.png](dogfood-android-drum-panel.png) |
 | ![dogfood-pwa-piano.png](dogfood-pwa-piano.png) | ![dogfood-pwa-drum.png](dogfood-pwa-drum.png) | ![dogfood-pwa-drum-panel.png](dogfood-pwa-drum-panel.png) |
 | ![calc_lvgl_android.png](calc_lvgl_android.png) | ![paint_android.png](paint_android.png) |  |
+
+Device scenarios, Batch 0 ([sensor hub](../../lib/examples/sensor_hub/README.md) and [fleet page](../../lib/examples/fleet_page/README.md)). The mobile shot is a phone-sized browser on the PC:
+
+| Image | Image | Image |
+|-------|-------|-------|
+| ![sensor_hub_dashboard_pc.png](sensor_hub_dashboard_pc.png) | ![sensor_hub_dashboard_mobile.png](sensor_hub_dashboard_mobile.png) | ![fleet_page.png](fleet_page.png) |

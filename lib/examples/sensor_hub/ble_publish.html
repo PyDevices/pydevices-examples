@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hub publisher</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1b1f24;--dim:#5b6470;--line:#d9dde3;--accent:#2563eb;--bad:#b91c1c}
+@media (prefers-color-scheme:dark){:root{--bg:#111418;--card:#1a1f25;--ink:#e8ebef;--dim:#98a2ae;--line:#2c333b;--accent:#6ea0ff;--bad:#f87171}}
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1{font-size:20px;margin:0 0 4px}
+p{color:var(--dim);margin:0 0 16px}
+button{font:inherit;font-weight:600;padding:12px 18px;border-radius:8px;border:0;background:var(--accent);color:#fff;width:100%}
+button:disabled{opacity:.5}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:16px}
+label{display:block;color:var(--dim);font-size:14px}
+input[type=range]{width:100%}
+#state{font-variant-numeric:tabular-nums}
+#state.bad{color:var(--bad)}
+pre{white-space:pre-wrap;margin:8px 0 0;font-size:13px;color:var(--dim)}
+</style>
+</head>
+<body>
+<h1>Publish to the hub over Bluetooth</h1>
+<p>This phone becomes a node called <b id="node">phone</b>. It sends its battery level, its tilt and the slider once a second.</p>
+<button id="go">Connect to the hub</button>
+<div class="card">
+  <div id="state">Not connected.</div>
+  <label>Slider <span id="knobv">50</span>
+    <input id="knob" type="range" min="0" max="100" value="50"></label>
+  <pre id="last"></pre>
+</div>
+<script>
+// The hub's service (sensor_hub/blefeed.py). Each write is one reading as text.
+const HUB_SERVICE = "7d9a0001-5a5e-4c2b-9f0e-8b3c1d2e4f60";
+const HUB_PUBLISH = "7d9a0002-5a5e-4c2b-9f0e-8b3c1d2e4f60";
+const node = new URLSearchParams(location.search).get("node") || "phone";
+document.getElementById("node").textContent = node;
+const $ = id => document.getElementById(id);
+let tilt = null, battery = null, sent = 0, ch = null, timer = null;
+
+$("knob").oninput = e => $("knobv").textContent = e.target.value;
+window.addEventListener("deviceorientation", e => { if (e.beta != null) tilt = Math.round(e.beta); });
+if (navigator.getBattery) navigator.getBattery().then(b => {
+  const upd = () => battery = Math.round(b.level * 100);
+  upd(); b.addEventListener("levelchange", upd);
+});
+
+function say(text, bad) { $("state").textContent = text; $("state").className = bad ? "bad" : ""; }
+
+async function publish() {
+  const parts = [node, `n=${++sent}`, `slider=${$("knob").value}`];
+  if (battery != null) parts.push(`batt=${battery}`);
+  if (tilt != null) parts.push(`tilt=${tilt}`);
+  const line = parts.join(" ");
+  try {
+    await ch.writeValueWithoutResponse(new TextEncoder().encode(line));
+    $("last").textContent = line;
+    say(`Connected. ${sent} readings sent.`);
+  } catch (e) { say("Write failed: " + e.message, true); }
+}
+
+$("go").onclick = async () => {
+  if (!navigator.bluetooth) { say("This browser has no Web Bluetooth. Use Chrome, from https:// or localhost.", true); return; }
+  $("go").disabled = true;
+  try {
+    say("Pick the hub in the list.");
+    const dev = await navigator.bluetooth.requestDevice({filters: [{services: [HUB_SERVICE]}]});
+    dev.addEventListener("gattserverdisconnected", () => {
+      clearInterval(timer); ch = null; say("Disconnected.", true); $("go").disabled = false;
+    });
+    let server;
+    for (let i = 0; i < 3 && !server; i++) {       // Android fails about half of first connects
+      try { server = await dev.gatt.connect(); } catch (e) { if (i === 2) throw e; }
+    }
+    ch = await (await server.getPrimaryService(HUB_SERVICE)).getCharacteristic(HUB_PUBLISH);
+    say(`Connected to ${dev.name || "the hub"}.`);
+    timer = setInterval(publish, 1000);
+    publish();
+  } catch (e) { say(e.message, true); $("go").disabled = false; }
+};
+</script>
+</body>
+</html>

@@ -425,6 +425,14 @@
       "github:PyDevices/pydevices-examples/lib/examples/drum_seq/panel.py"
     ],
     [
+      "fleet_page/check_fleet.py",
+      "github:PyDevices/pydevices-examples/lib/examples/fleet_page/check_fleet.py"
+    ],
+    [
+      "fleet_page/fleet.py",
+      "github:PyDevices/pydevices-examples/lib/examples/fleet_page/fleet.py"
+    ],
+    [
       "google_photos/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/google_photos/__init__.py"
     ],
@@ -519,6 +527,42 @@
     [
       "roku_remote/roku_widgets.py",
       "github:PyDevices/pydevices-examples/lib/examples/roku_remote/roku_widgets.py"
+    ],
+    [
+      "sensor_hub/__init__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/__init__.py"
+    ],
+    [
+      "sensor_hub/__main__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/__main__.py"
+    ],
+    [
+      "sensor_hub/ble_publish.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/ble_publish.py"
+    ],
+    [
+      "sensor_hub/blefeed.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/blefeed.py"
+    ],
+    [
+      "sensor_hub/board_main.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/board_main.py"
+    ],
+    [
+      "sensor_hub/check_hub.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/check_hub.py"
+    ],
+    [
+      "sensor_hub/hub.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/hub.py"
+    ],
+    [
+      "sensor_hub/publish.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/publish.py"
+    ],
+    [
+      "sensor_hub/wsfeed.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/wsfeed.py"
     ],
     [
       "tiny_toasters/__init__.py",

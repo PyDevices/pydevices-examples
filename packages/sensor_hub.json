@@ -1,0 +1,41 @@
+{
+  "urls": [
+    [
+      "sensor_hub/__init__.py",
+      "../lib/examples/sensor_hub/__init__.py"
+    ],
+    [
+      "sensor_hub/__main__.py",
+      "../lib/examples/sensor_hub/__main__.py"
+    ],
+    [
+      "sensor_hub/ble_publish.py",
+      "../lib/examples/sensor_hub/ble_publish.py"
+    ],
+    [
+      "sensor_hub/blefeed.py",
+      "../lib/examples/sensor_hub/blefeed.py"
+    ],
+    [
+      "sensor_hub/board_main.py",
+      "../lib/examples/sensor_hub/board_main.py"
+    ],
+    [
+      "sensor_hub/check_hub.py",
+      "../lib/examples/sensor_hub/check_hub.py"
+    ],
+    [
+      "sensor_hub/hub.py",
+      "../lib/examples/sensor_hub/hub.py"
+    ],
+    [
+      "sensor_hub/publish.py",
+      "../lib/examples/sensor_hub/publish.py"
+    ],
+    [
+      "sensor_hub/wsfeed.py",
+      "../lib/examples/sensor_hub/wsfeed.py"
+    ]
+  ],
+  "version": "0.0.1"
+}
