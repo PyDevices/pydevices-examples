@@ -13,6 +13,10 @@
       "../lib/examples/spectrum/fake_music.py"
     ],
     [
+      "spectrum/loopback_levels.py",
+      "../lib/examples/spectrum/loopback_levels.py"
+    ],
+    [
       "spectrum/make_captures.py",
       "../lib/examples/spectrum/make_captures.py"
     ],

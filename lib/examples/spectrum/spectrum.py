@@ -14,9 +14,11 @@ opens at 800x480 unless ``PYDEVICES_WIDTH``/``PYDEVICES_HEIGHT`` say otherwise.
 Set ``SPECTRUM_STYLE=segmented`` for LED-style bars.
 
 The levels come from the sound card's C pump when the firmware has one
-(``pump_levels.PumpLevels``: run this beside usbif's ``soundcard.py``) and
-from ``fake_music.FakeMusic`` otherwise. ``SPECTRUM_SOURCE=fake`` forces the
-fake. Either only has to hand ``SpectrumView.update`` one 0..1 level per band.
+(``pump_levels.PumpLevels``: run this beside usbif's ``soundcard.py``), from
+what the computer is playing on a CPython desktop with numpy and
+``soundcard`` installed (``loopback_levels.LoopbackLevels``), and from
+``fake_music.FakeMusic`` otherwise. ``SPECTRUM_SOURCE=fake|pump|loopback``
+forces one. Either only has to hand ``SpectrumView.update`` one 0..1 level per band.
 
 ``capture(path)`` writes the frame on screen to a file as raw RGB565, for a
 screenshot of a real panel.
@@ -72,14 +74,27 @@ _y = 0  # the meter's top row on the panel
 timer = None
 
 def _source():
-    if env_get("SPECTRUM_SOURCE") != "fake":
-        try:
-            import pump_levels
+    """The sound card's C pump on a board, what the computer is playing on a
+    desktop (``loopback_levels``), else the fake. ``SPECTRUM_SOURCE`` forces
+    one: ``fake``, ``pump`` or ``loopback``."""
+    want = env_get("SPECTRUM_SOURCE")
+    if want != "fake":
+        if want in (None, "pump"):
+            try:
+                import pump_levels
 
-            if pump_levels.available():
-                return pump_levels.PumpLevels(view.bands)
-        except ImportError:
-            pass
+                if pump_levels.available():
+                    return pump_levels.PumpLevels(view.bands)
+            except ImportError:
+                pass
+        if want in (None, "loopback"):
+            try:
+                import loopback_levels
+
+                if loopback_levels.available():
+                    return loopback_levels.LoopbackLevels(view.bands)
+            except Exception as error:  # no loopback device, no audio stack
+                print("spectrum: no loopback source (%r)" % (error,))
     return FakeMusic(view.bands)
 
 

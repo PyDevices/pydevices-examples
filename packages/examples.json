@@ -533,6 +533,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/spectrum/fake_music.py"
     ],
     [
+      "spectrum/loopback_levels.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/loopback_levels.py"
+    ],
+    [
       "spectrum/make_captures.py",
       "github:PyDevices/pydevices-examples/lib/examples/spectrum/make_captures.py"
     ],
