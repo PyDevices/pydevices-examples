@@ -436,6 +436,21 @@ def run_unit_tests() -> int:
     return proc.returncode
 
 
+def multimer_source_args(env) -> list[str]:
+    """Wrapper argv that forces ``MULTIMER_SOURCE`` from ``env``, if set.
+
+    ``MULTIMER_BACKEND`` was retired with pydevices 0.6: nothing reads it, so a
+    run that set it would test the default source while claiming another.
+    """
+    if env.get("MULTIMER_BACKEND"):
+        raise SystemExit(
+            "MULTIMER_BACKEND is retired; set MULTIMER_SOURCE "
+            "(signal, pending, asyncio, machine, wasm, native, none)"
+        )
+    source = env.get("MULTIMER_SOURCE")
+    return ["--multimer-source", str(source)] if source else []
+
+
 def run_subprocess_case(
     interpreter_id: str,
     exe: str,
@@ -479,9 +494,7 @@ def run_subprocess_case(
     timer_async = env.get("PYDEVICES_TIMER_ASYNC")
     if timer_async is not None:
         cmd.extend(["--timer-async", str(timer_async)])
-    multimer_backend = env.get("MULTIMER_BACKEND")
-    if multimer_backend:
-        cmd.extend(["--multimer-backend", str(multimer_backend)])
+    cmd.extend(multimer_source_args(env))
     # Do not forward SDL_* to Windows PE. WSL-exported env is invisible to
     # .exe children (so unix stays headless via the shell export), and PE
     # should keep a real Windows video driver — dummy there hides the brief

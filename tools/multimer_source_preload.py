@@ -3,24 +3,26 @@
 
 Usage (cwd is ``lib/``)::
 
-    <python> ../tools/multimer_backend_preload.py [--source-workspace] [--env NAME=VALUE]... BACKEND SCRIPT [ARGS...]
+    <python> ../tools/multimer_source_preload.py [--source-workspace] [--env NAME=VALUE]... SOURCE SCRIPT [ARGS...]
 
-``BACKEND`` is a provider name accepted by ``multimer.auto``, or ``-`` to keep
-automatic selection.
+``SOURCE`` is a multimer wake source (``signal``, ``pending``, ``asyncio``,
+``machine``, ``wasm``, ``native``, ``none``), or ``-`` to keep automatic
+selection.
 
 Environment variables cover direct runs, but Windows MicroPython / CPython
 launched from WSL cannot see exported ones, so a sweep across interpreters sets
-``MULTIMER_BACKEND`` inside the child before importing ``multimer.auto`` and
-uses ``displaydev.env_set()`` for other ``--env`` values. The target script keeps the real command line
+``MULTIMER_SOURCE`` inside the child, makes multimer choose its source at once,
+and checks that the one it got is the one asked for. Other ``--env`` values go
+through ``displaydev.env_set()``. The target script keeps the real command line
 (``sys.argv`` is read-only on CircuitPython), so scripts must locate their own
 flags anywhere in ``sys.argv`` rather than at a fixed index.
 
-Exits 2 on bad usage and 3 when the backend is unavailable on this host.
+Exits 2 on bad usage and 3 when the source is unavailable on this host.
 """
 
 import sys
 
-USAGE = "usage: multimer_backend_preload.py [--source-workspace] [--env NAME=VALUE]... BACKEND SCRIPT [ARGS...]"
+USAGE = "usage: multimer_source_preload.py [--source-workspace] [--env NAME=VALUE]... SOURCE SCRIPT [ARGS...]"
 
 
 def _env_set(key, value):
@@ -46,6 +48,28 @@ def _env_set(key, value):
         raise ImportError("process environment cannot be changed")
 
 
+def force_source(name):
+    """Make multimer select ``name`` now; return the source it got.
+
+    multimer reads ``MULTIMER_SOURCE`` when it first needs a wake source, and a
+    forced source that cannot start falls back to ``none`` without raising. So
+    select it here, before the script arms anything, and raise when the source
+    in use is not the one asked for.
+    """
+    _env_set("MULTIMER_SOURCE", name)
+    import multimer
+    from multimer import _dispatch
+
+    _dispatch._ensure_source()
+    info = multimer.info()
+    active = info.get("source")
+    if active != name:
+        raise RuntimeError(
+            "multimer chose {!r}: {}".format(active, info.get("source_error", "already selected"))
+        )
+    return active
+
+
 def _bootstrap_path(source_workspace=False):
     """Mirror ``utils/path.py``: make ``lib`` / ``utils`` importable from ``src``."""
     directories = ["utils", "lib", "."]
@@ -66,7 +90,7 @@ def _bootstrap_path(source_workspace=False):
 
 
 def _parse(argv):
-    """Split ``argv`` into (env pairs, backend, script). Returns None on bad usage."""
+    """Split ``argv`` into (source_workspace, env pairs, source, script). Returns None on bad usage."""
     env = []
     source_workspace = False
     rest = argv[1:]
@@ -90,7 +114,7 @@ def main(argv):
     if parsed is None:
         print(USAGE)
         return 2
-    source_workspace, env, backend, script = parsed
+    source_workspace, env, source, script = parsed
 
     _bootstrap_path(source_workspace)
 
@@ -101,18 +125,13 @@ def main(argv):
             env_set(name, value)
             print(f"PRELOAD_ENV={name}={value}")
 
-    if backend != "-":
+    if source != "-":
         try:
-            _env_set("MULTIMER_BACKEND", backend)
-            from multimer import auto as timer
-
-            active = timer.name
-            if active != backend:
-                raise RuntimeError("multimer.auto was already selected as {!r}".format(active))
+            active = force_source(source)
         except (ImportError, RuntimeError, ValueError) as exc:
-            print(f"MULTIMER_BACKEND_UNAVAILABLE={backend!r}: {exc}")
+            print(f"MULTIMER_SOURCE_UNAVAILABLE={source!r}: {exc}")
             return 3
-        print(f"MULTIMER_BACKEND_FORCED={active}")
+        print(f"MULTIMER_SOURCE_FORCED={active}")
 
     with open(script) as fh:
         code = fh.read()
