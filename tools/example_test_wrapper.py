@@ -699,8 +699,8 @@ def main(argv=None):
             key, value = item.split("=", 1)
             if key:
                 env_set(key, value)
-        if args.get("timer_async") is not None:
-            env_set("PYDEVICES_TIMER_ASYNC", args["timer_async"])
+        # --timer-async is accepted and ignored: multimer has one timer model
+        # on every host, and board configs no longer export timer_async.
 
     # Install the deadline hook AFTER bootstrap: it imports multimer, which is
     # only on sys.path once _setup_bootstrap has run. The hook drives quit for

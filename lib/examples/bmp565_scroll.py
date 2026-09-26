@@ -43,7 +43,7 @@ def main():
         draw_bg(0, i % display_drv.height, 0, i % image.height)
         st["i"] = i + 1
 
-    app.every(_tick, period=1, async_=app.timer_async)
+    app.every(_tick, period=1)
 
 
 main()

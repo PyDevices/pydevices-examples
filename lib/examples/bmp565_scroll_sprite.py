@@ -118,7 +118,7 @@ def main():
 
     app.on(app.events.MOUSEMOTION, _on_motion)
     # ~20 fps once scrolling; first columns also tick so quit is always serviced.
-    app.every(_tick, period=50, async_=app.timer_async)
+    app.every(_tick, period=50)
 
 
 main()

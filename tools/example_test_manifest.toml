@@ -4,8 +4,8 @@
 # kind: oneshot | loop | async | lvgl | pdwidgets | harness | legacy
 # quit: native_exit | poll | inject | pending | interactive
 # bootstrap: full (default) | headless — headless skips utils.path / display init
-# Timer mode for kit runs: host PYDEVICES_TIMER_ASYNC is forwarded as wrapper
-# --timer-async (board_config / displaydev.env_set). Examples do not read env.
+# There is one timer mode: multimer delivers on every host by itself, so the
+# old PYDEVICES_TIMER_ASYNC sync/async split is gone (it is still accepted).
 
 [defaults]
 duration_s = 2
@@ -146,7 +146,6 @@ deps = ["utils", "tft_config"]
 
 # --- LVGL timer smoke test (matrix) ---
 # Also covered by tools/lv_timer_test_kit.py (``lv_test_timer.py kit``).
-# Follows app.timer_async; does not set PYDEVICES_TIMER_ASYNC itself.
 
 [examples.lv_test_timer]
 import = "lv_test_timer"

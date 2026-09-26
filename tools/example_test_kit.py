@@ -474,6 +474,8 @@ def run_subprocess_case(
     apply_sibling_env(env, repo_root=str(REPO))
     _ensure_user_micropy_lib(env)
     # Windows PE under WSL cannot read Linux-exported env; pass via argv + env_set.
+    # PYDEVICES_TIMER_ASYNC is retired (multimer has one timer model); it is
+    # still forwarded so old matrix invocations run, and the wrapper ignores it.
     timer_async = env.get("PYDEVICES_TIMER_ASYNC")
     if timer_async is not None:
         cmd.extend(["--timer-async", str(timer_async)])

@@ -6,14 +6,13 @@ Subprocesses run ``examples/lv_test_timer.py kit`` from ``lib/`` (~4 s of
 checks, then an injected ``events.Quit``). Each child prints ``KIT_RESULT=`` on
 stdout; exit code 0 is expected on success.
 
-The example follows ``app.timer_async`` (it does not set env vars). This kit
-sets ``PYDEVICES_TIMER_ASYNC`` in the child environment so ``board_config``
-constructs sync or async timers; modes are ``sync`` and ``async``.
+multimer has one timer model on every host now, so the kit runs one mode,
+``sync`` (the name is kept so old result files still line up). Where a host
+owns an asyncio loop, multimer rides it by itself.
 
 From repo root:
     python tools/lv_timer_test_kit.py
     python tools/lv_timer_test_kit.py --only cpython-venv
-    python tools/lv_timer_test_kit.py --only cpython-venv --modes async
     python tools/lv_timer_test_kit.py --backend sdl2
 
 ``--backend`` forces one multimer backend through
@@ -67,7 +66,7 @@ LVGL_INTERPRETERS = (
 # Back-compat alias for docs/CLI that used ``cpython``.
 INTERPRETER_ALIASES = {"cpython": "cpython-venv"}
 
-MODES = ("sync", "async")
+MODES = ("sync",)
 
 sys.path.insert(0, str(TOOLS))
 from example_test_kit import load_interpreters, resolve_interpreter_exe  # noqa: E402

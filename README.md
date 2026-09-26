@@ -88,7 +88,7 @@ for complete device setup.
 ## App ownership
 
 Board configs describe hardware. They export neutral pieces such as
-`display_drv`, `touch_read`, `host_read`, and `timer_async`; they do not create
+`display_drv`, `touch_read`, and `host_read`; they do not create
 an application-level `appdev.App`.
 
 Non-LVGL examples in this repo opt into the optional `appdev` coordinator:

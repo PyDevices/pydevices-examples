@@ -21,7 +21,7 @@ run() {  # run <label> <cmd...>
     echo "    [rc=${PIPESTATUS[0]}]"
 }
 
-for scenario in noloop async run crash; do
+for scenario in noloop run crash; do
     echo
     echo "=================== $scenario"
     run "CPython / linux"       python3 demo_$scenario.py
@@ -32,7 +32,7 @@ done
 
 echo
 echo "=================== browser (wasm, ambient): host loop outlives the script"
-for scenario in noloop async run; do
+for scenario in noloop run; do
     run "MicroPython wasm / $scenario" node wasm_host.mjs demo_$scenario.py
 done
 

@@ -143,4 +143,4 @@ def _tick(_=None):
 
 
 _init_apollo()
-app.every(_tick, period=20, async_=app.timer_async)
+app.every(_tick, period=20)

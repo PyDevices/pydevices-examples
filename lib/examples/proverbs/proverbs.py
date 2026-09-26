@@ -108,7 +108,7 @@ def main():
 
         st["index"] = (st["index"] + 1) % len(proverbs)
 
-    app.every(_tick, period=5000, async_=app.timer_async)
+    app.every(_tick, period=5000)
 
 
 main()

@@ -14,7 +14,7 @@ def _on_event(e):
 
 
 print("appdev_simpletest: started — click the canvas to see pointer events")
-app.every(_heartbeat, period=2000, async_=app.timer_async)
+app.every(_heartbeat, period=2000)
 
 # Subscribe broadly via device type so any pointer/key event prints.
 for et in (

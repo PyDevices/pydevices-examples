@@ -143,7 +143,7 @@ def build_ui():
             if _ui is not None and _ui.rails is not None:
                 _ui.rails.drain_pending()
 
-        app.on_tick(_drain_rails, period=30, async_=False)
+        app.on_tick(_drain_rails, period=30)
         _ui.rails.drain_pending()
         if _FREEZE:
             freeze(True)
