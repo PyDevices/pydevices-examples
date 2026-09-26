@@ -18,13 +18,13 @@ cannot deliver, and expects the failure.
 
 import argparse
 import os
+from pathlib import Path
 import pty
 import re
 import select
 import subprocess
 import sys
 import time
-from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_PD = HERE.parent.parent.parent / "pydevices"
@@ -74,7 +74,7 @@ def check(label, ok, detail=""):
 
 def repl_goal(label, argv, env, expect_fail=False):
     out = pty_run(
-        argv + ["-i", str(HERE / "demo_timers.py")],
+        [*argv, "-i", str(HERE / "demo_timers.py")],
         env,
         1.5,
         [
@@ -90,7 +90,9 @@ def repl_goal(label, argv, env, expect_fail=False):
     slow_ok = bool(d) and int(d[0][1]) >= 1
     reported = "multimer on" in out and "name='fast'" in out
     if expect_fail:
-        return check(label + " (planted fault: no wake source)", not grew, "counts %s -> %s" % (c, d))
+        return check(
+            label + " (planted fault: no wake source)", not grew, "counts %s -> %s" % (c, d)
+        )
     fails = check(label + ": ticks grow at the prompt", grew, "counts %s -> %s" % (c, d))
     fails += check(label + ": the 100 ms timer fired too", slow_ok)
     fails += check(label + ": report() answers at the prompt", reported)
@@ -102,7 +104,7 @@ def repl_goal(label, argv, env, expect_fail=False):
 def inloop_repl(label, argv, env):
     """The in-loop line REPL: ticks grow between two reads, report() answers."""
     out = pty_run(
-        argv + [str(HERE / "demo_repl.py")],
+        [*argv, str(HERE / "demo_repl.py")],
         env,
         1.5,
         [
@@ -115,8 +117,14 @@ def inloop_repl(label, argv, env):
     c = re.findall(r"COUNT1 (\d+)", out)
     d = re.findall(r"COUNT2 (\d+)", out)
     grew = bool(c and d) and int(d[0]) > int(c[0]) + 30
-    fails = check(label + ": multimer.repl() keeps ticks growing between lines", grew, "counts %s -> %s" % (c, d))
-    fails += check(label + ": report() answers inside repl()", "multimer on" in out and "name='fast'" in out)
+    fails = check(
+        label + ": multimer.repl() keeps ticks growing between lines",
+        grew,
+        "counts %s -> %s" % (c, d),
+    )
+    fails += check(
+        label + ": report() answers inside repl()", "multimer on" in out and "name='fast'" in out
+    )
     fails += check(label + ": Ctrl-D returns from repl()", "repl returned" in out)
     if fails:
         print("---- transcript\n" + out + "\n----")
@@ -126,25 +134,41 @@ def inloop_repl(label, argv, env):
 def script_mode(label, argv, env):
     t0 = time.time()
     p = subprocess.run(
-        argv + [str(HERE / "demo_keepalive.py")], env=dict(os.environ, **env),
-        capture_output=True, text=True, timeout=30,
+        [*argv, str(HERE / "demo_keepalive.py")],
+        env=dict(os.environ, **env),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
     )
     took = time.time() - t0
     out = p.stdout + p.stderr
     ok = "stopping at 15" in out and p.returncode == 0 and took < 5
-    return check(label + ": keepalive holds the process until the program stops", ok, "rc=%d %.1fs" % (p.returncode, took))
+    return check(
+        label + ": keepalive holds the process until the program stops",
+        ok,
+        "rc=%d %.1fs" % (p.returncode, took),
+    )
 
 
 def crash_mode(label, argv, env):
     t0 = time.time()
     p = subprocess.run(
-        argv + [str(HERE / "demo_crash.py")], env=dict(os.environ, **env),
-        capture_output=True, text=True, timeout=30,
+        [*argv, str(HERE / "demo_crash.py")],
+        env=dict(os.environ, **env),
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
     )
     took = time.time() - t0
     out = p.stdout + p.stderr
     ok = "boom" in out and p.returncode != 0 and took < 5
-    return check(label + ": a crashing script exits instead of looping", ok, "rc=%d %.1fs" % (p.returncode, took))
+    return check(
+        label + ": a crashing script exits instead of looping",
+        ok,
+        "rc=%d %.1fs" % (p.returncode, took),
+    )
 
 
 def main():
@@ -152,7 +176,9 @@ def main():
     ap.add_argument("--pd", default=str(DEFAULT_PD))
     ap.add_argument("--mp", default=None, help="unix micropython binary")
     ap.add_argument("--cp", default=None, help="unix circuitpython binary")
-    ap.add_argument("--python", action="append", default=[], help="CPython executable (repeatable)")
+    ap.add_argument(
+        "--python", action="append", default=[], help="CPython executable (repeatable)"
+    )
     ap.add_argument("--planted-fault", action="store_true")
     a = ap.parse_args()
     pd = Path(a.pd)
@@ -161,16 +187,34 @@ def main():
     fails = 0
     pythons = a.python or [sys.executable]
     for py in pythons:
-        label = "CPython %s" % subprocess.run([py, "-c", "import sys;print(sys.version.split()[0])"], capture_output=True, text=True).stdout.strip()
+        label = (
+            "CPython %s"
+            % subprocess.run(
+                [py, "-c", "import sys;print(sys.version.split()[0])"],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.strip()
+        )
         fails += repl_goal(label, [py], env)
         if a.planted_fault:
-            fails += repl_goal(label, [py], dict(env, MULTIMER_SOURCE="none", MULTIMER_INPUTHOOK="0"), expect_fail=True)
+            fails += repl_goal(
+                label,
+                [py],
+                dict(env, MULTIMER_SOURCE="none", MULTIMER_INPUTHOOK="0"),
+                expect_fail=True,
+            )
         fails += script_mode(label, [py], env)
         fails += crash_mode(label, [py], env)
     if a.mp:
         fails += repl_goal("MicroPython unix", [a.mp], env)
         if a.planted_fault:
-            fails += repl_goal("MicroPython unix", [a.mp], dict(env, MULTIMER_SOURCE="none", MULTIMER_INPUTHOOK="0"), expect_fail=True)
+            fails += repl_goal(
+                "MicroPython unix",
+                [a.mp],
+                dict(env, MULTIMER_SOURCE="none", MULTIMER_INPUTHOOK="0"),
+                expect_fail=True,
+            )
         fails += script_mode("MicroPython unix", [a.mp], env)
         fails += crash_mode("MicroPython unix", [a.mp], env)
     if a.cp:

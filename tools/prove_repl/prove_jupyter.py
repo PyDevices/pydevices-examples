@@ -12,11 +12,11 @@ Exit status is the number of failed checks.
 
 import argparse
 import os
+from pathlib import Path
 import queue
 import re
 import sys
 import time
-from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_PD = HERE.parent.parent.parent / "pydevices"
@@ -56,7 +56,11 @@ def run_cell(kc, code, timeout=30):
             out += c["text"]
         elif t == "error":
             out += "\n".join(c["traceback"])
-        elif t == "status" and c["execution_state"] == "idle" and msg["parent_header"].get("msg_id") == msg_id:
+        elif (
+            t == "status"
+            and c["execution_state"] == "idle"
+            and msg["parent_header"].get("msg_id") == msg_id
+        ):
             break
     return out
 
@@ -74,7 +78,9 @@ def main():
     from jupyter_client import KernelManager
 
     env = dict(os.environ)
-    env["PYTHONPATH"] = os.pathsep.join([str(pd / "lib"), str(pd / "utils"), str(pd / "board_configs" / "jndisplay")])
+    env["PYTHONPATH"] = os.pathsep.join(
+        [str(pd / "lib"), str(pd / "utils"), str(pd / "board_configs" / "jndisplay")]
+    )
     km = KernelManager(kernel_name="python3")
     km.start_kernel(env=env)
     kc = km.client()
@@ -84,22 +90,36 @@ def main():
     try:
         out = run_cell(kc, CELL_ARM)
         src = re.findall(r"SOURCE (\S+) STRATEGY (\S+)", out)
-        fails += check("cell 1 arms timers on the kernel's loop", bool(src) and src[0][0] == "asyncio" and src[0][1] == "ambient", out.strip())
+        fails += check(
+            "cell 1 arms timers on the kernel's loop",
+            bool(src) and src[0][0] == "asyncio" and src[0][1] == "ambient",
+            out.strip(),
+        )
         time.sleep(1.0)
         c1 = re.findall(r"COUNT1 (\d+) (\d+)", run_cell(kc, CELL_COUNT1))
         time.sleep(1.0)
         c2 = re.findall(r"COUNT2 (\d+) (\d+)", run_cell(kc, CELL_COUNT2))
-        grew = bool(c1 and c2) and int(c2[0][0]) > int(c1[0][0]) + 50 and int(c2[0][1]) > int(c1[0][1])
+        grew = (
+            bool(c1 and c2)
+            and int(c2[0][0]) > int(c1[0][0]) + 50
+            and int(c2[0][1]) > int(c1[0][1])
+        )
         fails += check("timers keep firing between cells", grew, "counts %s -> %s" % (c1, c2))
         rep = run_cell(kc, CELL_REPORT)
-        fails += check("report() answers from a cell", "source=asyncio" in rep and "name='fast'" in rep, rep.strip()[:200])
+        fails += check(
+            "report() answers from a cell",
+            "source=asyncio" in rep and "name='fast'" in rep,
+            rep.strip()[:200],
+        )
         out = run_cell(kc, CELL_APP)
         app_ok = "APP ambient JNDisplay" in out
         fails += check("an App on JNDisplay arms in a notebook", app_ok, out.strip()[-300:])
         if app_ok:
             time.sleep(0.6)
             ac = re.findall(r"APPCOUNT (\d+) (\d+)", run_cell(kc, CELL_APP_COUNT))
-            fails += check("the App's timers ran between cells", bool(ac) and int(ac[0][0]) >= 5, str(ac))
+            fails += check(
+                "the App's timers ran between cells", bool(ac) and int(ac[0][0]) >= 5, str(ac)
+            )
     finally:
         kc.stop_channels()
         km.shutdown_kernel(now=True)
