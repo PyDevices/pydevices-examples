@@ -269,6 +269,34 @@
       "github:PyDevices/pydevices-examples/lib/examples/apollo/dsky.py"
     ],
     [
+      "assistant/assistant.py",
+      "github:PyDevices/pydevices-examples/lib/examples/assistant/assistant.py"
+    ],
+    [
+      "assistant/board_voice.py",
+      "github:PyDevices/pydevices-examples/lib/examples/assistant/board_voice.py"
+    ],
+    [
+      "assistant/gemini.py",
+      "github:PyDevices/pydevices-examples/lib/examples/assistant/gemini.py"
+    ],
+    [
+      "assistant/gemini_key.py",
+      "github:PyDevices/pydevices-examples/lib/examples/assistant/gemini_key.py"
+    ],
+    [
+      "assistant/phase_a.py",
+      "github:PyDevices/pydevices-examples/lib/examples/assistant/phase_a.py"
+    ],
+    [
+      "assistant/server.py",
+      "github:PyDevices/pydevices-examples/lib/examples/assistant/server.py"
+    ],
+    [
+      "assistant/tools.py",
+      "github:PyDevices/pydevices-examples/lib/examples/assistant/tools.py"
+    ],
+    [
       "audiolive/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/audiolive/__init__.py"
     ],

@@ -1,0 +1,33 @@
+{
+  "urls": [
+    [
+      "assistant/assistant.py",
+      "../lib/examples/assistant/assistant.py"
+    ],
+    [
+      "assistant/board_voice.py",
+      "../lib/examples/assistant/board_voice.py"
+    ],
+    [
+      "assistant/gemini.py",
+      "../lib/examples/assistant/gemini.py"
+    ],
+    [
+      "assistant/gemini_key.py",
+      "../lib/examples/assistant/gemini_key.py"
+    ],
+    [
+      "assistant/phase_a.py",
+      "../lib/examples/assistant/phase_a.py"
+    ],
+    [
+      "assistant/server.py",
+      "../lib/examples/assistant/server.py"
+    ],
+    [
+      "assistant/tools.py",
+      "../lib/examples/assistant/tools.py"
+    ]
+  ],
+  "version": "0.0.1"
+}
