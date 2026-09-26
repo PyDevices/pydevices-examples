@@ -64,16 +64,12 @@ REPORT_S = 5
 _present_rows = bool(getattr(display_drv, "needs_refresh", False)) and hasattr(
     getattr(display_drv, "_raw_buffer", None), "refresh_rect"
 )
-app = appdev.App(board_config, refresh_period=0 if _present_rows else None)
-# Half as many bars, half as high as the panel allows: Brad's trade for frame
-# rate under loud music (2026-09-26). The meter takes the top half of the panel.
-view = SpectrumView(
-    display_drv.width,
-    display_drv.height // 2,
-    bands=band_count_for(display_drv.width) // 2,
-    style=env_get("SPECTRUM_STYLE") or "smooth",
-)
-
+app = None
+view = None
+music = None
+_send = None
+_y = 0  # the meter's top row on the panel
+timer = None
 
 def _source():
     if env_get("SPECTRUM_SOURCE") != "fake":
@@ -85,9 +81,6 @@ def _source():
         except ImportError:
             pass
     return FakeMusic(view.bands)
-
-
-music = _source()
 
 
 def _panel_blit():
@@ -108,11 +101,11 @@ def _panel_blit():
     return display_drv.blit_rect
 
 
-_send = _panel_blit()
 _dirty = [0, 0]  # rows touched this frame, top and bottom
 
 
 def blit(buf, x, y, w, h):
+    y += _y
     _send(buf, x, y, w, h)
     d = _dirty
     if y < d[0]:
@@ -122,14 +115,9 @@ def blit(buf, x, y, w, h):
 
 
 last_report = ""
-display_drv.blit_rect(view.strip(0, view.height), 0, 0, view.width, view.height)
-if _present_rows:
-    display_drv.show()
-view._build_bar_columns()  # a second on the P4; not on the first frame
-
-_t0 = ticks_ms()
-_last = _t0
-_stats = [0, 0, 0, 0, _t0]  # frames, data us, draw us, blit us, report start
+_t0 = 0
+_last = 0
+_stats = [0, 0, 0, 0, 0]  # frames, data us, draw us, blit us, report start
 
 
 def _tick(_=None):
@@ -142,7 +130,7 @@ def _tick(_=None):
     b = ticks_us()
     view.update(levels, min(dt, 0.1))
     c = ticks_us()
-    _dirty[0], _dirty[1] = view.height, 0
+    _dirty[0], _dirty[1] = _y + view.height, 0
     view.render_columns(blit)
     if _present_rows and _dirty[1] > _dirty[0]:
         display_drv.flush_rect(0, _dirty[0], view.width, _dirty[1] - _dirty[0])
@@ -165,17 +153,59 @@ def _tick(_=None):
 
 
 def capture(path):
-    """Write the frame on screen to ``path`` as raw little-endian RGB565: the
-    panel's own framebuffer when the driver shares it, else a rebuild."""
+    """Write the meter's rows on screen to ``path`` as raw little-endian
+    RGB565: from the panel's own framebuffer when the driver shares it, else a
+    rebuild."""
     frame = None
     fbs = getattr(display_drv, "framebuffers", None)
     if fbs is not None and getattr(display_drv, "share_framebuffer", False):
         buf, _, n, stride = fbs()
-        if n == view.width * view.height * 2 and stride == view.width * 2:
-            frame = buf
+        if stride == view.width * 2 and n >= (_y + view.height) * stride:
+            frame = memoryview(buf)[_y * stride : (_y + view.height) * stride]
     with open(path, "wb") as f:
         f.write(frame if frame is not None else view.compose())
     return view.width, view.height
 
 
-timer = app.every(_tick, period=FRAME_MS, async_=app.timer_async)
+def start(bands=None, height=None, y=None, style=None):
+    """Start the meter. Every argument is optional:
+
+    - ``bands``: how many bars (x resolution). Default: half of what
+      ``band_count_for`` gives for the panel's width.
+    - ``height``: the meter's height in rows (y resolution). Default: half
+      the panel.
+    - ``y``: the meter's top row. Default: the meter sits at the bottom of
+      the panel.
+    - ``style``: ``"smooth"`` or ``"segmented"``; default ``SPECTRUM_STYLE``
+      or smooth.
+
+    Halving both was Brad's trade for frame rate under loud music
+    (2026-09-26): 18-19 fps full size, 35-45 at half by half on the P4.
+    """
+    global app, view, music, _send, _y, timer, _t0, _last, _stats
+    W, H = display_drv.width, display_drv.height
+    if height is None:
+        height = H // 2
+    if bands is None:
+        bands = band_count_for(W) // 2
+    _y = H - height if y is None else y
+    app = appdev.App(board_config, refresh_period=0 if _present_rows else None)
+    view = SpectrumView(W, height, bands=bands, style=style or env_get("SPECTRUM_STYLE") or "smooth")
+    music = _source()
+    _send = _panel_blit()
+    fill = getattr(display_drv, "fill_rect", None)
+    if fill is not None and height < H:
+        fill(0, 0, W, H, 0)  # clear whatever the panel showed before
+    display_drv.blit_rect(view.strip(0, view.height), 0, _y, view.width, view.height)
+    if _present_rows:
+        display_drv.show()
+    view._build_bar_columns()  # a second on the P4; not on the first frame
+    _t0 = ticks_ms()
+    _last = _t0
+    _stats = [0, 0, 0, 0, _t0]
+    timer = app.every(_tick, period=FRAME_MS, async_=app.timer_async)
+    return view
+
+
+if __name__ == "__main__":
+    start()

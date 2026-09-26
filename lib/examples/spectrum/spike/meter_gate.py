@@ -55,7 +55,9 @@ if MODE == "c":
     _usbif.uac_pump_meter(44, 20, 20000)
 elif MODE == "draw":
     sys.path.insert(0, "/spectrum")
-    import spectrum  # noqa: F811 -- starts drawing
+    import spectrum  # noqa: F811
+
+    spectrum.start()
 
     if TRACK:
         spectrum.music.track_start()
