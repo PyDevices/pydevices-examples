@@ -13,12 +13,12 @@ owns an asyncio loop, multimer rides it by itself.
 From repo root:
     python tools/lv_timer_test_kit.py
     python tools/lv_timer_test_kit.py --only cpython-venv
-    python tools/lv_timer_test_kit.py --backend sdl2
+    python tools/lv_timer_test_kit.py --source pending
 
-``--backend`` forces one multimer backend through
-``tools/multimer_backend_preload.py`` (in-process, so it also works for the
+``--source`` forces one multimer wake source through
+``tools/multimer_source_preload.py`` (in-process, so it also works for the
 Windows ``.exe`` interpreters, which cannot read WSL-exported env vars). Interpreters
-without that backend report ``unavailable`` and do not fail the run.
+without that source report ``unavailable`` and do not fail the run.
 
 Interpreters resolve via ``tools/example_interpreters.toml`` (same as example_test_kit).
 Missing executables show as ``missing`` in the table.
@@ -165,21 +165,21 @@ def run_case(
     timeout: int = DEFAULT_TIMEOUT,
     *,
     cwd: Path | None = None,
-    backend: str | None = None,
+    source: str | None = None,
 ) -> dict:
     # Every case goes through the preload so its settings are applied in-process:
     # Windows MicroPython / CPython launched from WSL never see exported
     # variables, and a mode that silently no-ops would report a sync run in the
     # async column. The process env is still set for code that reads os.environ.
     timer_async = {"async": "1", "sync": "0"}.get(mode)
-    preload = os.path.relpath(TOOLS / "multimer_backend_preload.py", SRC)
+    preload = os.path.relpath(TOOLS / "multimer_source_preload.py", SRC)
     cmd = [*cmd_base, preload, "--source-workspace"]
     if timer_async is not None:
         cmd += ["--env", f"PYDEVICES_TIMER_ASYNC={timer_async}"]
-    cmd += [backend or "-", HARNESS_ARG, "kit"]
+    cmd += [source or "-", HARNESS_ARG, "kit"]
     env = os.environ.copy()
-    if backend:
-        env["MULTIMER_BACKEND"] = backend
+    if source:
+        env["MULTIMER_SOURCE"] = source
     if timer_async is not None:
         env["PYDEVICES_TIMER_ASYNC"] = timer_async
     run_cwd = str(cwd or SRC)
@@ -207,16 +207,16 @@ def run_case(
 
     result = parse_result(stdout)
     summary = summarize(result, returncode, timed_out)
-    # This host has no such backend; a sweep asks every interpreter for every
-    # backend, so that is a skip rather than a failure. Match on the sentinel,
+    # This host has no such source; a sweep asks every interpreter for every
+    # source, so that is a skip rather than a failure. Match on the sentinel,
     # not the preload exit code: CircuitPython does not propagate sys.exit(3).
-    unavailable = "MULTIMER_BACKEND_UNAVAILABLE" in stdout
+    unavailable = "MULTIMER_SOURCE_UNAVAILABLE" in stdout
     if unavailable:
         summary = "unavailable"
     return {
         "interpreter": interpreter,
         "mode": mode,
-        "backend": backend,
+        "source": source,
         "unavailable": unavailable,
         "summary": summary,
         "returncode": returncode,
@@ -259,7 +259,7 @@ def run_kit(
     strict_clicks: bool = False,
     results_path: Path = DEFAULT_RESULTS,
     emit_json: bool = False,
-    backend: str | None = None,
+    source: str | None = None,
 ) -> int:
     modes_tuple = tuple(modes)
     interpreters = _resolve_interpreters(only)
@@ -272,9 +272,9 @@ def run_kit(
                 print(f"Skipping {name} {mode} (not found: {hint})", file=sys.stderr)
                 rows.append(_missing_row(name, mode, exe_hint=hint))
                 continue
-            label = f"{name} {mode}" + (f" [{backend}]" if backend else "")
+            label = f"{name} {mode}" + (f" [{source}]" if source else "")
             print(f"Running {label}...", file=sys.stderr)
-            row = run_case(name, cmd_base, mode, timeout, backend=backend)
+            row = run_case(name, cmd_base, mode, timeout, source=source)
             rows.append(row)
             if emit_json:
                 print(json.dumps(row, indent=2))
@@ -313,11 +313,12 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
-        "--backend",
+        "--source",
         metavar="NAME",
+        choices=("signal", "pending", "asyncio", "machine", "wasm", "native", "none"),
         help=(
-            "Force one multimer backend (machine, librt, win32, sdl2, threading, "
-            "polling, async) instead of the platform default"
+            "Force one multimer wake source (signal, pending, asyncio, machine, "
+            "wasm, native, none) instead of the host's default"
         ),
     )
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT)
@@ -335,7 +336,7 @@ def main(argv: list[str] | None = None) -> int:
         timeout=args.timeout,
         strict_clicks=args.strict_clicks,
         emit_json=args.json,
-        backend=args.backend,
+        source=args.source,
     )
 
 

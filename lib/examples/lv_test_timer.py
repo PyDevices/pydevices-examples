@@ -421,7 +421,7 @@ def run_kit():
 
 def _wants_kit():
     # Scan the whole command line: under a runner (e.g.
-    # tools/multimer_backend_preload.py) the token is not at a fixed index, and
+    # tools/multimer_source_preload.py) the token is not at a fixed index, and
     # CircuitPython cannot rewrite sys.argv to move it.
     return any(arg in ("kit", "harness") for arg in sys.argv[1:])
 

@@ -112,7 +112,7 @@ see [Windows PE under WSL](#windows-pe-under-wsl).
 `micropython.exe` and `python.exe` are Windows PE binaries launched from WSL.
 They cannot read Linux-exported environment variables. The kit therefore
 forwards only values that must cross that boundary via wrapper argv +
-`displaydev.env_set` (notably `--timer-async` / `--multimer-backend`).
+`displaydev.env_set` (notably `--timer-async` / `--multimer-source`).
 
 **Do not forward `SDL_VIDEODRIVER` / `SDL_AUDIODRIVER` to PE.** Unix cells stay
 headless from the shell `SDL_*=dummy` export; PE keeps a real Windows video
@@ -189,15 +189,17 @@ Headless needs Playwright (`.venv/bin/pip install -r requirements-dev.txt` and
 | [`run_desktop_lv_tests.py`](run_desktop_lv_tests.py) | LVGL desktop matrix (sync/async, strict clicks) |
 | [`lv_timer_test_kit.py`](lv_timer_test_kit.py) | Full LVGL timer matrix (sync/async, all interpreters) |
 | [`run_test_timers.py`](run_test_timers.py) | Run the sibling core multimer timer probe across desktop interpreters |
-| [`multimer_backend_preload.py`](multimer_backend_preload.py) | Force one multimer backend, then run a script |
+| [`multimer_source_preload.py`](multimer_source_preload.py) | Force one multimer wake source, then run a script |
 
-**Comparing multimer providers:** `lv_timer_test_kit.py --backend NAME` (or
-`example_test_kit.py` with `MULTIMER_BACKEND` set, which forwards
-`--multimer-backend` to the wrapper). Both set `MULTIMER_BACKEND` inside the
-child before importing `multimer.auto`, so they also work for the Windows
-`.exe` interpreters, which cannot read WSL-exported env vars. Interpreters lacking that
-provider report `unavailable` and do not fail the run. See the
-[multimer automatic-selection documentation](https://github.com/PyDevices/pydevices/blob/main/docs/multimer.md#automatic-selection).
+**Comparing multimer wake sources:** `lv_timer_test_kit.py --source NAME` (or
+`example_test_kit.py` with `MULTIMER_SOURCE` set, which forwards
+`--multimer-source` to the wrapper). Both set `MULTIMER_SOURCE` inside the
+child and make multimer choose its source before the script runs, so they also
+work for the Windows `.exe` interpreters, which cannot read WSL-exported env
+vars. An interpreter that can't start that source reports `unavailable` and
+doesn't fail the run. `MULTIMER_BACKEND` is retired: the kit refuses to run
+with it set. The sources, and which host uses which, are in pydevices'
+[multimer hosts table](https://github.com/PyDevices/pydevices/blob/main/docs/multimer.md#hosts).
 
 TestPyPI package smoke tests are owned by the repositories that publish the
 packages: core checks live in

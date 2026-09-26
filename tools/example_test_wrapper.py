@@ -357,7 +357,7 @@ def _start_multimer_quit_schedule(duration_s, quit_mode, kind, injected):
     try:
         import quit_inject
 
-        from multimer import auto as timer
+        import multimer as timer
     except ImportError:
         return False
     try:
@@ -549,7 +549,7 @@ def _parse_args(argv):
         "duration": 5.0,
         "timeout": 30.0,
         "timer_async": None,
-        "multimer_backend": None,
+        "multimer_source": None,
         "env": [],
     }
     i = 2
@@ -576,8 +576,8 @@ def _parse_args(argv):
         elif arg == "--timer-async" and i + 1 < len(argv):
             out["timer_async"] = argv[i + 1]
             i += 2
-        elif arg == "--multimer-backend" and i + 1 < len(argv):
-            out["multimer_backend"] = argv[i + 1]
+        elif arg == "--multimer-source" and i + 1 < len(argv):
+            out["multimer_source"] = argv[i + 1]
             i += 2
         elif arg == "--env" and i + 1 < len(argv):
             out["env"].append(argv[i + 1])
@@ -587,6 +587,25 @@ def _parse_args(argv):
     if not out["script"] or not out["kind"]:
         raise ValueError("--script and --kind are required")
     return out
+
+
+def _force_multimer_source(name):
+    """Make multimer select wake source ``name`` now, or raise.
+
+    Same check as ``multimer_source_preload.force_source``.
+    """
+    _env_set("MULTIMER_SOURCE", name)
+    import multimer
+    from multimer import _dispatch
+
+    _dispatch._ensure_source()
+    info = multimer.info()
+    active = info.get("source")
+    if active != name:
+        raise RuntimeError(
+            "multimer chose {!r}: {}".format(active, info.get("source_error", "already selected"))
+        )
+    return active
 
 
 def _subprocess_hard_exit(code, *, headless=False):
@@ -712,24 +731,21 @@ def main(argv=None):
     except Exception:
         pass
 
-    # MULTIMER_BACKEND is the sole auto-provider override. Set it inside the
-    # child because Windows PE launched from WSL cannot see the parent's
-    # exported environment. A provider this host cannot supply is a skip, not
-    # a failure — sweeps ask every interpreter for every provider.
-    if args.get("multimer_backend") is not None:
+    # MULTIMER_SOURCE is multimer's one override. Set it inside the child
+    # because Windows PE launched from WSL cannot see the parent's exported
+    # environment, and select the source now: a forced source that cannot start
+    # falls back to "none" silently. A source this host cannot supply is a
+    # skip, not a failure: sweeps ask every interpreter for every source.
+    if args.get("multimer_source") is not None:
         try:
-            _env_set("MULTIMER_BACKEND", args["multimer_backend"])
-            from multimer import auto as timer
-
-            if timer.name != args["multimer_backend"]:
-                raise RuntimeError("multimer.auto was already selected as {!r}".format(timer.name))
+            _force_multimer_source(args["multimer_source"])
         except (ImportError, RuntimeError, ValueError) as exc:
             _print_result(
                 {
                     "example": args["example"],
                     "status": "skip",
-                    "error": "multimer backend {!r} unavailable: {}".format(
-                        args["multimer_backend"], exc
+                    "error": "multimer source {!r} unavailable: {}".format(
+                        args["multimer_source"], exc
                     ),
                     "backend": "headless" if headless else "?",
                 }
