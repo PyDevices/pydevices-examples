@@ -23,9 +23,9 @@ class Display:
         print("[app] display released")
 
 
-def make_app(timer_async=False):
-    app = App(displays=[Display()], timer_async=timer_async, refresh_period=0)
-    print("[app] strategy:", app.strategy, "async:", app.timer_async)
+def make_app():
+    app = App(displays=[Display()], refresh_period=0)
+    print("[app] strategy:", app.strategy)
     ticks = []
 
     @app.every(TICK_MS)
