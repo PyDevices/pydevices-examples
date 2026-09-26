@@ -521,6 +521,38 @@
       "github:PyDevices/pydevices-examples/lib/examples/roku_remote/roku_widgets.py"
     ],
     [
+      "spectrum/__init__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/__init__.py"
+    ],
+    [
+      "spectrum/capture.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/capture.py"
+    ],
+    [
+      "spectrum/fake_music.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/fake_music.py"
+    ],
+    [
+      "spectrum/loopback_levels.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/loopback_levels.py"
+    ],
+    [
+      "spectrum/make_captures.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/make_captures.py"
+    ],
+    [
+      "spectrum/pump_levels.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/pump_levels.py"
+    ],
+    [
+      "spectrum/spectrum.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/spectrum.py"
+    ],
+    [
+      "spectrum/spectrum_view.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/spectrum_view.py"
+    ],
+    [
       "tiny_toasters/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/tiny_toasters/__init__.py"
     ],
