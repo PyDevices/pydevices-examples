@@ -114,8 +114,10 @@ def _remote():
 
 
 def _pump(k, n=12):
+    """Run *n* ticks, letting each one's queued request finish before the next."""
     for _ in range(n):
         k._tick_body()
+        k.engine.flush(5)
 
 
 def _key(code):
@@ -172,6 +174,8 @@ class KnobTests(unittest.TestCase):
     def test_now_playing_reads_ecp(self):
         k, _ = _remote()
         k._refresh()
+        k.engine.flush(5)
+        k.engine.deliver()
         self.assertEqual(k.engine.playback_app_label(), "YouTube")
         self.assertEqual(k.engine.playback_state_label(), "play")
         before = _board.display_drv.blits
@@ -288,6 +292,213 @@ class SendLockTests(unittest.TestCase):
         self.assertTrue(self.eng.press("VolumeUp"))
         self._settle()
         self.assertIn("POST /keypress/VolumeUp", [ln.rsplit(" ", 1)[0] for ln in self.srv.lines])
+
+
+class _SlowTV:
+    """A local ECP stand-in that can be slow, silent, or answer an error.
+
+    ``delay`` holds each reply that long; ``hang`` accepts the connection and
+    never answers (a TV that has stopped responding); ``status`` is the reply
+    code. Every request line is recorded, with the connection it came on.
+    """
+
+    def __init__(self, delay=0.0, hang=False, status=200):
+        import socket
+        import threading
+
+        self.delay = delay
+        self.hang = hang
+        self.status = status
+        self.lines = []
+        self.conns = 0
+        self.held = []
+        self.sock = socket.socket()
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(("127.0.0.1", 0))
+        self.sock.listen(16)
+        self.port = self.sock.getsockname()[1]
+        self.stop = False
+        threading.Thread(target=self._serve, daemon=True).start()
+
+    def _serve(self):
+        import threading
+
+        while not self.stop:
+            try:
+                conn, _ = self.sock.accept()
+            except OSError:
+                return
+            self.conns += 1
+            threading.Thread(target=self._one, args=(conn,), daemon=True).start()
+
+    def _one(self, conn):
+        conn.settimeout(5)
+        try:
+            data = conn.recv(4096)
+            if not data:
+                return
+            line = data.split(b"\r\n", 1)[0].decode().rsplit(" ", 1)[0]
+            self.lines.append(line)
+            if self.hang:
+                self.held.append(conn)
+                return
+            time.sleep(self.delay)
+            body = _ACTIVE if "active-app" in line else b""
+            conn.sendall(
+                b"HTTP/1.1 %d X\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s"
+                % (self.status, len(body), body)
+            )
+        except OSError:
+            pass
+        finally:
+            if not self.hang:
+                conn.close()
+
+    def close(self):
+        self.stop = True
+        for c in self.held:
+            try:
+                c.close()
+            except OSError:
+                pass
+        self.sock.close()
+
+
+def _tick_for(k, seconds):
+    """Tick the knob the way its timer would for *seconds*; return tick times (s)."""
+    times = []
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        t0 = time.monotonic()
+        k._tick_body()
+        times.append(time.monotonic() - t0)
+        time.sleep(0.03)
+    return times
+
+
+class SlowTvTests(unittest.TestCase):
+    """A slow or dead TV must never hold the knob's tick."""
+
+    mode = None  # the engine's default sender (a thread on CPython)
+
+    def setUp(self):
+        roku_engine.enable_sends(True)
+        self.tv = None
+
+    def tearDown(self):
+        roku_engine.enable_sends(False)
+        if self.tv is not None:
+            self.tv.close()
+
+    def _knob(self, **tv):
+        self.tv = _SlowTV(**tv)
+        eng = roku_engine.RokuEngine(host="127.0.0.1", port=self.tv.port)
+        eng.sender_mode = self.mode
+        eng.device_info = {"power-mode": "PowerOn", "user-device-name": "Slow TV"}
+        k = roku_knob.KnobRemote(engine=eng, start_page="remote")
+        k.last_refresh = roku_knob.ticks_ms()  # no poll in the way unless asked
+        return k, eng
+
+    def test_slow_tv_keeps_the_loop_ticking(self):
+        k, eng = self._knob(delay=1.2)
+        k.turn(1)
+        times = _tick_for(k, 0.8)  # the reply is still 0.4 s away
+        self.assertGreater(len(times), 15)
+        self.assertLess(max(times), 0.05)
+        self.assertEqual(self.tv.lines, ["POST /keypress/VolumeUp"])
+        self.assertFalse(eng.sender_idle())
+        self.assertTrue(eng.flush(5))
+        self.assertEqual(eng.last_error, "")
+
+    def test_dead_tv_times_out_without_holding_the_loop(self):
+        k, eng = self._knob(hang=True)
+        k.turn(1)
+        times = _tick_for(k, 2.2)  # the key's 1.5 s timeout runs out in here
+        self.assertLess(max(times), 0.05)
+        self.assertTrue(eng.sender_idle())
+        self.assertIn("timed out", eng.last_error)
+        self.assertIn("VolumeUp: timed out", k.message[0])  # said so, no success
+
+    def test_launch_to_a_slow_tv_keeps_the_loop_ticking(self):
+        k, eng = self._knob(delay=1.0)
+        k._launch({"id": "837", "name": "YouTube"})
+        times = _tick_for(k, 0.6)
+        self.assertLess(max(times), 0.05)
+        self.assertEqual(self.tv.lines, ["POST /launch/837"])
+        eng.flush(5)
+        k._tick_body()  # a good launch asks for a poll straight away
+        eng.flush(5)
+        self.assertEqual(self.tv.lines[1:], ["GET /query/active-app", "GET /query/media-player"])
+
+    def test_polls_to_a_dead_tv_keep_the_loop_ticking(self):
+        k, _eng = self._knob(hang=True)
+        k.last_refresh = roku_knob.ticks_ms() - roku_knob.REFRESH_MS - 1
+        k.last_input -= roku_knob.QUIET_AFTER_MS + 1
+        times = _tick_for(k, 0.8)
+        self.assertLess(max(times), 0.05)
+        self.assertEqual(self.tv.lines, ["GET /query/active-app"])  # one at a time
+
+    def test_only_200_is_success(self):
+        _k, eng = self._knob(status=500)
+        oks = []
+        eng.press_async("Home", done=oks.append)
+        eng.flush(5)
+        self.assertEqual(oks, [False])
+        self.assertIn("HTTP 500", eng.last_error)
+        self.assertFalse(eng.press("Home"))  # the blocking call agrees
+
+    def test_keys_go_in_order_each_on_its_own_connection(self):
+        _k, eng = self._knob()
+        keys_sent = ["Up", "Up", "Right", "Select", "Back", "Home"]
+        oks = []
+        for key in keys_sent:
+            eng.press_async(key, done=oks.append)
+        eng.flush(10)
+        self.assertEqual(self.tv.lines, ["POST /keypress/" + key for key in keys_sent])
+        self.assertEqual(oks, [True] * len(keys_sent))
+        self.assertEqual(self.tv.conns, len(keys_sent))
+
+    def test_a_key_after_the_idle_close_still_lands(self):
+        # The Roku drops an idle kept-alive connection after about 3.5 s.
+        # Every key has its own connection, so a pause changes nothing.
+        _k, eng = self._knob()
+        oks = []
+        eng.press_async("Home", done=oks.append)
+        eng.flush(5)
+        time.sleep(0.3)
+        eng.press_async("Home", done=oks.append)
+        eng.flush(5)
+        self.assertEqual(oks, [True, True])
+        self.assertEqual(self.tv.conns, 2)
+
+    def test_the_lock_still_holds(self):
+        roku_engine.enable_sends(False)
+        _k, eng = self._knob()
+        oks = []
+        eng.press_async("Home", done=oks.append)
+        eng.launch_async("837", done=oks.append)
+        eng.flush(5)
+        time.sleep(0.1)
+        self.assertEqual(oks, [False, False])
+        self.assertEqual(self.tv.lines, [])
+        self.assertIn("locked", eng.last_error)
+
+
+class SlowTvPollTests(SlowTvTests):
+    """The same, with the non-blocking socket a port without threads uses."""
+
+    mode = roku_engine.SENDER_POLL
+
+
+class SimSenderTests(unittest.TestCase):
+    def test_the_simulator_answers_without_a_socket(self):
+        import roku_sim
+
+        eng = roku_sim.RokuSimEngine(host="192.168.1.50")
+        oks = []
+        eng.press_async("Home", done=oks.append)
+        self.assertEqual(eng.deliver(), 1)
+        self.assertEqual(oks, [True])
 
 
 class LauncherTests(unittest.TestCase):

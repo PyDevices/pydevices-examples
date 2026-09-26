@@ -23,7 +23,7 @@ PyScript / explicit ``ROKU_SIM=1`` keep the normal demo playback labels.
 
 import sys
 
-from roku_engine import RokuEngine, _local_ipv4, socket as _engine_socket
+from roku_engine import SENDER_INLINE, RokuEngine, _local_ipv4, socket as _engine_socket
 
 # Demo TVs (Select page + discover).
 _SIM_DEVICES = (
@@ -121,6 +121,12 @@ def make_engine(host=None, port=None, timeout=5.0):
 
 class RokuSimEngine(RokuEngine):
     """In-memory ECP stand-in — same UI surface as :class:`RokuEngine`."""
+
+    # Queued requests answer from memory, inside ``deliver``: no thread.
+    _default_sender = SENDER_INLINE
+
+    def _fetch(self, method, url, timeout, data, path=""):
+        return self._request(method, path, data)
 
     def __init__(self, host=None, port=None, timeout=5.0, reason="env"):
         # Avoid importing ROKU_PORT as default host path; keep empty until select.

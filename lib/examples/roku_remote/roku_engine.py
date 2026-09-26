@@ -523,15 +523,8 @@ def _parse_http_url(url):
     return host, port, path
 
 
-def _http_request_socket(method, url, timeout=5.0, data=b"", read_response=True):
-    """Minimal HTTP/1.0 over ``socket`` (no urllib/urequests required).
-
-    ``read_response=False``: send the request and close immediately (no recv
-    peek). Roku ECP applies ``/keypress/`` on request; a 120ms peek was adding
-    idle stall to every MCU tap on the LVGL pump thread.
-    """
-    _check_send(method)
-    host, port, path = _parse_http_url(url)
+def _http_payload(method, host, port, path, data=b""):
+    """The bytes of one HTTP/1.0 request that closes its connection after."""
     if isinstance(data, str):
         data = data.encode("utf-8")
     elif data is None:
@@ -544,48 +537,14 @@ def _http_request_socket(method, url, timeout=5.0, data=b"", read_response=True)
     if method != "GET" or data:
         req += "Content-Length: %d\r\n" % len(data)
     req += "\r\n"
-    payload = req.encode("utf-8") + data
+    return req.encode("utf-8") + data
 
-    addr = _sockaddr(host, port, socket.SOCK_STREAM)
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    chunks = []
-    try:
-        try:
-            sock.settimeout(timeout)
-        except OSError:
-            pass
-        sock.connect(addr)
-        view = memoryview(payload)
-        sent = 0
-        while sent < len(payload):
-            n = sock.send(view[sent:])
-            if n is None or n <= 0:
-                break
-            sent += n
 
-        if read_response:
-            while True:
-                try:
-                    chunk = sock.recv(2048)
-                except OSError:
-                    break
-                if not chunk:
-                    break
-                chunks.append(chunk)
-    finally:
-        try:
-            sock.close()
-        except OSError:
-            pass
-
-    if not read_response:
-        # Optimistic OK once the POST bytes were written.
-        return 200, b""
-
-    raw = b"".join(chunks) if chunks else b""
+def _parse_http_response(raw):
+    """``(status, body)`` from a whole HTTP response; raises if it has no header."""
     sep = raw.find(b"\r\n\r\n")
     if sep < 0:
-        raise RuntimeError("HTTP response missing header separator")
+        raise RuntimeError("no reply" if not raw else "HTTP response missing header separator")
     header_blob = raw[:sep]
     body = raw[sep + 4 :]
     status_line = header_blob.split(b"\r\n", 1)[0]
@@ -605,6 +564,51 @@ def _http_request_socket(method, url, timeout=5.0, data=b"", read_response=True)
                 body = body[:clen]
             break
     return status, body
+
+
+def _http_request_socket(method, url, timeout=5.0, data=b""):
+    """Minimal HTTP/1.0 over ``socket`` (no urllib/urequests required).
+
+    One connection per request, closed by both ends: the Roku drops an idle
+    keep-alive connection after about 3.5 s, and a key written into a socket
+    it has already closed is lost without an error.
+    """
+    _check_send(method)
+    host, port, path = _parse_http_url(url)
+    payload = _http_payload(method, host, port, path, data)
+
+    addr = _sockaddr(host, port, socket.SOCK_STREAM)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    chunks = []
+    try:
+        try:
+            sock.settimeout(timeout)
+        except OSError:
+            pass
+        sock.connect(addr)
+        view = memoryview(payload)
+        sent = 0
+        while sent < len(payload):
+            n = sock.send(view[sent:])
+            if n is None or n <= 0:
+                raise OSError("short send")
+            sent += n
+        while True:
+            try:
+                chunk = sock.recv(2048)
+            except OSError:
+                if chunks:
+                    break  # a reply without its close: parse what came
+                raise  # nothing came: say so ("timed out")
+            if not chunk:
+                break
+            chunks.append(chunk)
+    finally:
+        try:
+            sock.close()
+        except OSError:
+            pass
+    return _parse_http_response(b"".join(chunks))
 
 
 def http_request(method, url, timeout=5.0, data=None):
@@ -2100,6 +2104,325 @@ def discover_rokus(
     return discover_rokus_scan(find_all=True, cancel_check=cancel_check)
 
 
+# --- Sending off the caller's thread --------------------------------------
+#
+# A front end's tick runs inside a timer callback. An ECP request made there
+# holds the tick, and on a board the REPL too, for as long as the TV takes to
+# answer: up to the whole timeout when it doesn't. So the engine's ``*_async``
+# calls queue each request and return at once. A sender runs the requests in
+# the order they were queued, and :meth:`RokuEngine.deliver`, called from the
+# front end's tick, applies each reply to the engine and runs its callback
+# there, where touching the UI is safe.
+#
+# The sender is a ``_thread`` worker where the port has one that can do
+# network I/O (CPython, and MicroPython on esp32 and unix). Elsewhere it is a
+# non-blocking socket that ``deliver`` advances a step at a time. The
+# simulator answers from memory, so it runs each request inside ``deliver``.
+
+SENDER_THREAD = "thread"
+SENDER_POLL = "poll"
+SENDER_INLINE = "inline"
+
+_WORKER_STACK = 16 * 1024  # esp32's 5 KiB default is too small for a socket
+_WORKER_IDLE_MS = 15
+
+
+def _sleep_ms(ms):
+    if time is None:
+        return
+    if hasattr(time, "sleep_ms"):
+        time.sleep_ms(ms)
+    else:
+        time.sleep(ms / 1000.0)
+
+
+def default_sender_mode():
+    """``"thread"`` where a ``_thread`` worker can do network I/O, else ``"poll"``."""
+    forced = (_env_get("ROKU_SENDER") or "").strip().lower()
+    if forced in (SENDER_THREAD, SENDER_POLL, SENDER_INLINE):
+        return forced
+    try:
+        import _thread  # noqa: F401
+    except ImportError:
+        return SENDER_POLL
+    if getattr(sys.implementation, "name", "") == "micropython":
+        # rp2 runs a thread on the second core, beside a network stack that
+        # isn't safe there; the unix and esp32 ports are known good.
+        if getattr(sys, "platform", "") not in ("esp32", "linux", "darwin"):
+            return SENDER_POLL
+    return SENDER_THREAD
+
+
+def _errno_of(exc):
+    args = getattr(exc, "args", ())
+    if args and isinstance(args[0], int):
+        return args[0]
+    return getattr(exc, "errno", None)
+
+
+_WOULD_BLOCK = [10035]  # Winsock's WSAEWOULDBLOCK
+try:
+    import errno as _errno
+
+    for _name in ("EAGAIN", "EWOULDBLOCK", "EINPROGRESS", "EALREADY", "ENOTCONN"):
+        _v = getattr(_errno, _name, None)
+        if _v is not None:
+            _WOULD_BLOCK.append(_v)
+except ImportError:  # pragma: no cover
+    _errno = None
+try:
+    _BLOCKING_IO = BlockingIOError
+except NameError:  # MicroPython raises plain OSError(EAGAIN)
+    _BLOCKING_IO = None
+
+
+def _would_block(exc):
+    if _BLOCKING_IO is not None and isinstance(exc, _BLOCKING_IO):
+        return True
+    return _errno_of(exc) in _WOULD_BLOCK
+
+
+class _NbHttp:
+    """One HTTP request on a non-blocking socket, advanced by :meth:`step`."""
+
+    def __init__(self, method, url, timeout, data=b""):
+        _check_send(method)
+        host, port, path = _parse_http_url(url)
+        self.payload = _http_payload(method, host, port, path, data)
+        self.sent = 0
+        self.chunks = []
+        self.deadline = _monotonic_deadline_ms(timeout)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self.sock.setblocking(False)
+            self.sock.connect(_sockaddr(host, port, socket.SOCK_STREAM))
+        except OSError as exc:
+            if not _would_block(exc):
+                self.close()
+                raise
+
+    def close(self):
+        sock, self.sock = self.sock, None
+        if sock is not None:
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+    def step(self):
+        """Advance without blocking: ``None`` while running, else ``(status, body)``."""
+        while True:
+            if _monotonic_expired(self.deadline):
+                self.close()
+                raise OSError("timed out")
+            try:
+                if self.sent < len(self.payload):
+                    n = self.sock.send(memoryview(self.payload)[self.sent :])
+                    if n:
+                        self.sent += n
+                    continue
+                chunk = self.sock.recv(2048)
+            except OSError as exc:
+                if _would_block(exc):
+                    return None
+                self.close()
+                raise
+            if not chunk:
+                self.close()
+                return _parse_http_response(b"".join(self.chunks))
+            self.chunks.append(chunk)
+
+
+class _Job:
+    """One queued request: I/O on the sender, ``apply`` and ``done`` in ``deliver``."""
+
+    def __init__(self, method, url, path, data, timeout, call, apply, done):
+        self.method = method
+        self.url = url
+        self.path = path
+        self.data = data
+        self.timeout = timeout
+        self.call = call  # a plain callable instead of a request (thread mode)
+        self.apply = apply
+        self.done = done
+        self.result = None  # (status, body, error)
+
+
+class _Sender:
+    """Runs queued :class:`_Job` requests in order, off the caller's thread."""
+
+    def __init__(self, engine, mode):
+        self.engine = engine
+        self.mode = mode
+        self.queue = []
+        self.finished = []
+        self.busy = 0  # queued + in flight + finished but not delivered
+        self.current = None  # poll mode: (job, _NbHttp)
+        self.lock = None
+        self.started = False
+        if mode == SENDER_THREAD:
+            try:
+                import _thread
+
+                self.lock = _thread.allocate_lock()
+            except Exception:
+                self.mode = SENDER_POLL
+
+    # Every list touch goes through the lock: rp2-style ports have no GIL.
+    def _acquire(self):
+        if self.lock is not None:
+            self.lock.acquire()
+
+    def _release(self):
+        if self.lock is not None:
+            self.lock.release()
+
+    def put(self, job):
+        self._acquire()
+        try:
+            self.queue.append(job)
+            self.busy += 1
+        finally:
+            self._release()
+        if self.mode == SENDER_THREAD and not self.started:
+            self._start()
+
+    def put_finished(self, job, err):
+        """Queue a job that already failed (locked, no host) for ``deliver``."""
+        job.result = (0, b"", err)
+        self._acquire()
+        try:
+            self.finished.append(job)
+            self.busy += 1
+        finally:
+            self._release()
+
+    def finish(self, job, status, body, err):
+        job.result = (status, body, err)
+        self._acquire()
+        try:
+            self.finished.append(job)
+        finally:
+            self._release()
+
+    def _start(self):
+        import _thread
+
+        self.started = True
+        old = None
+        if getattr(sys.implementation, "name", "") == "micropython":
+            try:
+                old = _thread.stack_size(_WORKER_STACK)
+            except Exception:
+                old = None
+        try:
+            _thread.start_new_thread(self._worker, ())
+        except Exception as exc:  # no memory for a stack: send from deliver
+            print("roku_engine: no sender thread (%s), polling instead" % exc)
+            self.mode = SENDER_POLL
+        finally:
+            if old is not None:
+                try:
+                    _thread.stack_size(old)
+                except Exception:
+                    pass
+
+    def _next(self):
+        self._acquire()
+        try:
+            return self.queue.pop(0) if self.queue else None
+        finally:
+            self._release()
+
+    def _worker(self):
+        while self.mode == SENDER_THREAD:
+            job = self._next()
+            if job is None:
+                _sleep_ms(_WORKER_IDLE_MS)
+                continue
+            self._run_blocking(job)
+
+    def _run_blocking(self, job):
+        status, body, err = 0, b"", None
+        try:
+            if job.call is not None:
+                body = job.call()
+                status = 200
+            else:
+                status, body = self.engine._fetch(
+                    job.method, job.url, job.timeout, job.data, job.path
+                )
+        except Exception as exc:
+            err = exc
+        self.finish(job, status, body, err)
+
+    def pump(self):
+        """Poll and inline modes: move the queue along without blocking."""
+        if self.mode == SENDER_THREAD:
+            return
+        while True:
+            if self.current is None:
+                job = self._next()
+                if job is None:
+                    return
+                if job.call is not None or self.mode == SENDER_INLINE or (
+                    self.engine._http is not None
+                ):
+                    # The simulator and the test hook answer at once; a plain
+                    # call has no non-blocking form without a thread.
+                    self._run_blocking(job)
+                    continue
+                try:
+                    self.current = (job, _NbHttp(job.method, job.url, job.timeout, job.data))
+                except Exception as exc:
+                    self.finish(job, 0, b"", exc)
+                    continue
+            job, req = self.current
+            try:
+                res = req.step()
+            except Exception as exc:
+                self.current = None
+                self.finish(job, 0, b"", exc)
+                continue
+            if res is None:
+                return
+            self.current = None
+            self.finish(job, res[0], res[1], None)
+
+    def take(self):
+        self._acquire()
+        try:
+            done, self.finished = self.finished, []
+        finally:
+            self._release()
+        return done
+
+    def settled(self, n):
+        self._acquire()
+        try:
+            self.busy -= n
+        finally:
+            self._release()
+
+    def stop(self):
+        self.mode = None
+
+
+_TIMED_OUT = [10060]  # Winsock's WSAETIMEDOUT
+for _name in ("ETIMEDOUT", "EAGAIN"):  # a blocking socket's timeout is EAGAIN on unix MP
+    _v = getattr(_errno, _name, None)
+    if _v is not None:
+        _TIMED_OUT.append(_v)
+
+
+def _err_text(exc):
+    """A short reason for the UI; a socket that ran out of time says so."""
+    text = str(exc) or exc.__class__.__name__
+    if _errno_of(exc) in _TIMED_OUT or "timed out" in text.lower():
+        return "timed out"
+    return text
+
+
 class RokuEngine:
     """Stateful ECP client for one Roku target."""
 
@@ -2122,183 +2445,22 @@ class RokuEngine:
         self._discover_cancel = False
         # Optional inject for tests: callable(method, url, timeout, data) -> (status, body)
         self._http = None
-        # Keep-alive TCP for MCU ``press(..., wait=False)`` — avoids a fresh
-        # connect (50–450ms) on every D-pad tap on the LVGL pump thread.
-        self._ecp_sock = None
-        self._ecp_sock_host = ""
-        # After a no-drain send, consume the HTTP response before the next reuse.
-        self._ecp_need_drain = False
-        self._ecp_last_reuse = False
-        self._ecp_last_conn_close = False
+        # Queued requests (the ``*_async`` calls); built on first use.
+        # ``sender_mode`` picks how they run; None means default_sender_mode().
+        self.sender_mode = None
+        self._sender = None
 
     def cancel_discover(self):
         """Ask an in-flight :meth:`discover` to stop at the next checkpoint."""
         self._discover_cancel = True
 
-    def _ecp_sock_close(self):
-        sock = getattr(self, "_ecp_sock", None)
-        self._ecp_sock = None
-        self._ecp_sock_host = ""
-        self._ecp_need_drain = False
-        if sock is None:
-            return
-        try:
-            sock.close()
-        except OSError:
-            pass
-
-    def _ecp_sock_drain(self, sock):
-        """Consume one HTTP response so the keep-alive socket stays usable.
-
-        A non-blocking peek left unread bytes / half-closed sockets; the next
-        ``send`` then failed and forced a fresh TCP connect (H4 logs: reuse
-        alternating False/True every tap).
-        """
-        self._ecp_last_conn_close = False
-        buf = b""
-        try:
-            sock.settimeout(0.04)
-        except OSError:
-            pass
-        try:
-            # Headers
-            while b"\r\n\r\n" not in buf and len(buf) < 1536:
-                try:
-                    chunk = sock.recv(256)
-                except OSError:
-                    break
-                if not chunk:
-                    # Peer closed — drop socket so the next ensure reconnects.
-                    self._ecp_sock_close()
-                    return
-                buf += chunk
-            sep = buf.find(b"\r\n\r\n")
-            if sep < 0:
-                return
-            header = buf[:sep]
-            body = buf[sep + 4 :]
-            hdr_l = header.lower()
-            if b"connection: close" in hdr_l:
-                self._ecp_last_conn_close = True
-            clen = 0
-            for line in header.split(b"\r\n")[1:]:
-                if line.lower().startswith(b"content-length:"):
-                    try:
-                        clen = int(line.split(b":", 1)[1].strip())
-                    except (ValueError, IndexError):
-                        clen = 0
-                    break
-            # Body (usually empty for /keypress/)
-            while clen > 0 and len(body) < clen and len(body) < 2048:
-                try:
-                    chunk = sock.recv(256)
-                except OSError:
-                    break
-                if not chunk:
-                    self._ecp_sock_close()
-                    return
-                body += chunk
-            if self._ecp_last_conn_close:
-                self._ecp_sock_close()
-        finally:
-            try:
-                if getattr(self, "_ecp_sock", None) is not None:
-                    sock.settimeout(0.25)
-            except OSError:
-                pass
-
-    def _ecp_sock_ensure(self, timeout):
-        host = (self.host or "").strip()
-        if not host:
-            raise OSError("no host")
-        sock = getattr(self, "_ecp_sock", None)
-        if sock is not None and self._ecp_sock_host == host:
-            self._ecp_last_reuse = True
-            # Prior fire-and-forget POST left a response on the wire — clear it
-            # before the next send so keep-alive stays valid. Prefer draining on
-            # the idle pump (see ``ecp_idle_drain``) so tap→send stays ~10ms.
-            if getattr(self, "_ecp_need_drain", False):
-                self._ecp_sock_drain(sock)
-                self._ecp_need_drain = False
-                sock = getattr(self, "_ecp_sock", None)
-                if sock is None:
-                    # Peer closed during drain — fall through to reconnect.
-                    pass
-                else:
-                    return sock
-            else:
-                return sock
-        self._ecp_last_reuse = False
-        self._ecp_sock_close()
-        addr = _sockaddr(host, int(self.port), socket.SOCK_STREAM)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            sock.settimeout(timeout)
-        except OSError:
-            pass
-        sock.connect(addr)
-        self._ecp_sock = sock
-        self._ecp_sock_host = host
-        return sock
-
     def ecp_idle_drain(self):
-        """Consume a pending keep-alive response when no tap is in flight.
+        """Deliver finished queued requests; True if any were delivered.
 
-        Call from the UI soft-pump so the next tap's ``press(wait=False)`` is
-        usually a pure send (~10ms) instead of drain+send (~60–100ms).
+        (It drained a kept-alive socket once. Every request now has its own
+        connection, so this is :meth:`deliver` under its old name.)
         """
-        if not getattr(self, "_ecp_need_drain", False):
-            return False
-        sock = getattr(self, "_ecp_sock", None)
-        if sock is None:
-            self._ecp_need_drain = False
-            return False
-        self._ecp_sock_drain(sock)
-        self._ecp_need_drain = False
-        return True
-
-    def _press_keepalive(self, key, timeout, drain=True):
-        """POST ``/keypress/`` on a reused TCP socket (MCU tap hot path).
-
-        ``drain=False``: send only (Roku acts on the request). Response is
-        consumed on the next ensure/reuse so tap→wire stays a few ms.
-        """
-        _check_send("POST")
-        path = "/keypress/" + key
-        host = (self.host or "").strip()
-        host_hdr = host if int(self.port) == 80 else "%s:%d" % (host, int(self.port))
-        payload = (
-            "POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: 0\r\n"
-            "Connection: keep-alive\r\n\r\n" % (path, host_hdr)
-        ).encode()
-
-        def _send(sock):
-            view = memoryview(payload)
-            sent = 0
-            while sent < len(payload):
-                n = sock.send(view[sent:])
-                if n is None or n <= 0:
-                    raise OSError("short send")
-                sent += n
-            if drain:
-                self._ecp_sock_drain(sock)
-                self._ecp_need_drain = False
-            else:
-                self._ecp_need_drain = True
-
-        try:
-            _send(self._ecp_sock_ensure(timeout))
-        except Exception:
-            self._ecp_sock_close()
-            try:
-                _send(self._ecp_sock_ensure(timeout))
-            except Exception as e:
-                self._ecp_sock_close()
-                self.last_error = str(e)
-                return False
-        self.connected = True
-        self.last_error = ""
-        return True
+        return self.deliver() > 0
 
     def set_host(self, host, port=None):
         self.host = (host or "").strip()
@@ -2306,7 +2468,6 @@ class RokuEngine:
             self.port = int(port)
         self.connected = False
         self.last_error = ""
-        self._ecp_sock_close()
         # Host-specific caches must not survive a TV switch.
         self.apps = []
         self.active_app = {}
@@ -2637,7 +2798,7 @@ class RokuEngine:
             else:
                 status, body = http_request(method, url, timeout=t, data=data)
         except Exception as e:
-            self.last_error = str(e)
+            self.last_error = _err_text(e)
             # Do not clear ``connected`` on transient socket errors — a single
             # failed keypress must not make the plaque say "offline" while the
             # TV is still playing.
@@ -2846,25 +3007,7 @@ class RokuEngine:
         info = self.query_device_info()
         self.connected = bool(info)
         if self.connected:
-            serial = info.get("serial-number") or ""
-            try:
-                self.remember_devices(
-                    [
-                        {
-                            "host": self.host,
-                            "name": info.get("user-device-name")
-                            or info.get("model-name")
-                            or "",
-                            "serial": serial,
-                        }
-                    ]
-                )
-            except Exception:
-                pass
-            try:
-                _set_last_device(self.host, serial)
-            except Exception:
-                pass
+            self._remember_connected(info)
             try:
                 self.refresh_playback()
             except Exception:
@@ -2876,45 +3019,269 @@ class RokuEngine:
                 pass
         return self.connected
 
+    def _remember_connected(self, info):
+        serial = info.get("serial-number") or ""
+        try:
+            self.remember_devices(
+                [
+                    {
+                        "host": self.host,
+                        "name": info.get("user-device-name") or info.get("model-name") or "",
+                        "serial": serial,
+                    }
+                ]
+            )
+        except Exception:
+            pass
+        try:
+            _set_last_device(self.host, serial)
+        except Exception:
+            pass
+
     def press(self, key, timeout=None, wait=True):
-        """ECP ``/keypress/``. Optional ``timeout`` caps socket wait (MCU taps).
+        """ECP ``/keypress/``; True only when the TV answered 200.
 
-        Uses the socket HTTP client directly so urequests/urlopen cannot ignore
-        short timeouts (ESP32 taps were stalling 3–7s despite timeout=1.5).
-
-        ``wait=False``: send the POST and return without reading the HTTP
-        response (MCU remote taps). Roku applies the key on request; the
-        keep-alive response is drained on the next press.
+        This blocks until the TV answers or ``timeout`` runs out, so don't
+        call it from a timer or a UI tick: use :meth:`press_async` there.
+        ``wait=False`` is :meth:`press_async` without a callback: it queues the
+        key and returns None (False if it can't be sent at all), and the
+        result lands in ``last_error`` when :meth:`deliver` runs.
         """
+        if not self._key_ok(key):
+            return False
+        t = self.timeout if timeout is None else float(timeout)
+        if t <= 0:
+            t = 1.0
+        if not wait:
+            if self._locked("POST"):
+                self.last_error = "sends locked"
+                return False
+            self.press_async(key, timeout=t)
+            return None
+        try:
+            status, _ = self._fetch("POST", self.base_url + "/keypress/" + key, t, b"",
+                                    "/keypress/" + key)
+        except Exception as e:
+            self.last_error = _err_text(e)
+            return False
+        return self._sent(status, "/keypress/" + key)
+
+    def _locked(self, method):
+        """True when this POST would stop at the send lock (checked early so
+        a locked request never takes the sender's turn). The lock itself
+        stays where the bytes leave; a test hook or the simulator sends none."""
+        return (
+            method != "GET"
+            and self._http is None
+            and type(self)._fetch is RokuEngine._fetch
+            and not sends_enabled()
+        )
+
+    def _key_ok(self, key):
         if key not in ECP_KEY_SET and not str(key).startswith("Lit_"):
             self.last_error = "unknown key: " + str(key)
             return False
         if not self.host:
             self.last_error = "no host"
             return False
-        t = self.timeout if timeout is None else float(timeout)
-        if t <= 0:
-            t = 1.0
-        url = self.base_url + "/keypress/" + key
-        try:
-            if self._http is not None:
-                status, _ = self._http("POST", url, t, b"")
-            elif not wait:
-                return self._press_keepalive(key, t, drain=False)
-            else:
-                status, _ = _http_request_socket(
-                    "POST", url, timeout=t, data=b"", read_response=True
-                )
-        except Exception as e:
-            self.last_error = str(e)
-            return False
-        if status and 200 <= status < 400:
+        return True
+
+    def _sent(self, status, path):
+        """Bookkeeping for a POST's reply: True only for HTTP 200."""
+        if status == 200:
             self.connected = True
             self.last_error = ""
             return True
-        if status:
-            self.last_error = "HTTP %d /keypress/%s" % (status, key)
+        self.last_error = ("HTTP %d %s" % (status, path)) if status else "no reply"
         return False
+
+    def _fetch(self, method, url, timeout, data, path=""):
+        """One request, blocking, touching no engine state (safe on a worker)."""
+        if self._http is not None:
+            return self._http(method, url, timeout, data)
+        if socket is not None:
+            return _http_request_socket(method, url, timeout=timeout, data=data)
+        return http_request(method, url, timeout=timeout, data=data)
+
+    # --- Queued requests: never block the caller ---------------------------
+
+    def _get_sender(self):
+        snd = self._sender
+        if snd is None or snd.mode is None:
+            mode = self.sender_mode or getattr(self, "_default_sender", None)
+            snd = self._sender = _Sender(self, mode or default_sender_mode())
+        return snd
+
+    def submit(self, method, path, apply=None, done=None, timeout=None, data=b""):
+        """Queue one ECP request and return at once.
+
+        The sender runs requests in the order they were queued. When this one
+        finishes, :meth:`deliver` calls ``apply(status, body, error)`` (its
+        return value is the result) and then ``done(result)``, both on the
+        thread that calls :meth:`deliver`. A POST while sends are locked
+        never reaches the sender: it finishes as an error at once.
+        """
+        t = self.timeout if timeout is None else float(timeout)
+        method = (method or "GET").upper()
+        job = _Job(method, self.base_url + path, path, data, t, None, apply, done)
+        snd = self._get_sender()
+        if not self.host:
+            snd.put_finished(job, OSError("no host"))
+        elif self._locked(method):
+            snd.put_finished(job, SendsLocked("sends locked"))
+        else:
+            snd.put(job)
+        return job
+
+    def submit_call(self, fn, done=None):
+        """Queue a plain blocking call (a LAN search, say) behind the requests.
+
+        With a sender thread it runs there; without one it runs inside
+        :meth:`deliver` and blocks like it always did. ``done(value)`` gets
+        its return value, or None if it raised (the error is in ``last_error``).
+        """
+        job = _Job("CALL", "", "", b"", 0, fn, None, done)
+
+        def _apply(status, body, err):
+            if err is not None:
+                self.last_error = _err_text(err)
+                return None
+            return body
+
+        job.apply = _apply
+        self._get_sender().put(job)
+        return job
+
+    def deliver(self):
+        """Apply finished requests and run their callbacks; returns how many.
+
+        Call it from the front end's tick (or any safe point). Without a
+        sender thread this is also where the queued requests move along, one
+        non-blocking step at a time.
+        """
+        snd = self._sender
+        if snd is None:
+            return 0
+        snd.pump()
+        jobs = snd.take()
+        for job in jobs:
+            status, body, err = job.result
+            try:
+                if job.apply is not None:
+                    result = job.apply(status, body, err)
+                elif err is not None:
+                    self.last_error = _err_text(err)
+                    result = False
+                else:
+                    result = self._sent(status, job.path) if job.method != "GET" else body
+                if job.done is not None:
+                    job.done(result)
+            except Exception as exc:
+                print("roku_engine: callback for %s failed: %s" % (job.path or "call", exc))
+        if jobs:
+            snd.settled(len(jobs))
+        return len(jobs)
+
+    def sender_idle(self):
+        """True when nothing is queued, in flight or waiting for :meth:`deliver`."""
+        snd = self._sender
+        return snd is None or snd.busy <= 0
+
+    def flush(self, timeout=10.0):
+        """Block until every queued request has been delivered (tests, REPL)."""
+        deadline = _monotonic_deadline_ms(timeout)
+        while not self.sender_idle():
+            self.deliver()
+            if self.sender_idle() or _monotonic_expired(deadline):
+                break
+            _sleep_ms(2)
+        return self.sender_idle()
+
+    def _send_apply(self, path):
+        def apply(status, body, err):
+            if err is not None:
+                self.last_error = _err_text(err)
+                return False
+            return self._sent(status, path)
+
+        return apply
+
+    def press_async(self, key, done=None, timeout=1.5):
+        """Queue ``/keypress/<key>``; ``done(ok)`` is True only for HTTP 200."""
+        if not self._key_ok(key):
+            job = _Job("POST", "", "/keypress/" + str(key), b"", 0, None, None, done)
+            err = self.last_error
+            job.apply = lambda s, b, e: self._fail(err)
+            self._get_sender().put_finished(job, None)
+            return job
+        path = "/keypress/" + key
+        return self.submit("POST", path, self._send_apply(path), done, timeout)
+
+    def _fail(self, why):
+        self.last_error = why
+        return False
+
+    def launch_async(self, app_id, query="", done=None, timeout=10.0):
+        """Queue ``/launch/<app_id>``; the Roku answers once the app is up."""
+        path = self._launch_path(app_id, query)
+        return self.submit("POST", path, self._send_apply(path), done, timeout)
+
+    def _query_apply(self, fn):
+        def apply(status, body, err):
+            if err is not None:
+                self.last_error = _err_text(err)
+                return fn(0, b"")
+            if status and 200 <= status < 400:
+                self.connected = True
+                self.last_error = ""
+            return fn(status, body)
+
+        return apply
+
+    def refresh_async(self, done=None, timeout=2.0):
+        """Queue the active-app and media-player polls; ``done(status_text)``."""
+        self.submit("GET", "/query/active-app", self._query_apply(self._apply_active_app),
+                    None, timeout)
+
+        def _both(_media):
+            if self.active_app or self.media_state:
+                self.connected = True
+            if done is not None:
+                done(self.playback_status())
+
+        return self.submit("GET", "/query/media-player",
+                           self._query_apply(self._apply_media_player), _both, timeout)
+
+    def query_apps_async(self, done=None, timeout=5.0):
+        """Queue ``/query/apps``; ``done(apps)``."""
+        return self.submit("GET", "/query/apps", self._query_apply(self._apply_apps), done,
+                           timeout)
+
+    def query_device_info_async(self, done=None, timeout=3.0):
+        """Queue ``/query/device-info``; ``done(info)``."""
+        return self.submit("GET", "/query/device-info",
+                           self._query_apply(self._apply_device_info), done, timeout)
+
+    def connect_async(self, host=None, done=None):
+        """:meth:`connect` without blocking: ``done(connected)``."""
+        if host is not None:
+            self.set_host(host)
+
+        def _info(info):
+            self.connected = bool(info)
+            if self.connected:
+                self._remember_connected(info)
+                self.refresh_async()
+                if not self.apps:
+                    self.query_apps_async()
+            if done is not None:
+                done(self.connected)
+
+        return self.query_device_info_async(_info)
+
+    def discover_async(self, done=None, **kwargs):
+        """Queue :meth:`discover`; ``done(devices)``. Blocks without a thread."""
+        return self.submit_call(lambda: self.discover(**kwargs), done)
 
     def keydown(self, key):
         if key not in ECP_KEY_SET and not str(key).startswith("Lit_"):
@@ -2938,12 +3305,17 @@ class RokuEngine:
                 ok = False
         return ok
 
-    def launch(self, app_id, query=""):
+    @staticmethod
+    def _launch_path(app_id, query=""):
         path = "/launch/" + str(app_id)
         if query:
             path += ("&" if "?" in query else "?") + query.lstrip("?&")
-        status, _ = self._request("POST", path, b"")
-        return 200 <= status < 300
+        return path
+
+    def launch(self, app_id, query=""):
+        """ECP ``/launch/``; blocks until the app is up. See :meth:`launch_async`."""
+        status, _ = self._request("POST", self._launch_path(app_id, query), b"")
+        return status == 200
 
     def install(self, app_id):
         status, _ = self._request("POST", "/install/" + str(app_id), b"")
@@ -2962,7 +3334,9 @@ class RokuEngine:
         return 200 <= status < 300
 
     def query_device_info(self):
-        status, body = self._request("GET", "/query/device-info")
+        return self._apply_device_info(*self._request("GET", "/query/device-info"))
+
+    def _apply_device_info(self, status, body):
         if not body or status >= 400:
             self.device_info = {}
             return {}
@@ -2998,7 +3372,9 @@ class RokuEngine:
         return info
 
     def query_apps(self):
-        status, body = self._request("GET", "/query/apps")
+        return self._apply_apps(*self._request("GET", "/query/apps"))
+
+    def _apply_apps(self, status, body):
         if not body or status >= 400:
             self.apps = []
             return []
@@ -3006,7 +3382,9 @@ class RokuEngine:
         return self.apps
 
     def query_active_app(self):
-        status, body = self._request("GET", "/query/active-app")
+        return self._apply_active_app(*self._request("GET", "/query/active-app"))
+
+    def _apply_active_app(self, status, body):
         if not body or status >= 400:
             self.active_app = {}
             self.active_screensaver = ""
@@ -3035,7 +3413,9 @@ class RokuEngine:
         return self.active_app
 
     def query_media_player(self):
-        status, body = self._request("GET", "/query/media-player")
+        return self._apply_media_player(*self._request("GET", "/query/media-player"))
+
+    def _apply_media_player(self, status, body):
         if not body or status >= 400:
             self.media_player = ""
             self.media_state = {}

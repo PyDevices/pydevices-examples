@@ -103,7 +103,6 @@ ACCENT = 0x901F  # Roku violet
 PLAY = 0x07E0
 WARN = 0xFC00
 
-_ON_MCU = getattr(sys, "platform", "") in ("esp32", "rp2", "samd", "nrf", "mimxrt", "stm32")
 
 # Menu rows: (label, action). Built per visit so Power reads the TV's state.
 _NAV_UD = "nav_ud"
@@ -134,7 +133,7 @@ class KnobRemote:
         self.message = ""
         self.message_until = 0
 
-        self.jobs = []  # queued blocking work: (fn, args)
+        self.jobs = []  # work for the engine's sender, handed over one at a time
         self.vol_pending = 0  # detents not yet sent
         self.vol_recent = 0  # net steps shown on the bar
         self.vol_at = 0
@@ -333,26 +332,39 @@ class KnobRemote:
         self._flash("Connecting")
         self._queue(self._connect, host)
 
-    # --- work (runs on the tick, one job at a time) ---------------------
+    # --- work -----------------------------------------------------------
+    #
+    # Nothing here waits for the TV. Each job queues a request with the
+    # engine's sender and returns; the reply comes back through
+    # ``engine.deliver()`` at the top of the next tick, and the callbacks
+    # below run there. The tick hands the sender one job at a time, so keys
+    # go in the order they were asked for and a fast spin can't pile up
+    # requests behind a TV that has stopped answering.
 
     def _queue(self, fn, *args):
         self.jobs.append((fn, args))
 
     def _press(self, key):
-        # On a board, send on the kept-alive socket and read the reply on the
-        # next press: a fresh connect per detent costs 50-450 ms on an S3.
-        ok = self.engine.press(key, timeout=1.5, wait=not _ON_MCU)
+        self.engine.press_async(key, done=lambda ok: self._sent(key, ok))
+
+    def _sent(self, key, ok):
         if not ok:
             why = self.engine.last_error or "failed"
             self._flash("%s: %s" % (key, why), WARN)
 
     def _refresh(self):
-        self.engine.refresh_playback()
+        self.last_refresh = ticks_ms()
+        self.engine.refresh_async(done=self._refreshed)
+
+    def _refreshed(self, _status=None):
         self.last_refresh = ticks_ms()
         self.dirty = True
 
     def _load_apps(self):
-        apps = self.engine.query_apps() or []
+        self.engine.query_apps_async(done=self._apps_loaded)
+
+    def _apps_loaded(self, apps):
+        apps = apps or []
         rows = [("< Menu", self._open_menu, None)]
         for a in apps:
             rows.append((app_label(a.get("name") or a.get("id")), self._launch, a))
@@ -361,35 +373,49 @@ class KnobRemote:
         self._flash("%d apps" % len(apps))
 
     def _launch(self, a):
-        self._queue(self.engine.launch, a.get("id"))
+        self._queue(self._send_launch, a)
         self._flash("Launching " + (a.get("name") or ""))
         self._go("now")
 
+    def _send_launch(self, a):
+        name = a.get("name") or a.get("id") or ""
+
+        def done(ok):
+            if ok:
+                self.last_refresh = 0  # show what came up
+            else:
+                self._flash("%s: %s" % (name, self.engine.last_error or "failed"), WARN)
+
+        self.engine.launch_async(a.get("id"), done=done)
+
     def _discover(self):
-        try:
-            found = self.engine.discover(timeout=1.5, scan_fallback=False)
-        except Exception as exc:
-            self._flash("search: %s" % exc, WARN)
+        self.engine.discover_async(done=self._discovered, timeout=1.5, scan_fallback=False)
+
+    def _discovered(self, found):
+        if found is None:
+            self._flash("search: %s" % (self.engine.last_error or "failed"), WARN)
             return
         if self.page != "tvs":
             return
         have = {r[2] for r in self.rows}
-        for d in found or []:
+        for d in found:
             host = d.get("host")
             if host and host not in have:
                 self.rows.append((d.get("name") or host, self._pick, host))
                 have.add(host)
-        self._flash("%d TV%s found" % (len(found or []), "" if len(found or []) == 1 else "s"))
+        self._flash("%d TV%s found" % (len(found), "" if len(found) == 1 else "s"))
         self.dirty = True
 
     def _connect(self, host):
-        self.engine.set_host(host)
-        if self.engine.connect():
-            self._flash("Connected")
-            self._go("now")
-        else:
-            self._flash("No Roku at " + host, WARN)
-            self.dirty = True
+        def done(ok):
+            if ok:
+                self._flash("Connected")
+                self._go("now")
+            else:
+                self._flash("No Roku at " + host, WARN)
+                self.dirty = True
+
+        self.engine.connect_async(host, done=done)
 
     def _flash(self, text, colour=ACCENT):
         self.message = (text, colour)
@@ -403,19 +429,24 @@ class KnobRemote:
             print("roku_knob:", exc)
 
     def _tick_body(self):
+        self.engine.deliver()  # replies land here, never mid-request
         now = ticks_ms()
         if self.down_at is not None and not self.hold_fired:
             if ticks_diff(now, self.down_at) >= HOLD_MS:
                 self.hold_fired = True
                 self.hold()
-        # Volume first: one step per tick, so a fast spin never floods the TV.
-        if self.vol_pending:
+        # Volume first, and one request at a time: the next goes when the
+        # last has its answer, so a fast spin never floods the TV.
+        idle_sender = self.engine.sender_idle()
+        if idle_sender and self.vol_pending:
             step = 1 if self.vol_pending > 0 else -1
             self.vol_pending -= step
             self._press("VolumeUp" if step > 0 else "VolumeDown")
-        elif self.jobs:
+            idle_sender = False
+        elif idle_sender and self.jobs:
             fn, args = self.jobs.pop(0)
             fn(*args)
+            idle_sender = self.engine.sender_idle()
         idle = ticks_diff(now, self.last_input)
         if self.page == "nav" and idle > NAV_IDLE_MS:
             self._go("now")
@@ -424,6 +455,7 @@ class KnobRemote:
         if (
             self.page == "now"
             and self.engine.host
+            and idle_sender
             and not self.jobs
             and not self.vol_pending
             and idle > QUIET_AFTER_MS
