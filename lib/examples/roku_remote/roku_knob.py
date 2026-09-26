@@ -77,6 +77,8 @@ ACCENT = 0x901F  # Roku violet
 PLAY = 0x07E0
 WARN = 0xFC00
 
+_ON_MCU = getattr(sys, "platform", "") in ("esp32", "rp2", "samd", "nrf", "mimxrt", "stm32")
+
 # Menu rows: (label, action). Built per visit so Power reads the TV's state.
 _NAV_UD = "nav_ud"
 _NAV_LR = "nav_lr"
@@ -311,7 +313,9 @@ class KnobRemote:
         self.jobs.append((fn, args))
 
     def _press(self, key):
-        ok = self.engine.press(key, timeout=1.5)
+        # On a board, send on the kept-alive socket and read the reply on the
+        # next press: a fresh connect per detent costs 50-450 ms on an S3.
+        ok = self.engine.press(key, timeout=1.5, wait=not _ON_MCU)
         if not ok:
             self._flash("%s failed" % key, WARN)
 
