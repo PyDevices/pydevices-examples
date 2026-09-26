@@ -96,7 +96,10 @@ def run(api, mode, period_ms, duration_ms):
 
         def cb(t):
             stamps.append(ticks_us())
-            lateness.append(ticks_diff_ms(ticks_ms_host(), t._due))
+            # The timer's deadline is on multimer's own clock, which is masked
+            # to 29 bits and need not share a base with time.ticks_ms (it does
+            # not on the windows port), so measure lateness on that clock.
+            lateness.append(multimer.ticks_diff(multimer.ticks_ms(), t._due))
 
         tim = multimer.Timer(-1)
         tim.init(mode=multimer.Timer.PERIODIC, period=period_ms, callback=cb)
