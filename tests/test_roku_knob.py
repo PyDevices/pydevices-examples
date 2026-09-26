@@ -447,6 +447,16 @@ class SlowTvTests(unittest.TestCase):
         self.assertIn("HTTP 500", eng.last_error)
         self.assertFalse(eng.press("Home"))  # the blocking call agrees
 
+    def test_a_launch_the_tv_gives_up_on_is_not_a_success(self):
+        # The 65" answers 503 after ~10 s for an app slow to start.
+        k, eng = self._knob(status=503)
+        k._launch({"id": "593099", "name": "Peacock TV"})
+        _tick_for(k, 0.3)
+        eng.flush(5)
+        k._tick_body()
+        self.assertEqual(k.message[0], "Peacock TV: slow to start")
+        self.assertIn("HTTP 503", eng.last_error)
+
     def test_keys_go_in_order_each_on_its_own_connection(self):
         _k, eng = self._knob()
         keys_sent = ["Up", "Up", "Right", "Select", "Back", "Home"]

@@ -383,6 +383,10 @@ class KnobRemote:
         def done(ok):
             if ok:
                 self.last_refresh = 0  # show what came up
+            elif "HTTP 503" in (self.engine.last_error or ""):
+                # The Roku gives up waiting on a slow app, which still starts.
+                self._flash("%s: slow to start" % name, WARN)
+                self.last_refresh = 0
             else:
                 self._flash("%s: %s" % (name, self.engine.last_error or "failed"), WARN)
 

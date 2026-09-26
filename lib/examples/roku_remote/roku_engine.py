@@ -3234,9 +3234,10 @@ class RokuEngine:
     def launch_async(self, app_id, query="", done=None, timeout=20.0):
         """Queue ``/launch/<app_id>``; the Roku answers once the app is up.
 
-        A cold start can take more than 10 s to answer (HBO Max on the 65",
-        2026-09-26), hence the long timeout: the wait is off the tick, and
-        only requests queued behind the launch wait with it.
+        An app slow to start gets a 503 after about 10 s, and it comes up
+        anyway a few seconds later (Paramount+, Peacock and HBO Max on the
+        65", 2026-09-26). That is still reported as a failure: only a 200
+        counts. Only requests queued behind a launch wait with it.
         """
         path = self._launch_path(app_id, query)
         return self.submit("POST", path, self._send_apply(path), done, timeout)
