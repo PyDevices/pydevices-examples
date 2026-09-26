@@ -51,7 +51,8 @@ except AttributeError:  # CPython
 HISTORY = 40  # values kept per series, so a new dashboard has a sparkline at once
 MAX_NODES = 16
 MAX_SERIES = 12  # per node
-HERE = __file__.rsplit("/", 1)[0] if "/" in __file__ else "."
+_FILE = __file__.replace("\\", "/")  # a Windows path has no "/" to split on
+HERE = _FILE.rsplit("/", 1)[0] if "/" in _FILE else "."
 
 
 def _num(text):

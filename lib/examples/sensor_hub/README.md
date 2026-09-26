@@ -109,6 +109,10 @@ draws, plus `pressure` (hPa) and `rssi`.
 
 The panel can't be read back, so `funhouse_node.save_screen()` writes out the
 pixels it has sent to the panel (240x240 RGB565) as a capture.
+`run(..., frames=8)` publishes eight readings and returns, so a script can
+save the screen straight after:
+
+![The FunHouse's screen](../../../docs/screenshots/sensor_hub_funhouse_screen.png)
 
 ## Check it
 

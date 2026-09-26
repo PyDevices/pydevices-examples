@@ -153,7 +153,8 @@ def border(color):
             _shadow[(yy * W + x) * 2 : (yy * W + x + w) * 2] = px * w
 
 
-def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http", repaint=30):
+def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http", repaint=30, port=None, frames=0):
+    """Publish forever, or for ``frames`` readings and return (then ``save_screen()``)."""
     clear()
     dotstars_off()
     line(0, node, OK)
@@ -169,7 +170,7 @@ def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http", repaint=30)
     sent = failed = 0
     last_ok = None
     t0 = time.ticks_ms()
-    while True:
+    while not frames or sent + failed < frames:
         t = time.ticks_ms()
         r = s.read()
         try:
@@ -177,7 +178,7 @@ def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http", repaint=30)
         except Exception:
             pass
         try:
-            send(hub, node, r, via=via)
+            send(hub, node, r, via=via, port=port)
             sent += 1
             last_ok = t
         except Exception as e:
@@ -188,8 +189,8 @@ def run(hub="192.168.1.147", node="funhouse", every=2.0, via="http", repaint=30)
                     wifi.connect_from_secrets()
                 except Exception as e2:
                     print("reconnect failed:", repr(e2))
-        frames = sent + failed
-        if repaint and frames % repaint == 0:
+        n = sent + failed
+        if repaint and n % repaint == 0:
             clear()  # a full repaint now and then
             line(0, node, OK)
             line(1, ip, DIM)
