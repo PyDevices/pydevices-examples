@@ -17,12 +17,24 @@
       "../lib/examples/spectrum/make_captures.py"
     ],
     [
+      "spectrum/pump_levels.py",
+      "../lib/examples/spectrum/pump_levels.py"
+    ],
+    [
       "spectrum/spectrum.py",
       "../lib/examples/spectrum/spectrum.py"
     ],
     [
       "spectrum/spectrum_view.py",
       "../lib/examples/spectrum/spectrum_view.py"
+    ],
+    [
+      "spectrum/spike/meter_gate.py",
+      "../lib/examples/spectrum/spike/meter_gate.py"
+    ],
+    [
+      "spectrum/spike/play_src.py",
+      "../lib/examples/spectrum/spike/play_src.py"
     ]
   ],
   "version": "0.0.1"

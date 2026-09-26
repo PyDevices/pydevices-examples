@@ -276,6 +276,121 @@ class SpectrumView:
             x += pitch
         return y0, y1 - y0
 
+    # --- per column, for panels where every byte through PSRAM counts -------
+
+    def _build_bar_columns(self):
+        """Per bar, two packed columns (bar_w wide, top of plot to bottom of
+        reflection): the background under it, and the same with the bar fully
+        lit. A frame then sends row runs of one or the other straight to the
+        panel, plus the highlight and the cap from small prebuilt rows, so no
+        pixel is copied twice."""
+        bw, top = self.bar_w, self.top
+        self._ch = self.refl_y + self.refl_h - top  # column height in rows
+        ch, bw2 = self._ch, bw * 2
+        w2 = self.width * 2
+        bgmv = self._bgmv
+        col, rcol, ph, rh = self._col, self._rcol, self.plot_h, self.refl_h
+        self._cbg, self._clit = [], []
+        x = self.x0
+        for i in range(self.bands):
+            bg = bytearray(ch * bw2)
+            for r in range(ch):
+                o = (top + r) * w2 + x * 2
+                bg[r * bw2 : (r + 1) * bw2] = bgmv[o : o + bw2]
+            lit = bytearray(bg)
+            lfb = FrameBuffer(lit, bw, ch, RGB565)
+            lfb.blit((col, bw, ph, RGB565), 0, 0, KEY)
+            lfb.blit((rcol, bw, rh, RGB565), 0, self.refl_y - top, KEY)
+            self._cbg.append(memoryview(bg))
+            self._clit.append(memoryview(lit))
+            x += self.pitch
+        # One highlight run and one cap per row they can sit on.
+        hi_h, cap_h = min(self.hi_h, ph), self.cap_h
+        self._hirow = [c.to_bytes(2, "little") * (bw * hi_h) for c in self._hilite]
+        self._caprow = [c.to_bytes(2, "little") * (bw * cap_h) for c in self._capcol]
+        n = self.bands
+        self._shown_h = [0] * n
+        self._shown_cap = [-1] * n
+        self._shown_rr = [0] * n
+
+    def render_columns(self, blit):
+        """Draw this frame bar by bar, calling ``blit(buf, x, y, w, h)`` for
+        each run of rows that changed. Only what moved is sent."""
+        if not hasattr(self, "_cbg"):
+            self._build_bar_columns()
+        ph, bw, top = self.plot_h, self.bar_w, self.top
+        bw2 = bw * 2
+        cap_h, hi_h = self.cap_h, self.hi_h
+        sp = self.seg_pitch
+        roff = self.refl_y - top
+        rh = self.refl_h
+        hirow, caprow = self._hirow, self._caprow
+        shown_h, shown_cap, shown_rr = self._shown_h, self._shown_cap, self._shown_rr
+        level, peak = self.level, self.peak
+        x = self.x0
+        pitch = self.pitch
+        for i in range(self.bands):
+            h = int(level[i] * ph)
+            if sp:
+                h -= h % sp
+            p = int(peak[i] * ph)
+            cy = ph - p - cap_h - 1 if p > 0 else -1  # cap row in column coords
+            oh, ocy = shown_h[i], shown_cap[i]
+            if h != oh or cy != ocy:
+                bt, obt = ph - h, ph - oh
+                r0 = bt if bt < obt else obt
+                if 0 <= cy < r0:
+                    r0 = cy
+                if 0 <= ocy < r0:
+                    r0 = ocy
+                r1 = (bt if bt > obt else obt) + (0 if sp else hi_h)
+                if ocy >= 0 and ocy + cap_h > r1:
+                    r1 = ocy + cap_h
+                if r1 > ph:
+                    r1 = ph
+                if r0 < bt:
+                    blit(self._cbg[i][r0 * bw2 : bt * bw2], x, top + r0, bw, bt - r0)
+                if bt < r1:
+                    blit(self._clit[i][bt * bw2 : r1 * bw2], x, top + bt, bw, r1 - bt)
+                if h > 0 and not sp:
+                    hh = hi_h if hi_h < h else h
+                    blit(hirow[bt] if hh == hi_h else hirow[bt][: bw2 * hh], x, top + bt, bw, hh)
+                if cy >= 0:
+                    blit(caprow[ph - p], x, top + cy, bw, cap_h)
+                shown_h[i] = h
+                shown_cap[i] = cy
+            rr = h if h < rh else rh
+            orr = shown_rr[i]
+            if rr != orr:
+                if rr > orr:
+                    blit(self._clit[i][(roff + orr) * bw2 : (roff + rr) * bw2], x, top + roff + orr, bw, rr - orr)
+                else:
+                    blit(self._cbg[i][(roff + rr) * bw2 : (roff + orr) * bw2], x, top + roff + rr, bw, orr - rr)
+                shown_rr[i] = rr
+            x += pitch
+
+    def compose(self):
+        """The whole frame as the panel shows it, rebuilt into ``self.fb``
+        from the background and the shown state (for a screenshot)."""
+        self.fb.blit(self._bg, 0, 0)
+        if hasattr(self, "_cbg"):
+            fb = self.fb
+
+            def put(buf, x, y, w, h):
+                fb.blit_rect(buf, x, y, w, h)
+
+            n = self.bands
+            h, c, r = self._shown_h, self._shown_cap, self._shown_rr
+            self._shown_h, self._shown_cap, self._shown_rr = [0] * n, [-1] * n, [0] * n
+            lv, pk = self.level, self.peak
+            ph = self.plot_h
+            self.level = [(x + 0.5) / ph for x in h]
+            self.peak = [(ph - y - self.cap_h - 1 + 0.5) / ph if y >= 0 else 0 for y in c]
+            self.render_columns(put)
+            self.level, self.peak = lv, pk
+            self._shown_h, self._shown_cap, self._shown_rr = h, c, r
+        return self._buf
+
     def strip(self, y, h):
         """The bytes of rows ``y..y+h`` of the frame, for ``blit_rect``."""
         w2 = self.width * 2

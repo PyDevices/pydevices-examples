@@ -537,12 +537,24 @@
       "github:PyDevices/pydevices-examples/lib/examples/spectrum/make_captures.py"
     ],
     [
+      "spectrum/pump_levels.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/pump_levels.py"
+    ],
+    [
       "spectrum/spectrum.py",
       "github:PyDevices/pydevices-examples/lib/examples/spectrum/spectrum.py"
     ],
     [
       "spectrum/spectrum_view.py",
       "github:PyDevices/pydevices-examples/lib/examples/spectrum/spectrum_view.py"
+    ],
+    [
+      "spectrum/spike/meter_gate.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/spike/meter_gate.py"
+    ],
+    [
+      "spectrum/spike/play_src.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/spike/play_src.py"
     ],
     [
       "tiny_toasters/__init__.py",
