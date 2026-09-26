@@ -501,6 +501,69 @@ class SimSenderTests(unittest.TestCase):
         self.assertEqual(oks, [True])
 
 
+class _TickingList(list):
+    """A list that runs a nested tick whenever the sender touches it.
+
+    MicroPython with threads runs scheduled callbacks (the knob's tick) on
+    whichever thread reaches a bytecode boundary, including the sender's
+    worker. This puts one at each place the worker changes the queues.
+    """
+
+    tick = None
+
+    def append(self, item):
+        if self.tick:
+            self.tick()
+        super().append(item)
+
+    def pop(self, i=-1):
+        if self.tick:
+            self.tick()
+        return super().pop(i)
+
+
+class NestedTickTests(unittest.TestCase):
+    def test_a_tick_on_the_worker_thread_does_not_deadlock(self):
+        eng = roku_engine.RokuEngine(host="10.0.0.9")
+        eng._http = _Fake()
+        eng.sender_mode = roku_engine.SENDER_THREAD
+        snd = eng._get_sender()
+        nested = []
+        busy = []
+
+        def tick():  # multimer never re-enters a delivery, so neither does this
+            if busy:
+                return
+            busy.append(1)
+            try:
+                nested.append(eng.deliver())
+                eng.sender_idle()
+            finally:
+                busy.pop()
+
+        for name in ("queue", "finished"):
+            lst = _TickingList()
+            lst.tick = tick
+            setattr(snd, name, lst)
+        oks = []
+
+        def run():
+            for key in ("Up", "Down", "Select"):
+                eng.press_async(key, done=oks.append)
+            eng.flush(5)
+            eng.deliver()
+
+        import threading
+
+        t = threading.Thread(target=run, daemon=True)  # a deadlock fails, not hangs
+        t.start()
+        t.join(8)
+        self.assertFalse(t.is_alive(), "the sender deadlocked against a nested tick")
+        self.assertEqual(oks, [True, True, True])
+        self.assertEqual(eng._http.posts, ["/keypress/Up", "/keypress/Down", "/keypress/Select"])
+        self.assertTrue(nested)
+
+
 class LauncherTests(unittest.TestCase):
     def test_knob_board_detection(self):
         # Import the launcher's helpers without running it.

@@ -2249,66 +2249,66 @@ class _Job:
 
 
 class _Sender:
-    """Runs queued :class:`_Job` requests in order, off the caller's thread."""
+    """Runs queued :class:`_Job` requests in order, off the caller's thread.
+
+    No lock guards the lists, on purpose. With threads, MicroPython runs
+    scheduled callbacks (a multimer tick, and so the front end's tick and
+    :meth:`RokuEngine.deliver`) on whichever thread reaches a bytecode
+    boundary first, and that can be this worker. A lock held across a
+    boundary would deadlock the tick against itself, and it did on the
+    T-Embed. Thread mode runs only where a GIL makes each ``append`` and
+    ``pop`` atomic, and a job only moves forward: ``queue``, then
+    ``inflight``, then ``finished``, each set before the last is cleared.
+    """
 
     def __init__(self, engine, mode):
         self.engine = engine
         self.mode = mode
         self.queue = []
+        self.inflight = None
         self.finished = []
-        self.busy = 0  # queued + in flight + finished but not delivered
         self.current = None  # poll mode: (job, _NbHttp)
-        self.lock = None
         self.started = False
-        if mode == SENDER_THREAD:
-            try:
-                import _thread
+        self.wake = None
+        self.pumping = False
 
-                self.lock = _thread.allocate_lock()
-            except Exception:
-                self.mode = SENDER_POLL
-
-    # Every list touch goes through the lock: rp2-style ports have no GIL.
-    def _acquire(self):
-        if self.lock is not None:
-            self.lock.acquire()
-
-    def _release(self):
-        if self.lock is not None:
-            self.lock.release()
+    def idle(self):
+        # Checked in the order a job moves, so one in transit is always seen.
+        return not self.queue and self.inflight is None and not self.finished
 
     def put(self, job):
-        self._acquire()
-        try:
-            self.queue.append(job)
-            self.busy += 1
-        finally:
-            self._release()
-        if self.mode == SENDER_THREAD and not self.started:
-            self._start()
+        self.queue.append(job)
+        if self.mode == SENDER_THREAD:
+            if not self.started:
+                self._start()
+            self._kick()
 
     def put_finished(self, job, err):
         """Queue a job that already failed (locked, no host) for ``deliver``."""
         job.result = (0, b"", err)
-        self._acquire()
-        try:
-            self.finished.append(job)
-            self.busy += 1
-        finally:
-            self._release()
+        self.finished.append(job)
 
-    def finish(self, job, status, body, err):
-        job.result = (status, body, err)
-        self._acquire()
-        try:
-            self.finished.append(job)
-        finally:
-            self._release()
+    def _kick(self):
+        wake = self.wake
+        if wake is not None:
+            try:
+                wake.release()
+            except RuntimeError:  # already awake
+                pass
 
     def _start(self):
         import _thread
 
         self.started = True
+        # The worker waits on a lock rather than sleeping: a blocked acquire
+        # doesn't stop for scheduled callbacks, a sleep does. Releasing a
+        # lock from another thread is fine on esp32 (a binary semaphore) and
+        # CPython, but not a pthread mutex, so unix MicroPython sleeps.
+        if getattr(sys, "platform", "") == "esp32" or getattr(
+            sys.implementation, "name", ""
+        ) != "micropython":
+            self.wake = _thread.allocate_lock()
+            self.wake.acquire()
         old = None
         if getattr(sys.implementation, "name", "") == "micropython":
             try:
@@ -2320,6 +2320,7 @@ class _Sender:
         except Exception as exc:  # no memory for a stack: send from deliver
             print("roku_engine: no sender thread (%s), polling instead" % exc)
             self.mode = SENDER_POLL
+            self.wake = None
         finally:
             if old is not None:
                 try:
@@ -2327,20 +2328,20 @@ class _Sender:
                 except Exception:
                     pass
 
-    def _next(self):
-        self._acquire()
-        try:
-            return self.queue.pop(0) if self.queue else None
-        finally:
-            self._release()
-
     def _worker(self):
+        q = self.queue
         while self.mode == SENDER_THREAD:
-            job = self._next()
-            if job is None:
-                _sleep_ms(_WORKER_IDLE_MS)
+            if not q:
+                if self.wake is not None:
+                    self.wake.acquire()
+                else:
+                    _sleep_ms(_WORKER_IDLE_MS)
                 continue
+            job = q[0]
+            self.inflight = job
+            q.pop(0)
             self._run_blocking(job)
+            self.inflight = None
 
     def _run_blocking(self, job):
         status, body, err = 0, b"", None
@@ -2354,58 +2355,69 @@ class _Sender:
                 )
         except Exception as exc:
             err = exc
-        self.finish(job, status, body, err)
+        job.result = (status, body, err)
+        self.finished.append(job)
 
     def pump(self):
         """Poll and inline modes: move the queue along without blocking."""
-        if self.mode == SENDER_THREAD:
-            return
+        if self.mode == SENDER_THREAD or self.pumping:
+            return  # a tick nested inside a pump leaves it to the outer one
+        self.pumping = True
+        try:
+            self._pump()
+        finally:
+            self.pumping = False
+
+    def _pump(self):
+        q = self.queue
         while True:
             if self.current is None:
-                job = self._next()
-                if job is None:
+                if not q:
                     return
+                job = q[0]
+                self.inflight = job
+                q.pop(0)
                 if job.call is not None or self.mode == SENDER_INLINE or (
                     self.engine._http is not None
                 ):
                     # The simulator and the test hook answer at once; a plain
                     # call has no non-blocking form without a thread.
                     self._run_blocking(job)
+                    self.inflight = None
                     continue
                 try:
                     self.current = (job, _NbHttp(job.method, job.url, job.timeout, job.data))
                 except Exception as exc:
-                    self.finish(job, 0, b"", exc)
+                    job.result = (0, b"", exc)
+                    self.finished.append(job)
+                    self.inflight = None
                     continue
             job, req = self.current
             try:
                 res = req.step()
+                if res is None:
+                    return
+                job.result = (res[0], res[1], None)
             except Exception as exc:
-                self.current = None
-                self.finish(job, 0, b"", exc)
-                continue
-            if res is None:
-                return
+                job.result = (0, b"", exc)
             self.current = None
-            self.finish(job, res[0], res[1], None)
+            self.finished.append(job)
+            self.inflight = None
 
     def take(self):
-        self._acquire()
-        try:
-            done, self.finished = self.finished, []
-        finally:
-            self._release()
+        # A tick nested in here (see the class notes) may take some first.
+        done = []
+        f = self.finished
+        while f:
+            try:
+                done.append(f.pop(0))
+            except IndexError:
+                break
         return done
-
-    def settled(self, n):
-        self._acquire()
-        try:
-            self.busy -= n
-        finally:
-            self._release()
 
     def stop(self):
         self.mode = None
+        self._kick()
 
 
 _TIMED_OUT = [10060]  # Winsock's WSAETIMEDOUT
@@ -3178,14 +3190,12 @@ class RokuEngine:
                     job.done(result)
             except Exception as exc:
                 print("roku_engine: callback for %s failed: %s" % (job.path or "call", exc))
-        if jobs:
-            snd.settled(len(jobs))
         return len(jobs)
 
     def sender_idle(self):
         """True when nothing is queued, in flight or waiting for :meth:`deliver`."""
         snd = self._sender
-        return snd is None or snd.busy <= 0
+        return snd is None or snd.idle()
 
     def flush(self, timeout=10.0):
         """Block until every queued request has been delivered (tests, REPL)."""
@@ -3221,8 +3231,13 @@ class RokuEngine:
         self.last_error = why
         return False
 
-    def launch_async(self, app_id, query="", done=None, timeout=10.0):
-        """Queue ``/launch/<app_id>``; the Roku answers once the app is up."""
+    def launch_async(self, app_id, query="", done=None, timeout=20.0):
+        """Queue ``/launch/<app_id>``; the Roku answers once the app is up.
+
+        A cold start can take more than 10 s to answer (HBO Max on the 65",
+        2026-09-26), hence the long timeout: the wait is off the tick, and
+        only requests queued behind the launch wait with it.
+        """
         path = self._launch_path(app_id, query)
         return self.submit("POST", path, self._send_apply(path), done, timeout)
 
