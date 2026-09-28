@@ -11,7 +11,7 @@ the room. Over Wi-Fi, it can:
   on, changes the volume or input, and mirrors the panel to it. Sound the P4
   plays is on the TV too, in time with the picture: the drum machine's hits
   land with its step light.
-- **Run a smart-home panel.** The house panel example (in `house_panel/`)
+- **Run a smart-home panel.** The house panel example (`house`, beside this one)
   shows the house's sensors on the P4. One button puts the whole panel on the
   TV.
 
