@@ -39,8 +39,12 @@ packages = [
 ]
 
 SKIP_DIR_NAMES = {"__pycache__", ".git", ".mypy_cache", ".ruff_cache"}
-# MicroPython mip only fetches .py / .mpy / .json (see micropython-lib mip).
-MIP_FILE_SUFFIXES = {".py", ".mpy", ".json"}
+# Source plus the pages a board app serves itself (the sensor hub's and the
+# house panel's dashboards, the fleet page): mip downloads whatever a
+# package's "urls" list names, so an app installed by mip needs its .html
+# listed or its page 404s on the board. Binary assets (.bmp, .png, ...) stay
+# out: too big for a board, and no board app serves them.
+MIP_FILE_SUFFIXES = {".py", ".mpy", ".json", ".html"}
 # Local upstream checkouts (gitignored) — never list in mip manifests.
 PACKAGE_SKIP_DIRS = {
     "utils": {"gui"},
@@ -49,7 +53,7 @@ PACKAGE_SKIP_DIRS = {
 
 
 def should_include_file(filename: str) -> bool:
-    """Keep only mip-safe source extensions (skip .bmp/.png/.sh/… uniformly)."""
+    """Keep source and served pages (skip .bmp/.png/.sh/… uniformly)."""
     return Path(filename).suffix.lower() in MIP_FILE_SUFFIXES
 
 

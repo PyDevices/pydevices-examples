@@ -9,6 +9,10 @@
       "../lib/examples/sensor_hub/__main__.py"
     ],
     [
+      "sensor_hub/ble_publish.html",
+      "../lib/examples/sensor_hub/ble_publish.html"
+    ],
+    [
       "sensor_hub/ble_publish.py",
       "../lib/examples/sensor_hub/ble_publish.py"
     ],
@@ -23,6 +27,10 @@
     [
       "sensor_hub/check_hub.py",
       "../lib/examples/sensor_hub/check_hub.py"
+    ],
+    [
+      "sensor_hub/dashboard.html",
+      "../lib/examples/sensor_hub/dashboard.html"
     ],
     [
       "sensor_hub/funhouse_main.py",
