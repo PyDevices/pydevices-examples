@@ -105,6 +105,7 @@
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/house/house_panel.py" = "/examples/house/house_panel.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/house/house_server.py" = "/examples/house/house_server.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/house/main.py" = "/examples/house/main.py"
+"https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/house/showtv_proof.py" = "/examples/house/showtv_proof.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/joystick_list_select.py" = "/examples/joystick_list_select.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/keypins_simpletest.py" = "/examples/keypins_simpletest.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/logo.py" = "/examples/logo.py"

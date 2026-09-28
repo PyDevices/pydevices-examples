@@ -23,6 +23,10 @@
     [
       "house/main.py",
       "../lib/examples/house/main.py"
+    ],
+    [
+      "house/showtv_proof.py",
+      "../lib/examples/house/showtv_proof.py"
     ]
   ],
   "version": "0.0.1"
