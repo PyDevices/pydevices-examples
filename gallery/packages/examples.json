@@ -477,6 +477,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/fleet_page/check_fleet.py"
     ],
     [
+      "fleet_page/fleet.html",
+      "github:PyDevices/pydevices-examples/lib/examples/fleet_page/fleet.html"
+    ],
+    [
       "fleet_page/fleet.py",
       "github:PyDevices/pydevices-examples/lib/examples/fleet_page/fleet.py"
     ],
@@ -511,6 +515,10 @@
     [
       "house/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/house/__init__.py"
+    ],
+    [
+      "house/dashboard.html",
+      "github:PyDevices/pydevices-examples/lib/examples/house/dashboard.html"
     ],
     [
       "house/house_app.py",
@@ -605,6 +613,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/__main__.py"
     ],
     [
+      "sensor_hub/ble_publish.html",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/ble_publish.html"
+    ],
+    [
       "sensor_hub/ble_publish.py",
       "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/ble_publish.py"
     ],
@@ -619,6 +631,10 @@
     [
       "sensor_hub/check_hub.py",
       "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/check_hub.py"
+    ],
+    [
+      "sensor_hub/dashboard.html",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/dashboard.html"
     ],
     [
       "sensor_hub/funhouse_main.py",
