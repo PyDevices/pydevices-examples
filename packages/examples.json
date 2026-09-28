@@ -537,6 +537,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/house/main.py"
     ],
     [
+      "house/showtv_proof.py",
+      "github:PyDevices/pydevices-examples/lib/examples/house/showtv_proof.py"
+    ],
+    [
       "noto_fonts/NotoSansMono_32.py",
       "github:PyDevices/pydevices-examples/lib/examples/noto_fonts/NotoSansMono_32.py"
     ],
