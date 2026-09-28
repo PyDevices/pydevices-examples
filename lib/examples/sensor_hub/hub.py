@@ -92,8 +92,9 @@ def parse(data):
 
 
 class Hub:
-    def __init__(self, name="sensor-hub", plant=None):
+    def __init__(self, name="sensor-hub", plant=None, page=None):
         self.name = name
+        self.page = page or HERE + "/dashboard.html"  # served at GET /
         self.nodes = {}  # node -> {"via", "seen", "series": {name: [values]}}
         self.feed = wsfeed.Feed()
         self.counts = {"udp": 0, "http": 0, "ble": 0, "rejected": 0}
@@ -225,7 +226,7 @@ class Hub:
             elif path == "/api/status":
                 await _reply(writer, 200, json.dumps(self.status()).encode())
             elif path in ("/", "/index.html"):
-                await _send_file(writer, HERE + "/dashboard.html", "text/html; charset=utf-8")
+                await _send_file(writer, self.page, "text/html; charset=utf-8")
             else:
                 await _reply(writer, 404, b'{"error":"not found"}')
         except Exception as e:
