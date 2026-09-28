@@ -377,6 +377,54 @@
       "github:PyDevices/pydevices-examples/lib/examples/car_cluster/screens/trip_b.py"
     ],
     [
+      "cast/__init__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/__init__.py"
+    ],
+    [
+      "cast/_common.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/_common.py"
+    ],
+    [
+      "cast/castfast.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/castfast.py"
+    ],
+    [
+      "cast/drum_cast.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/drum_cast.py"
+    ],
+    [
+      "cast/laptop_input.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/laptop_input.py"
+    ],
+    [
+      "cast/melody.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/melody.py"
+    ],
+    [
+      "cast/micecast.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/micecast.py"
+    ],
+    [
+      "cast/roku_cast.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/roku_cast.py"
+    ],
+    [
+      "cast/tv_cast.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/tv_cast.py"
+    ],
+    [
+      "cast/uibcinput.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/uibcinput.py"
+    ],
+    [
+      "cast/pc/rtp_capture.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/pc/rtp_capture.py"
+    ],
+    [
+      "cast/pc/ts_timing.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/pc/ts_timing.py"
+    ],
+    [
       "chango/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/chango/__init__.py"
     ],
