@@ -46,7 +46,10 @@ python.exe pc/rtp_capture.py capture.bin 5004 700
 python pc/ts_timing.py capture.bin
 ```
 
-then run `drum_cast.py` with `MODE = "capture"` and your PC's address. On
+then run `drum_cast.py` with `MODE = "capture"` and your PC's address.
+`pc/laptop_input.ps1` drives the laptop's mouse and keyboard for
+`laptop_input` with nobody at the laptop, and the house example's
+`showtv_proof.py` presses SHOW-TV on a schedule with nobody at the panel. On
 2026-09-27 a 10-minute drum machine cast measured about 1 ms of A/V drift,
 with the audio clock within 13 ppm of the PC's and nothing dropped on the
 board.
