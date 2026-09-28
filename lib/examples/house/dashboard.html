@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<!-- The house dashboard the phone (or a PC browser) opens, served by the P4's
+     sensor hub. It watches the hub's websocket feed and shows every room with
+     its thresholds, raising an alert banner when one trips -- the same rules as
+     the on-panel display. Part of Batch 2 (device-scenarios). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PyDevices House</title>
+<style>
+  :root { --bg:#0a0c14; --card:#1a1e2c; --ink:#e0e6f0; --dim:#8792a6;
+          --ok:#3cbe78; --warn:#eb5a46; --cool:#5aa0eb; --accent:#9678f5; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font-family:-apple-system,Segoe UI,Roboto,sans-serif; padding:16px; }
+  header { display:flex; justify-content:space-between; align-items:baseline; }
+  h1 { font-size:22px; margin:0; }
+  #status { color:var(--dim); font-size:13px; }
+  #alert { margin:12px 0; padding:12px 14px; border-radius:10px; font-weight:600;
+           background:#123020; color:var(--ok); }
+  #alert.tripped { background:var(--warn); color:#000; }
+  .rooms { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+  .room { background:var(--card); border-radius:12px; padding:14px 16px; border-top:5px solid var(--card); }
+  .room.alert { border-top-color:var(--warn); }
+  .room h2 { margin:0 0 8px; font-size:16px; letter-spacing:.06em; text-transform:uppercase; }
+  .temp { font-size:34px; font-weight:700; margin:2px 0; }
+  .temp.hot { color:var(--warn); }
+  .hum { font-size:22px; color:var(--cool); }
+  .hum.damp { color:var(--warn); }
+  .sub { color:var(--dim); font-size:14px; margin-top:6px; }
+  .move { display:inline-block; margin-left:8px; padding:1px 8px; border-radius:6px;
+          background:var(--accent); color:#000; font-size:12px; font-weight:700; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PyDevices House</h1>
+  <span id="status">connecting…</span>
+</header>
+<div id="alert" data-tripped="0">all rooms nominal</div>
+<div class="rooms" id="rooms"></div>
+<script>
+  const rooms = {};        // name -> {temp,humidity,light,motion}
+  let received = 0;
+
+  function latest(series, k) {
+    const a = series && series[k];
+    return a && a.length ? a[a.length - 1] : 0;
+  }
+  function ingestSeries(name, series) {
+    const r = rooms[name] || (rooms[name] = {});
+    for (const k of ["temp", "humidity", "light", "motion"]) r[k] = latest(series, k);
+  }
+  function alertsFor(name, r) {
+    const a = [];
+    if (r.humidity >= 60) a.push(`${name} damp ${Math.round(r.humidity)}%`);
+    if (r.temp >= 26) a.push(`${name} warm ${r.temp.toFixed(1)}C`);
+    return a;
+  }
+  function render() {
+    let alerts = [];
+    const order = Object.keys(rooms).sort();
+    const el = document.getElementById("rooms");
+    el.innerHTML = "";
+    for (const name of order) {
+      const r = rooms[name];
+      const a = alertsFor(name, r);
+      alerts = alerts.concat(a);
+      const card = document.createElement("div");
+      card.className = "room" + (a.length ? " alert" : "");
+      card.dataset.room = name;
+      card.dataset.humidity = Math.round(r.humidity);
+      card.innerHTML =
+        `<h2>${name}${r.motion ? '<span class="move">MOVE</span>' : ''}</h2>` +
+        `<div class="temp${r.temp >= 26 ? ' hot' : ''}">${r.temp.toFixed(1)} &deg;C</div>` +
+        `<div class="hum${r.humidity >= 60 ? ' damp' : ''}">${Math.round(r.humidity)}% RH</div>` +
+        `<div class="sub">light ${Math.round(r.light)}</div>`;
+      el.appendChild(card);
+    }
+    const banner = document.getElementById("alert");
+    if (alerts.length) {
+      banner.className = "tripped";
+      banner.dataset.tripped = "1";
+      banner.innerHTML = alerts.map(a => `<div>⚠ ${a}</div>`).join("");
+    } else {
+      banner.className = "";
+      banner.dataset.tripped = "0";
+      banner.textContent = "all rooms nominal";
+    }
+  }
+  function onMessage(msg) {
+    if (msg.type === "snapshot") {
+      for (const [name, s] of Object.entries(msg.nodes)) ingestSeries(name, s.series);
+    } else if (msg.type === "reading") {
+      const r = rooms[msg.node] || (rooms[msg.node] = {});
+      for (const [k, v] of Object.entries(msg.readings)) r[k] = v;
+      received++;
+    }
+    render();
+  }
+  function connect() {
+    const ws = new WebSocket(`ws://${location.host}/ws`);
+    ws.onopen = () => { document.getElementById("status").textContent = "live"; };
+    ws.onclose = () => { document.getElementById("status").textContent = "disconnected"; setTimeout(connect, 1000); };
+    ws.onmessage = e => { try { onMessage(JSON.parse(e.data)); } catch (err) { console.error(err); } };
+  }
+  connect();
+</script>
+</body>
+</html>
