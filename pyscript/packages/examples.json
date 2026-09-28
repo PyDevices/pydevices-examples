@@ -473,6 +473,14 @@
       "github:PyDevices/pydevices-examples/lib/examples/drum_seq/panel.py"
     ],
     [
+      "fleet_page/check_fleet.py",
+      "github:PyDevices/pydevices-examples/lib/examples/fleet_page/check_fleet.py"
+    ],
+    [
+      "fleet_page/fleet.py",
+      "github:PyDevices/pydevices-examples/lib/examples/fleet_page/fleet.py"
+    ],
+    [
       "google_photos/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/google_photos/__init__.py"
     ],
@@ -499,6 +507,26 @@
     [
       "google_photos/assets/gen_sim_assets.py",
       "github:PyDevices/pydevices-examples/lib/examples/google_photos/assets/gen_sim_assets.py"
+    ],
+    [
+      "house/__init__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/house/__init__.py"
+    ],
+    [
+      "house/house_app.py",
+      "github:PyDevices/pydevices-examples/lib/examples/house/house_app.py"
+    ],
+    [
+      "house/house_panel.py",
+      "github:PyDevices/pydevices-examples/lib/examples/house/house_panel.py"
+    ],
+    [
+      "house/house_server.py",
+      "github:PyDevices/pydevices-examples/lib/examples/house/house_server.py"
+    ],
+    [
+      "house/main.py",
+      "github:PyDevices/pydevices-examples/lib/examples/house/main.py"
     ],
     [
       "noto_fonts/NotoSansMono_32.py",
@@ -567,6 +595,50 @@
     [
       "roku_remote/roku_widgets.py",
       "github:PyDevices/pydevices-examples/lib/examples/roku_remote/roku_widgets.py"
+    ],
+    [
+      "sensor_hub/__init__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/__init__.py"
+    ],
+    [
+      "sensor_hub/__main__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/__main__.py"
+    ],
+    [
+      "sensor_hub/ble_publish.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/ble_publish.py"
+    ],
+    [
+      "sensor_hub/blefeed.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/blefeed.py"
+    ],
+    [
+      "sensor_hub/board_main.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/board_main.py"
+    ],
+    [
+      "sensor_hub/check_hub.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/check_hub.py"
+    ],
+    [
+      "sensor_hub/funhouse_main.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/funhouse_main.py"
+    ],
+    [
+      "sensor_hub/funhouse_node.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/funhouse_node.py"
+    ],
+    [
+      "sensor_hub/hub.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/hub.py"
+    ],
+    [
+      "sensor_hub/publish.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/publish.py"
+    ],
+    [
+      "sensor_hub/wsfeed.py",
+      "github:PyDevices/pydevices-examples/lib/examples/sensor_hub/wsfeed.py"
     ],
     [
       "spectrum/__init__.py",

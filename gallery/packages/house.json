@@ -1,0 +1,25 @@
+{
+  "urls": [
+    [
+      "house/__init__.py",
+      "../lib/examples/house/__init__.py"
+    ],
+    [
+      "house/house_app.py",
+      "../lib/examples/house/house_app.py"
+    ],
+    [
+      "house/house_panel.py",
+      "../lib/examples/house/house_panel.py"
+    ],
+    [
+      "house/house_server.py",
+      "../lib/examples/house/house_server.py"
+    ],
+    [
+      "house/main.py",
+      "../lib/examples/house/main.py"
+    ]
+  ],
+  "version": "0.0.1"
+}
