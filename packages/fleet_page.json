@@ -5,6 +5,10 @@
       "../lib/examples/fleet_page/check_fleet.py"
     ],
     [
+      "fleet_page/fleet.html",
+      "../lib/examples/fleet_page/fleet.html"
+    ],
+    [
       "fleet_page/fleet.py",
       "../lib/examples/fleet_page/fleet.py"
     ]

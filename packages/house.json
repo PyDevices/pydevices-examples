@@ -5,6 +5,10 @@
       "../lib/examples/house/__init__.py"
     ],
     [
+      "house/dashboard.html",
+      "../lib/examples/house/dashboard.html"
+    ],
+    [
       "house/house_app.py",
       "../lib/examples/house/house_app.py"
     ],
