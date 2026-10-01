@@ -131,6 +131,7 @@
   "utils/pixel_sim/board_config.py",
   "utils/png.py",
   "utils/ps_loader.py",
+  "utils/roku_companion.py",
   "utils/secrets.py",
   "utils/tft_bitmap.py",
   "utils/tft_config.py",
