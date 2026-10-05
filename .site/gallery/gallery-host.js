@@ -10,8 +10,9 @@ globalThis.__pydevicesHost = state;
 const logElement = () => document.getElementById("log");
 
 // The loader overlay both host shells carry (micropython.html, mp.html). A
-// first visit downloads the runtime, then installs packages over the network,
-// which is long enough that a black canvas reads as a broken page.
+// first visit downloads the runtime (and installs any third-party package an
+// example needs), which is long enough that a black canvas reads as a broken
+// page.
 function setStatus(text) {
     const element = document.querySelector(".hero-canvas-status");
     if (element) element.textContent = text;
@@ -93,16 +94,24 @@ function pythonLiteral(value) {
 }
 
 async function installPackages(mp, plan) {
+    // The PyDevices stack and the desktop board_config are frozen into the
+    // runtime, so nothing here installs them: a ?deps= entry the runtime
+    // already carries is skipped, and only something it lacks (a third-party
+    // package) is fetched. A runtime built without the stack fails at the
+    // example's own import, loudly.
     const index = "https://PyDevices.github.io/mip";
-    setStatus("Installing pydevices-desktop…");
-    await mp.runPythonAsync(`
-import mip
-mip.install("pydevices-desktop", index=${pythonLiteral(index)}, target="lib")
-`);
     for (const dependency of plan.deps) {
+        await mp.runPythonAsync(`
+try:
+    __import__(${pythonLiteral(dependency)})
+    _present = True
+except ImportError:
+    _present = False
+`);
+        if (mp.globals.get("_present")) continue;
         setStatus(`Installing ${dependency}…`);
         await mp.runPythonAsync(
-            `mip.install(${pythonLiteral(dependency)}, index=${pythonLiteral(index)}, target="lib")`
+            `import mip; mip.install(${pythonLiteral(dependency)}, index=${pythonLiteral(index)}, target="lib")`
         );
     }
     for (const manifest of plan.manifests) {

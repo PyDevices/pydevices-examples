@@ -265,8 +265,8 @@ from displaydev import env_set
 env_set("PYDEVICES_WIDTH", 320)
 env_set("PYDEVICES_HEIGHT", 240)
 
-# gallery-host.js has already staged /utils, installed the pydevices-desktop
-# MIP package (which supplies board_config) and installed this GUI's manifest
+# gallery-host.js has already staged /utils and installed this GUI's manifest
+# (the PyDevices stack and board_config are frozen into the runtime)
 # under /utils/gui before this command runs. stdout/stderr are already wired to
 # the console panel by the host, so plain print() lands in #log.
 
@@ -395,7 +395,7 @@ def _boot():
         else:
             _set_status("Initializing GUI…")
         # color_setup / hardware_setup / touch_setup import board_config —
-        # the same desktop package the other gallery loaders install.
+        # the desktop board config frozen into the runtime.
         print("Loading", setup)
         __import__(setup)
 
