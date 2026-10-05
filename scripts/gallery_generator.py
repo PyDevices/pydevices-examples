@@ -10,7 +10,7 @@ Default-includes every example **entry point** under ``lib/examples/``:
 
 Optional headers (first 10 lines), one line per namespace::
 
-  # deps: palettes, lvgl          — logical packages → ?deps= via url_maker
+  # deps: palettes, lvgl          — logical packages → the Pyodide gallery's ?deps= (url_maker)
   # utils: console, tft_config  — pydevices-examples utils modules (shown as badges)
   # modules: calc_engine          — extra example .py stems (site)
   # manifests: alien              — site-served packages/<name>.json bundles
@@ -179,8 +179,13 @@ class Example:
             "manifests": self._manifests_for_query(),
             "deps": self.deps,
         }
+        # The wasm runtime has the PyDevices stack frozen in and its host
+        # installs no dependencies, so its links carry none. The Pyodide
+        # gallery installs them with micropip from ?deps=, so its links keep
+        # them.
         return {
-            runtime: browser_query(runtime=runtime, **values) for runtime in ("wasm", "pyodide")
+            "wasm": browser_query(runtime="wasm", **dict(values, deps=())),
+            "pyodide": browser_query(runtime="pyodide", **values),
         }
 
     def loader_hrefs(self) -> dict[str, str]:
