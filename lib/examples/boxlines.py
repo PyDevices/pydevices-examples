@@ -51,11 +51,14 @@ def _setup():
     def poll():
         color = palette.color565(getrandbits(8), getrandbits(8), getrandbits(8))
 
+        # randint is inclusive at both ends: width - 1 and height - 1 are the
+        # last pixels. randint(0, tft.height) drew one row past the buffer
+        # roughly one line in a hundred and raised in fill_rect.
         tft.draw.line(
-            randint(0, tft.width),
-            randint(0, tft.height),
-            randint(0, tft.width),
-            randint(0, tft.height),
+            randint(0, tft.width - 1),
+            randint(0, tft.height - 1),
+            randint(0, tft.width - 1),
+            randint(0, tft.height - 1),
             color,
         )
 
