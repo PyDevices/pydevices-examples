@@ -108,10 +108,14 @@ async function installPackages(mp, plan) {
 }
 
 async function executePlan(mp, plan) {
+    // An example is the script being run, so it comes before utils/, as the
+    // current directory does on a board: utils/fonts/ (a font package) must
+    // not shadow the fonts example. lib/ stays ahead of examples/ so an
+    // example installed from ?manifests= is the copy that runs.
     await mp.runPythonAsync(`
 import os, sys
 os.chdir("/")
-sys.path[:] = [".", ".frozen", "lib", "utils", "examples"]
+sys.path[:] = [".", ".frozen", "lib", "examples", "utils"]
 `);
     if (plan.command !== null) {
         await mp.runPythonAsync(plan.command);
