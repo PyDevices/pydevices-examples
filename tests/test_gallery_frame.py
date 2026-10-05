@@ -180,8 +180,10 @@ class TestGalleryFrame(unittest.TestCase):
         """No loader page imports ``board_config`` itself -- the app does, once
         the board package is installed. The Pyodide pages take their 320x480
         default from ``ps_loader``; the wasm pages only declare the canvas the
-        host attaches to (``WasmDisplay`` raises without it) and leave
-        installing ``pydevices-desktop`` to ``gallery-host.js``."""
+        host attaches to (``WasmDisplay`` raises without it), and
+        ``gallery-host.js`` installs none of the stack: the runtime has it
+        and the desktop board config frozen in, and ``?deps=`` is not acted
+        on, so a runtime without them fails loudly at the app's import."""
         loader = _read(ROOT / "lib" / "utils" / "ps_loader.py")
         assert "BOARD_WIDTH = 320" in loader
         assert "BOARD_HEIGHT = 480" in loader
@@ -196,7 +198,8 @@ class TestGalleryFrame(unittest.TestCase):
             assert '<canvas id="display_canvas"' in source
             assert "board_config" not in source
         host = _read(HOST)
-        assert 'mip.install("pydevices-desktop"' in host
+        assert "pydevices-desktop" not in host
+        assert "plan.deps)" not in host  # no loop installs ?deps=
         assert "board_config" not in host
 
     def test_car_cluster_forces_its_browser_resolution(self):
