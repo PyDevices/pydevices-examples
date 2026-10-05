@@ -10,8 +10,8 @@ globalThis.__pydevicesHost = state;
 const logElement = () => document.getElementById("log");
 
 // The loader overlay both host shells carry (micropython.html, mp.html). A
-// first visit downloads the runtime, then installs packages over the network,
-// which is long enough that a black canvas reads as a broken page.
+// first visit downloads the runtime and the example's own files, which is
+// long enough that a black canvas reads as a broken page.
 function setStatus(text) {
     const element = document.querySelector(".hero-canvas-status");
     if (element) element.textContent = text;
@@ -93,32 +93,29 @@ function pythonLiteral(value) {
 }
 
 async function installPackages(mp, plan) {
+    // The PyDevices stack and the desktop board config are frozen into the
+    // runtime, and nothing here installs any of it: ?deps= is not acted on.
+    // A runtime built without the stack fails at the example's own import,
+    // loudly. What is installed is the example's own code (?manifests=).
     const index = "https://PyDevices.github.io/mip";
-    setStatus("Installing pydevices-desktop…");
-    await mp.runPythonAsync(`
-import mip
-mip.install("pydevices-desktop", index=${pythonLiteral(index)}, target="lib")
-`);
-    for (const dependency of plan.deps) {
-        setStatus(`Installing ${dependency}…`);
-        await mp.runPythonAsync(
-            `mip.install(${pythonLiteral(dependency)}, index=${pythonLiteral(index)}, target="lib")`
-        );
-    }
     for (const manifest of plan.manifests) {
         setStatus(`Installing ${readable(manifest)}…`);
         const url = new URL(`./packages/${manifest}.json`, location.href).href;
         await mp.runPythonAsync(
-            `mip.install(${pythonLiteral(url)}, index=${pythonLiteral(index)}, target="lib")`
+            `import mip; mip.install(${pythonLiteral(url)}, index=${pythonLiteral(index)}, target="lib")`
         );
     }
 }
 
 async function executePlan(mp, plan) {
+    // An example is the script being run, so it comes before utils/, as the
+    // current directory does on a board: utils/fonts/ (a font package) must
+    // not shadow the fonts example. lib/ stays ahead of examples/ so an
+    // example installed from ?manifests= is the copy that runs.
     await mp.runPythonAsync(`
 import os, sys
 os.chdir("/")
-sys.path[:] = [".", ".frozen", "lib", "utils", "examples"]
+sys.path[:] = [".", ".frozen", "lib", "examples", "utils"]
 `);
     if (plan.command !== null) {
         await mp.runPythonAsync(plan.command);
