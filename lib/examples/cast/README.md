@@ -15,9 +15,10 @@ the room. Over Wi-Fi, it can:
   shows the house's sensors on the P4. One button puts the whole panel on the
   TV.
 
-It needs the P4 firmware that carries `castif`, the board's default build in
-micropython-pydevices (`boards/esp32/WAVESHARE_ESP32_P4_PANEL`). Anything
-else lacks the H.264 encoder.
+It needs P4 firmware that carries `castif`, which any micropython-pydevices
+build with `--modules all` (or one naming `castif`) does; the command for each
+P4 is in its [newcomer's guide](https://github.com/PyDevices/micropython-pydevices/blob/main/docs/newcomers.md#boards-we-build-for).
+Anything else lacks the H.264 encoder.
 
 ## Try it
 
