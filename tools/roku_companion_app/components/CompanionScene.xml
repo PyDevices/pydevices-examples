@@ -3,6 +3,8 @@
     <script type="text/brightscript" uri="pkg:/components/CompanionScene.brs" />
     <interface>
         <field id="launchArgs" type="assocarray" onChange="onLaunchArgsChanged" />
+        <!-- Set when the PyDevices app streaming frames has gone; Main closes the channel. -->
+        <field id="exitChannel" type="boolean" alwaysNotify="true" />
     </interface>
     <children>
         <!-- Background -->

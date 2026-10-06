@@ -19,6 +19,12 @@ sub init()
     m.frameCount = 0
     m.activeBuffer = 1
     m.isLoading = false
+    ' No frame for this long means the PyDevices app has gone (crashed,
+    ' killed, or the computer slept), so the channel closes. A live app
+    ' delivers one at least every second or so; a dead one's fetches can
+    ' take ten seconds just to fail, so this is timed, not counted.
+    m.goneAfterMs = 5000
+    m.sinceFrame = CreateObject("roTimespan")
     print "[CompanionScene] initialized"
 end sub
 
@@ -70,6 +76,7 @@ sub onLaunchArgsChanged()
         m.cameraView1.visible = false
         m.cameraView2.visible = false
         m.cameraUrl = args.url
+        m.sinceFrame.Mark()
         ' Remote buttons go to the server that serves the frames.
         m.keyTask.url = Left(args.url, Instr(9, args.url, "/") - 1) + "/key"
         m.frameCount = 0
@@ -78,6 +85,10 @@ sub onLaunchArgsChanged()
         m.cameraTimer.control = "start"
         print "[CompanionScene] Camera URL: "; args.url
         
+    else if mode = "quit"
+        ' Sent by a PyDevices app on its way out.
+        m.top.exitChannel = true
+
     else if mode = "dashboard"
         m.statusLabel.visible = true
         m.cameraView1.visible = false
@@ -93,7 +104,15 @@ end sub
 
 sub onCameraTimerFired()
     ' Fallback only: frames are requested as soon as the previous one is ready.
-    ' The timer restarts the chain after a failed load.
+    ' The timer restarts the chain after a failed load, and notices when the
+    ' app has gone.
+    if m.cameraUrl <> "" and m.sinceFrame.TotalMilliseconds() >= m.goneAfterMs
+        print "[CompanionScene] no frame for "; m.sinceFrame.TotalMilliseconds(); " ms, closing"
+        m.cameraUrl = ""
+        m.cameraTimer.control = "stop"
+        m.top.exitChannel = true
+        return
+    end if
     if not m.isLoading then requestFrame()
 end sub
 
@@ -134,6 +153,7 @@ sub onCameraLoadStatusChanged(event as Object)
             m.activeBuffer = 2
         end if
         m.isLoading = false
+        m.sinceFrame.Mark()
         requestFrame()
     else if status = "failed"
         print "[CompanionScene] cameraView loadStatus="; status; " for "; node.uri

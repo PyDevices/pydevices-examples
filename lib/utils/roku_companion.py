@@ -240,6 +240,16 @@ def _spawn(fn, *args):
         return False
 
 
+def _at_exit(fn):
+    """Call fn when the program ends, where the runtime offers a hook."""
+    try:
+        import atexit
+
+        atexit.register(fn)
+    except ImportError:
+        pass
+
+
 def _session_url(url):
     """*url* with a token unique to this session. The channel appends
     ``t=<frame number>`` to every fetch, counting from 1 each session, and the
@@ -364,6 +374,19 @@ class RokuCompanion:
             tv.dashboard("Temp: 72°F  Humidity: 45%")
         """
         self._launch({"mode": "dashboard", "text": str(text)})
+
+    def home(self):
+        """Press Home: leave whatever channel is up for the TV's home screen."""
+        _ecp_post(self.host, "/keypress/Home", self.timeout)
+
+    def close_channel(self):
+        """Close the Companion channel, leaving the TV on its home screen.
+
+        Does nothing when another channel is on screen, so a program that ends
+        while someone watches something else leaves them watching it.
+        """
+        if self._is_active():
+            _ecp_post(self.host, "/input?mode=quit", self.timeout)
 
     def camera(self, url):
         """Stream live JPEG frames from *url* on the TV.
@@ -654,6 +677,7 @@ class RokuDisplay(FBDisplay):
             print("[RokuDisplay] Launching TV camera mode with URL: %s" % frame_url)
             self.tv.camera(frame_url)
             self._launched = True
+            _at_exit(self.close)
 
         if hasattr(self._server, "poll"):
             self._server.poll()
@@ -708,10 +732,25 @@ class RokuDisplay(FBDisplay):
         return out
 
     def close(self):
-        """Shut down the background frame server."""
+        """Close the TV's Companion channel and the frame server. Safe to call twice.
+
+        Runs when the program ends (appdev's quit, or at exit), so a finished
+        app leaves the TV on its home screen rather than frozen on its last
+        frame.
+        """
+        if self._launched:
+            self._launched = False
+            try:
+                self.tv.close_channel()
+            except OSError:
+                pass
         if self._server is not None:
             self._server.close()
             self._server = None
+
+    def _deinit(self):
+        """DisplayDriver's cleanup hook, run by quit() and deinit()."""
+        self.close()
 
 
 class RokuDisplayWrapper:
@@ -778,6 +817,7 @@ class RokuDisplayWrapper:
             print("[RokuDisplayWrapper] Launching TV camera mode with URL: %s" % frame_url)
             self.tv.camera(frame_url)
             self._launched = True
+            _at_exit(self.close)
 
         if hasattr(self._server, "poll"):
             self._server.poll()
@@ -787,7 +827,13 @@ class RokuDisplayWrapper:
         return getattr(self.display, "format", 2)
 
     def close(self):
-        """Shut down the frame server and close the wrapped display if supported."""
+        """Close the TV's Companion channel, the frame server and the wrapped display."""
+        if self._launched:
+            self._launched = False
+            try:
+                self.tv.close_channel()
+            except OSError:
+                pass
         if self._server is not None:
             self._server.close()
             self._server = None

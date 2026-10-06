@@ -10,6 +10,7 @@ sub Main(args as Dynamic)
     
     scene = screen.CreateScene("CompanionScene")
     screen.show()
+    scene.observeField("exitChannel", m.port)
     
     ' Pass all args to the scene
     scene.launchArgs = args
@@ -19,6 +20,9 @@ sub Main(args as Dynamic)
         msgType = type(msg)
         if msgType = "roSGScreenEvent"
             if msg.isScreenClosed() then return
+        else if msgType = "roSGNodeEvent"
+            ' The PyDevices app stopped answering: leave for the home screen.
+            if msg.getField() = "exitChannel" then return
         else if msgType = "roInputEvent"
             if msg.isInput()
                 print "[Main] roInputEvent received: "; msg.getInfo()
