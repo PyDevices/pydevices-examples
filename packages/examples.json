@@ -613,6 +613,14 @@
       "github:PyDevices/pydevices-examples/lib/examples/roku/roku_companion_tts.py"
     ],
     [
+      "roku_hls/board_config.py",
+      "github:PyDevices/pydevices-examples/lib/examples/roku_hls/board_config.py"
+    ],
+    [
+      "roku_hls/hls_display.py",
+      "github:PyDevices/pydevices-examples/lib/examples/roku_hls/hls_display.py"
+    ],
+    [
       "roku_remote/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/roku_remote/__init__.py"
     ],

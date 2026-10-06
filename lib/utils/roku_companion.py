@@ -388,6 +388,21 @@ class RokuCompanion:
         if self._is_active():
             _ecp_post(self.host, "/input?mode=quit", self.timeout)
 
+    def power_on(self, wait=15):
+        """Wake the TV (ECP PowerOn; harmless when it is already on) and wait
+        up to *wait* seconds for it to say it is on. A channel launched before
+        then lands on the Home screen instead. Returns whether it is on."""
+        import time
+
+        _ecp_post(self.host, "/keypress/PowerOn", self.timeout)
+        for _ in range(wait * 2):
+            if "<power-mode>PowerOn</power-mode>" in _ecp_get(
+                self.host, "/query/device-info", self.timeout
+            ):
+                return True
+            time.sleep(0.5)
+        return False
+
     def video(self, url, format="hls"):
         """Play video from *url* on the TV: H.264 as HLS by default.
 
