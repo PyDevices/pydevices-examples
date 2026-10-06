@@ -25,10 +25,10 @@ Usage::
 
     from utils.roku_companion import RokuCompanion
 
-    tv = RokuCompanion("192.168.1.129")
+    tv = RokuCompanion("192.0.2.10")
     tv.say("Hello from PyDevices!")
     tv.dashboard("Temperature: 72°F  Humidity: 45%")
-    tv.camera("http://192.168.1.50:8080/frame.jpg")
+    tv.camera("http://192.0.2.20:8080/frame.jpg")
 
 Requires
 --------
@@ -109,14 +109,16 @@ def _get_local_ip(target_host):
     try:
         s.connect((target_host, 80))
         ip = s.getsockname()[0]
-        # If on WSL behind NAT, the local adapter is 172.x, but the Windows LAN IP is 192.168.1.143
-        if ip.startswith("172.") and target_host.startswith("192.168.1."):
-            return "192.168.1.143"
-        return ip
-    except Exception:
-        return "192.168.1.143"
     finally:
         s.close()
+    # WSL in its default NAT mode has a 172.x address the TV can't reach.
+    # (WSL's mirrored networking mode shares the PC's LAN address instead.)
+    if ip.startswith("172."):
+        raise OSError(
+            "this machine's address %s isn't reachable from the TV; set PYDEVICES_MY_IP "
+            "to its LAN address, or use WSL's mirrored networking mode" % ip
+        )
+    return ip
 
 
 def _percent_encode(s):
@@ -186,6 +188,101 @@ def _ecp_post(host, path, timeout=5.0):
             pass
 
 
+def _now():
+    """Seconds on a clock that never steps backwards (WSL resyncs its wall clock)."""
+    import time
+
+    try:
+        return time.monotonic()
+    except AttributeError:
+        return time.ticks_ms() / 1000
+
+
+def _spawn(fn, *args):
+    """Run fn(*args) on a new thread; False when the runtime has no threads."""
+    try:
+        import threading
+
+        threading.Thread(target=fn, args=args, daemon=True).start()
+        return True
+    except ImportError:
+        pass
+    try:
+        import _thread
+
+        _thread.start_new_thread(fn, args)
+        return True
+    except ImportError:
+        return False
+
+
+def _session_url(url):
+    """*url* with a token unique to this session. The channel appends
+    ``t=<frame number>`` to every fetch, counting from 1 each session, and the
+    Roku caches images by URL: without the token a new session's
+    ``frame.png?t=1`` is the old session's cached picture, and the TV replays
+    earlier runs instead of fetching new frames."""
+    import time
+
+    try:
+        token = time.ticks_ms()
+    except AttributeError:
+        token = int(time.time() * 1000)
+    return "%s%ss=%d" % (url, "&" if "?" in url else "?", token & 0x7FFFFFFF)
+
+
+def _ecp_get(host, path, timeout=5.0):
+    """HTTP GET from a Roku ECP endpoint; the response body, or "" on failure."""
+    addr = socket.getaddrinfo(host, _ECP_PORT)[0][-1]
+    req = "GET %s HTTP/1.0\r\nHost: %s:%d\r\n\r\n" % (path, host, _ECP_PORT)
+    s = socket.socket()
+    chunks = []
+    try:
+        try:
+            s.settimeout(timeout)
+        except OSError:
+            pass
+        s.connect(addr)
+        s.sendall(req.encode("utf-8"))
+        while True:
+            data = s.recv(1024)
+            if not data:
+                break
+            chunks.append(data)
+    except Exception as e:
+        print("[RokuCompanion] ECP GET error: %s" % e)
+    finally:
+        try:
+            s.close()
+        except OSError:
+            pass
+    resp = b"".join(chunks).decode("utf-8", "ignore")
+    return resp.split("\r\n\r\n", 1)[1] if "\r\n\r\n" in resp else ""
+
+
+def roku_host():
+    """The Roku TV's address for an example: the first command-line argument,
+    or the ``ROKU_IP`` environment variable."""
+    import sys
+
+    if len(sys.argv) > 1:
+        return sys.argv[1]
+    try:
+        import os
+
+        host = os.getenv("ROKU_IP")
+    except (ImportError, AttributeError):
+        host = None
+    if not host:
+        raise SystemExit("pass the Roku's IP address as the first argument, or set ROKU_IP")
+    return host
+
+
+def get_local_ip(target_host):
+    """This machine's address as the Roku at *target_host* would reach it."""
+    return _get_local_ip(target_host)
+
+
 class RokuCompanion:
     """Control the PyDevices Companion app on a Roku TV.
 
@@ -202,9 +299,23 @@ class RokuCompanion:
         self.timeout = timeout
 
     def _launch(self, params):
-        """Deep-link into the Companion app with the given parameters."""
-        path = "/launch/%s?%s" % (_DEV_CHANNEL, _build_query(params))
-        _ecp_post(self.host, path, self.timeout)
+        """Send parameters to the Companion app.
+
+        When it's already the TV's active app they go as an ECP ``input``
+        event, which the running channel handles in place. Otherwise the
+        channel is launched with them. Launching a channel that's already
+        running restarts it, and every update blanked and redrew the screen.
+        """
+        query = _build_query(params)
+        if self._is_active():
+            _ecp_post(self.host, "/input?%s" % query, self.timeout)
+        else:
+            _ecp_post(self.host, "/launch/%s?%s" % (_DEV_CHANNEL, query), self.timeout)
+
+    def _is_active(self):
+        """Whether the Companion app is the TV's active app."""
+        body = _ecp_get(self.host, "/query/active-app", self.timeout)
+        return ('id="%s"' % _DEV_CHANNEL) in body
 
     # ------------------------------------------------------------------
     # Public API
@@ -240,9 +351,9 @@ class RokuCompanion:
 
         Example::
 
-            tv.camera("http://192.168.1.50:8080/frame.jpg")
+            tv.camera("http://192.0.2.20:8080/frame.jpg")
         """
-        self._launch({"mode": "camera", "url": str(url)})
+        self._launch({"mode": "camera", "url": _session_url(str(url))})
 
 
 class _FrameServer:
@@ -255,6 +366,13 @@ class _FrameServer:
         self._running = False
         self._threaded = False
         self._served_count = 0
+        self._version = 0
+        self._last_req = None
+        # One (accepted, requested, sent, version, request line, connection)
+        # per fetch, and
+        # one (time, version) per update_frame(), when trace is a list.
+        self.trace = None
+        self.updates = None
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
@@ -268,6 +386,9 @@ class _FrameServer:
 
     def update_frame(self, frame_bytes):
         self.frame = frame_bytes
+        self._version += 1
+        if self.updates is not None:
+            self.updates.append((_now(), self._version))
 
     def _start(self):
         self._running = True
@@ -304,42 +425,62 @@ class _FrameServer:
                 conn, addr = self._sock.accept()
             except (socket.timeout, OSError):
                 continue
+            accepted = _now()
             self._served_count += 1
-            print(
-                "[FrameServer] Connection from %s (served frame #%d)"
-                % (addr[0], self._served_count)
-            )
-            try:
-                conn.settimeout(1.0)
-                try:
-                    req_header = conn.recv(1024)
-                    first_line = req_header.decode("utf-8", errors="ignore").split("\r\n")[0]
-                    import time
+            conn_id = self._served_count
+            print("[FrameServer] Connection #%d from %s" % (conn_id, addr[0]))
+            # One thread per connection: a kept-alive connection must not
+            # hold the accept loop.
+            if not _spawn(self._serve, conn, conn_id, accepted):
+                self._serve(conn, conn_id, accepted, keep_alive=False)
 
-                    now = time.time()
-                    if not hasattr(self, "_last_req"):
-                        self._last_req = now
-                    delta = now - self._last_req
-                    self._last_req = now
-                    print("[FrameServer] Request: %s (delta: %.3fs)" % (first_line, delta))
-                except OSError:
-                    pass
+    def _serve(self, conn, conn_id, accepted, keep_alive=True):
+        """Answer requests on one connection until the client closes it or goes idle."""
+        buf = b""
+        try:
+            conn.settimeout(5.0)
+            while self._running:
+                while b"\r\n\r\n" not in buf:
+                    chunk = conn.recv(1024)
+                    if not chunk:
+                        return
+                    buf += chunk
+                requested = _now()
+                head, buf = buf.split(b"\r\n\r\n", 1)
+                lines = head.decode("utf-8", "ignore").split("\r\n")
+                first_line = lines[0]
+                headers = " ".join(lines[1:]).lower()
+                persist = (
+                    keep_alive
+                    and first_line.endswith("HTTP/1.1")
+                    and "connection: close" not in headers
+                )
+                delta = 0.0 if self._last_req is None else requested - self._last_req
+                self._last_req = requested
+                print("[FrameServer] #%d %s (delta: %.3fs)" % (conn_id, first_line, delta))
+                version = self._version
                 data = self.frame or b""
-                resp = (
-                    b"HTTP/1.0 200 OK\r\n"
-                    b"Content-Type: image/png\r\n"
-                    b"Content-Length: " + str(len(data)).encode("ascii") + b"\r\n"
-                    b"Connection: close\r\n"
-                    b"Cache-Control: no-cache\r\n\r\n"
-                ) + data
-                conn.sendall(resp)
-            except OSError as e:
-                print("[FrameServer] Send error: %s" % e)
-            finally:
-                try:
-                    conn.close()
-                except OSError:
-                    pass
+                conn.sendall(
+                    (b"HTTP/1.1 200 OK\r\n" if persist else b"HTTP/1.0 200 OK\r\n")
+                    + b"Content-Type: image/png\r\n"
+                    b"Content-Length: "
+                    + str(len(data)).encode("ascii")
+                    + b"\r\n"
+                    + (b"Connection: keep-alive\r\n" if persist else b"Connection: close\r\n")
+                    + b"Cache-Control: no-cache\r\n\r\n"
+                    + data
+                )
+                if self.trace is not None:
+                    self.trace.append((accepted, requested, _now(), version, first_line, conn_id))
+                if not persist:
+                    return
+        except OSError:
+            pass  # idle timeout or the client went away
+        finally:
+            try:
+                conn.close()
+            except OSError:
+                pass
 
     def poll(self):
         """Non-blocking service of pending connections (for single-threaded runtimes)."""

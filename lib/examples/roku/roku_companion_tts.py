@@ -24,10 +24,10 @@ Usage (any interpreter — same code everywhere)::
 """
 
 import time
-from utils.roku_companion import RokuCompanion
+from utils.roku_companion import RokuCompanion, roku_host
 
 # -- Configuration ----------------------------------------------------------
-ROKU_IP = "192.168.1.129"
+ROKU_IP = roku_host()
 # ---------------------------------------------------------------------------
 
 tv = RokuCompanion(ROKU_IP)

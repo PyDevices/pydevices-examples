@@ -21,20 +21,16 @@ Usage::
 import sys
 import time
 
-# Ensure lib and sibling pydevices are on sys.path
-sys.path.insert(0, "/home/brad/gh/pydevices/pydevices-examples/lib")
-sys.path.insert(0, "/home/brad/gh/pydevices/pydevices/lib")
-sys.path.insert(0, "/home/brad/gh/pydevices/pygraphics/lib")
 
-from utils.roku_companion import RokuCompanion, RokuDisplay, RokuDisplayWrapper
+from utils.roku_companion import RokuCompanion, RokuDisplay, RokuDisplayWrapper, roku_host
 try:
     from displaydev.fbdisplay import FBDisplay
 except ImportError:
     FBDisplay = None
 
-ROKU_IP = sys.argv[1] if len(sys.argv) > 1 else "192.168.1.129"
-WIDTH = 320
-HEIGHT = 240
+ROKU_IP = roku_host()
+WIDTH = 480
+HEIGHT = 270
 
 # RGB565 color constants
 BLACK = 0x0000
@@ -77,9 +73,10 @@ def demo_subclass(tv):
         # Animate a bouncing box
         print("Animating across display...")
         box_x = 30
+        step = (WIDTH - 90) // 15  # ends 30 px from the right edge
         for _ in range(15):
             disp.fill_rect(box_x, 170, 30, 30, 0x18C3)  # Erase
-            box_x += 16
+            box_x += step
             disp.fill_rect(box_x, 170, 30, 30, YELLOW)  # Draw
             disp.show()
             time.sleep(0.15)
