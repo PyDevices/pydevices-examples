@@ -31,7 +31,7 @@ only touch the engine and post results into mailboxes; the pump applies
 them to LVGL.
 
 JPEG decoding: CPython's LVGL keeps TJPGD; MicroPython / CircuitPython LVGL
-firmware decodes through displayif's ``jpegio``, registered as an LVGL image
+firmware decodes through the ``jpegio`` module, registered as an LVGL image
 decoder. PNG goes through LODEPNG on every build. Without a JPEG decoder the
 list still works -- tiles keep a placeholder and the viewer says why.
 
@@ -197,7 +197,7 @@ def jpeg_supported():
     ok = hasattr(lv, "tjpgd_init")  # CPython: registered by lv.init()
     if not ok:
         try:
-            import jpegio  # MicroPython (displayif) / CircuitPython
+            import jpegio  # MicroPython (jpegio module) / CircuitPython
 
             ok = True
             reg = getattr(jpegio, "register_lvgl_decoder", None)
