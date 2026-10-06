@@ -192,7 +192,7 @@ def main():
 
     url = "http://%s:%d%sstream.m3u8" % (get_local_ip(a.roku), PORT, prefix)
     tv = RokuCompanion(a.roku)
-    tv._launch({"mode": "video", "url": url})
+    tv.video(url)
     note("launch", url=url)
 
     password = os.environ.get("ROKU_DEV_PASSWORD")

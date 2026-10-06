@@ -5,8 +5,8 @@ for anything non-interactive, and with how much delay? Step 1 answered it from
 the PC with ffmpeg, before touching the P4. Tested on a 65" TCL Roku.
 
 **It plays.** H.264 in MPEG-TS, served as HLS, plays in the channel's new
-`video` mode: `tv._launch({"mode": "video", "url": ".../stream.m3u8"})`, or any
-URL a Roku `Video` node takes. The channel reports the player's state, position
+`video` mode: `RokuCompanion.video(".../stream.m3u8")`, or any URL a Roku
+`Video` node takes (`format="mp4"` and so on). The channel reports the player's state, position
 and errors back to `/video` on the sending server.
 
 **Audio must be AAC.** AAC plays. LPCM in the TS (what castif muxes for
@@ -33,6 +33,10 @@ keyframes (its default GOP of 30 is a second at 30 fps), keep the last three,
 serve a playlist and the segments over HTTP, and encode audio as AAC (the P4
 has no AAC hardware; Espressif's `esp_audio_codec` has a software AAC-LC
 encoder) or send video only.
+
+**Step 2 is parked (Brad, 2026-10-06).** esp-vision's H.264 encoder is
+expected to come into micropython-pydevices beside castif; step 2 starts after
+that, on whichever encoder the P4 then has, video only first.
 
 ## Traps found on the way
 
