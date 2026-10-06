@@ -88,3 +88,5 @@ lib/lib/gui
 # Local PyScript MIP overrides (not deployed)
 web/pyscript/dev/
 
+# Session worktrees (git worktree add .worktrees/<name>): never content.
+/.worktrees/
