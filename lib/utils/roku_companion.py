@@ -114,6 +114,10 @@ _REMOTE_KEYS = (
     ("replay", "K_AC_REFRESH"),  # instant replay
 )
 
+# Held buttons stop repeating once the TV has not asked for a frame this long;
+# it asks at least once a second (plus Wi-Fi delay) while the channel is up.
+_REMOTE_GONE_SECONDS = 3.0
+
 # Longest a frame request waits for a new frame before the current one is resent.
 _HOLD_SECONDS = 1.0
 
@@ -601,9 +605,14 @@ class RokuDisplay(FBDisplay):
         HTTP frame server port (default 8090).
     my_ip : str, optional
         Local IP routable by the Roku (defaults to detected LAN IP).
+    key_repeat : (float, float) or None
+        Seconds before a held remote button repeats, and between repeats
+        (default 0.4, 0.1); None for no repeats. See get_events().
     """
 
-    def __init__(self, tv, width=320, height=240, port=8090, my_ip=None, **kwargs):
+    def __init__(
+        self, tv, width=320, height=240, port=8090, my_ip=None, key_repeat=(0.4, 0.1), **kwargs
+    ):
         if isinstance(tv, str):
             self.tv = RokuCompanion(tv)
         else:
@@ -617,6 +626,8 @@ class RokuDisplay(FBDisplay):
 
         self._server = None
         self._launched = False
+        self.key_repeat = key_repeat
+        self._held = {}  # remote button name -> (key name, code, next repeat)
         print(
             "[RokuDisplay] Initialized: %dx%d, stream host %s:%d"
             % (width, height, self.local_ip, port)
@@ -653,28 +664,47 @@ class RokuDisplay(FBDisplay):
         Pass it as ``App(host_read=display.get_events)`` and the remote drives
         an app like a keyboard: arrows, OK (K_RETURN), Back (K_AC_BACK) and the
         media buttons, mapped in _REMOTE_KEYS.
+
+        The remote sends one press and one release however long a button is
+        held, so held buttons repeat here, as a keyboard's do: another KEYDOWN
+        ``key_repeat[0]`` seconds after the press, then every
+        ``key_repeat[1]``. Set ``key_repeat = None`` to turn that off.
         """
-        if self._server is None or not self._server.key_events:
+        server = self._server
+        if server is None:
             return []
         import events
         import keys
 
-        queued = self._server.key_events
-        self._server.key_events = []
-        codes = dict(_REMOTE_KEYS)
         out = []
-        for name, pressed, _when in queued:
-            code = getattr(keys, codes.get(name, ""), 0)
-            out.append(
-                events.Key(
-                    events.KEYDOWN if pressed else events.KEYUP,
-                    keys.keyname(code) if code else name,
-                    code,
-                    0,
-                    0,
-                    None,
-                )
-            )
+        queued = server.key_events
+        if queued:
+            server.key_events = []
+            codes = dict(_REMOTE_KEYS)
+            for name, pressed, when in queued:
+                code = getattr(keys, codes.get(name, ""), 0)
+                key_name = keys.keyname(code) if code else name
+                if pressed:
+                    out.append(events.Key(events.KEYDOWN, key_name, code, 0, 0, None))
+                    if self.key_repeat:
+                        self._held[name] = (key_name, code, when + self.key_repeat[0])
+                else:
+                    self._held.pop(name, None)
+                    out.append(events.Key(events.KEYUP, key_name, code, 0, 0, None))
+
+        if self._held:
+            now = _now()
+            last = server._last_req
+            if last is None or now - last > _REMOTE_GONE_SECONDS:
+                # The channel went away (Home, say) before sending a release.
+                for key_name, code, _due in self._held.values():
+                    out.append(events.Key(events.KEYUP, key_name, code, 0, 0, None))
+                self._held = {}
+            elif self.key_repeat:
+                for name, (key_name, code, due) in list(self._held.items()):
+                    if now >= due:
+                        out.append(events.Key(events.KEYDOWN, key_name, code, 0, 0, None))
+                        self._held[name] = (key_name, code, max(due + self.key_repeat[1], now))
         return out
 
     def close(self):
