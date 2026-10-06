@@ -136,6 +136,7 @@
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/roku/roku_companion_camera.py" = "/examples/roku/roku_companion_camera.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/roku/roku_companion_dashboard.py" = "/examples/roku/roku_companion_dashboard.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/roku/roku_companion_displaydev.py" = "/examples/roku/roku_companion_displaydev.py"
+"https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/roku/roku_companion_remote.py" = "/examples/roku/roku_companion_remote.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/roku/roku_companion_tts.py" = "/examples/roku/roku_companion_tts.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/roku_remote/__init__.py" = "/examples/roku_remote/__init__.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/roku_remote/__main__.py" = "/examples/roku_remote/__main__.py"
