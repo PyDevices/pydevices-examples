@@ -9,12 +9,20 @@
       "../lib/examples/cast/_common.py"
     ],
     [
+      "cast/cast_display.py",
+      "../lib/examples/cast/cast_display.py"
+    ],
+    [
       "cast/castfast.py",
       "../lib/examples/cast/castfast.py"
     ],
     [
       "cast/drum_cast.py",
       "../lib/examples/cast/drum_cast.py"
+    ],
+    [
+      "cast/headless_cast.py",
+      "../lib/examples/cast/headless_cast.py"
     ],
     [
       "cast/laptop_input.py",

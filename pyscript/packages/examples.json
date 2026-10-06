@@ -385,12 +385,20 @@
       "github:PyDevices/pydevices-examples/lib/examples/cast/_common.py"
     ],
     [
+      "cast/cast_display.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/cast_display.py"
+    ],
+    [
       "cast/castfast.py",
       "github:PyDevices/pydevices-examples/lib/examples/cast/castfast.py"
     ],
     [
       "cast/drum_cast.py",
       "github:PyDevices/pydevices-examples/lib/examples/cast/drum_cast.py"
+    ],
+    [
+      "cast/headless_cast.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/headless_cast.py"
     ],
     [
       "cast/laptop_input.py",
@@ -539,6 +547,10 @@
     [
       "house/showtv_proof.py",
       "github:PyDevices/pydevices-examples/lib/examples/house/showtv_proof.py"
+    ],
+    [
+      "miracast/board_config.py",
+      "github:PyDevices/pydevices-examples/lib/examples/miracast/board_config.py"
     ],
     [
       "noto_fonts/NotoSansMono_32.py",
