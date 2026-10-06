@@ -14,6 +14,7 @@ app = appdev.App(board_config)
 from displaydev import alloc_buffer
 from appdev import TouchGrid
 from appdev import JoyMap
+import events
 import keys
 try:
     from random import choice  # For random piece selection
@@ -102,9 +103,26 @@ def _test_key_for_test_mode(key=None):
     return None
 
 
+# A TV remote has no D, F or Escape: rewind and fast-forward rotate, Back pauses.
+_REMOTE_ALIASES = {keys.K_AUDIOPREV: CCW, keys.K_AUDIONEXT: CW, keys.K_AC_BACK: PAUSE}
+_alias_presses = []
+
+
+def _on_remote_alias(event):
+    alias = _REMOTE_ALIASES.get(event.key)
+    if alias is not None:
+        _alias_presses.append(alias)
+
+
+app.on([events.KEYDOWN], _on_remote_alias)
+
+
 def _gather_keys():
-    """Edge + held keys from joystick and touch keypad."""
+    """Edge + held keys from joystick, touch keypad and remote aliases."""
     keys = list(joystick_keys.read())
+    if _alias_presses:
+        keys.extend(_alias_presses)
+        _alias_presses.clear()
     edge = keypad.read()
     if edge:
         keys.extend(edge)
@@ -563,6 +581,7 @@ def _build_testris():  # noqa: C901, PLR0915
                     return
                 if event is not False:
                     break
+                yield False  # hand the tick back, or no key can ever arrive
 
             # Play the game
             show_score(state)  # Show the score
@@ -628,13 +647,24 @@ def _build_testris():  # noqa: C901, PLR0915
                                     elif key == PAUSE:  # Pause the game
                                         draw_banner("Paused.\n\nPress START to reset.\nAny key to resume.")
                                         pause_key = None
-                                        for event in _yield_wait(loop, exclude=[PAUSE]):
+                                        # Let go of PAUSE first, so pressing it again
+                                        # resumes (Back on a TV remote) but holding it
+                                        # does not.
+                                        while PAUSE in keypad.read_held():
+                                            if loop.poll("pause_release"):
+                                                yield True
+                                                return
+                                            yield False
+                                        keypad.read()
+                                        _alias_presses.clear()
+                                        for event in _yield_wait(loop):
                                             if event is True:
                                                 yield True
                                                 return
                                             if event is not False:
                                                 pause_key = event
                                                 break
+                                            yield False  # hand the tick back
                                         if pause_key == START:
                                             clear_screen()  # Clear the screen
                                             exit()  # Reset the machine
@@ -723,6 +753,7 @@ def _build_testris():  # noqa: C901, PLR0915
                     return
                 if event is not False:
                     break
+                yield False  # hand the tick back, or no key can ever arrive
 
     return play
 

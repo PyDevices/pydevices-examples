@@ -49,6 +49,10 @@
       "github:PyDevices/pydevices-examples/lib/utils/ps_loader.py"
     ],
     [
+      "roku_companion.py",
+      "github:PyDevices/pydevices-examples/lib/utils/roku_companion.py"
+    ],
+    [
       "secrets.py",
       "github:PyDevices/pydevices-examples/lib/utils/secrets.py"
     ],
