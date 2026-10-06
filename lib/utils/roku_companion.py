@@ -97,6 +97,9 @@ _ECP_PORT = 8060
 # Sideloaded dev channel ID.
 _DEV_CHANNEL = "dev"
 
+# Longest a frame request waits for a new frame before the current one is resent.
+_HOLD_SECONDS = 1.0
+
 
 def _get_local_ip(target_host):
     """Find the local IP address routable to target_host."""
@@ -437,6 +440,7 @@ class _FrameServer:
     def _serve(self, conn, conn_id, accepted, keep_alive=True):
         """Answer requests on one connection until the client closes it or goes idle."""
         buf = b""
+        sent_version = None
         try:
             conn.settimeout(5.0)
             while self._running:
@@ -458,7 +462,10 @@ class _FrameServer:
                 delta = 0.0 if self._last_req is None else requested - self._last_req
                 self._last_req = requested
                 print("[FrameServer] #%d %s (delta: %.3fs)" % (conn_id, first_line, delta))
+                if persist and sent_version is not None:
+                    self._wait_for_new_frame(sent_version)
                 version = self._version
+                sent_version = version
                 data = self.frame or b""
                 conn.sendall(
                     (b"HTTP/1.1 200 OK\r\n" if persist else b"HTTP/1.0 200 OK\r\n")
@@ -481,6 +488,20 @@ class _FrameServer:
                 conn.close()
             except OSError:
                 pass
+
+    def _wait_for_new_frame(self, sent_version, limit=_HOLD_SECONDS):
+        """Hold a request until show() has drawn a frame this connection has not had.
+
+        The TV asks again the moment a frame lands, so answering at once would
+        resend the same frame; holding sends each frame once, as soon as it
+        exists. After `limit` seconds the current frame goes anyway, so a still
+        screen keeps its connection alive.
+        """
+        import time
+
+        deadline = _now() + limit
+        while self._running and self._version == sent_version and _now() < deadline:
+            time.sleep(0.002)
 
     def poll(self):
         """Non-blocking service of pending connections (for single-threaded runtimes)."""
