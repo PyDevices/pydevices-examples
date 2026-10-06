@@ -388,6 +388,20 @@ class RokuCompanion:
         if self._is_active():
             _ecp_post(self.host, "/input?mode=quit", self.timeout)
 
+    def video(self, url, format="hls"):
+        """Play video from *url* on the TV: H.264 as HLS by default.
+
+        Any stream a Roku ``Video`` node plays works (``format`` is its
+        ``streamFormat``: "hls", "mp4", "dash"...). For HLS, audio must be
+        AAC; LPCM plays silent. A live stream runs about 7-10 s behind with
+        1-second segments and a 3-segment playlist (spikes/roku_hls).
+
+        Example::
+
+            tv.video("http://192.0.2.20:8090/stream.m3u8")
+        """
+        self._launch({"mode": "video", "url": str(url), "format": format})
+
     def camera(self, url):
         """Stream live JPEG frames from *url* on the TV.
 

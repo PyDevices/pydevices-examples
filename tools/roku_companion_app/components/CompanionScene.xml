@@ -16,6 +16,9 @@
             <!-- Camera Viewers (Double buffered for MJPEG via rapid Poster updates) -->
             <Poster id="cameraView1" width="1920" height="1080" visible="false" loadDisplayMode="scaleToFit" />
             <Poster id="cameraView2" width="1920" height="1080" visible="false" loadDisplayMode="scaleToFit" />
+
+            <!-- Video mode: H.264 (HLS, MP4, ...) from a URL -->
+            <Video id="videoPlayer" width="1920" height="1080" visible="false" enableUI="false" />
             
         </Rectangle>
         

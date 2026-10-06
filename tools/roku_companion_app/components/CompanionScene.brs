@@ -12,6 +12,10 @@ sub init()
 
     m.tts = CreateObject("roTextToSpeech")
     m.audioPlayer = m.top.findNode("audioPlayer")
+    m.videoPlayer = m.top.findNode("videoPlayer")
+    m.videoPlayer.notificationInterval = 0.5
+    m.videoPlayer.observeField("state", "onVideoState")
+    m.videoPlayer.observeField("position", "onVideoPosition")
     
     m.top.setFocus(true)
     
@@ -37,6 +41,7 @@ sub onLaunchArgsChanged()
     
     mode = args.mode
     print "[CompanionScene] onLaunchArgsChanged: mode="; mode
+    if mode <> invalid and mode <> "video" and mode <> "quit" then stopVideo()
     
     if mode = "tts"
         m.statusLabel.text = "TTS: " + args.text
@@ -85,6 +90,25 @@ sub onLaunchArgsChanged()
         m.cameraTimer.control = "start"
         print "[CompanionScene] Camera URL: "; args.url
         
+    else if mode = "video"
+        ' Play H.264 from a URL. Reports state and position to /video on
+        ' the server that sent it, so the sender can measure the delay.
+        m.statusLabel.visible = false
+        m.cameraView1.visible = false
+        m.cameraView2.visible = false
+        m.cameraTimer.control = "stop"
+        m.cameraUrl = ""
+        m.keyTask.url = Left(args.url, Instr(9, args.url, "/") - 1) + "/video"
+        content = CreateObject("roSGNode", "ContentNode")
+        content.url = args.url
+        content.streamFormat = "hls"
+        if args.format <> invalid then content.streamFormat = args.format
+        content.live = true
+        m.videoPlayer.content = content
+        m.videoPlayer.visible = true
+        m.videoPlayer.control = "play"
+        print "[CompanionScene] Video URL: "; args.url
+
     else if mode = "quit"
         ' Sent by a PyDevices app on its way out.
         m.top.exitChannel = true
@@ -172,3 +196,24 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     m.keyTask.key = "k=" + key + "&p=" + p
     return true
 end function
+
+sub stopVideo()
+    if m.videoPlayer.visible
+        m.videoPlayer.control = "stop"
+        m.videoPlayer.visible = false
+    end if
+end sub
+
+sub onVideoState()
+    state = m.videoPlayer.state
+    report = "state=" + state
+    if state = "error"
+        report = report + "&code=" + m.videoPlayer.errorCode.toStr() + "&msg=" + m.videoPlayer.errorMsg.EncodeUriComponent()
+    end if
+    print "[CompanionScene] video "; report
+    if m.keyTask.url <> "" then m.keyTask.key = report
+end sub
+
+sub onVideoPosition()
+    if m.keyTask.url <> "" then m.keyTask.key = "pos=" + m.videoPlayer.position.toStr()
+end sub
