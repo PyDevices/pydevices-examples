@@ -1,17 +1,20 @@
+"""Run a PyDevices example on a Roku TV, with the TV's remote as its keyboard.
 
-from displaydev.fbdisplay import FBDisplay
-from utils.roku_companion import RokuAudioSink, RokuCompanion, RokuDisplayWrapper, roku_host
+Put this folder first on the path and run the example, e.g. testris.py.
+"""
+
+from utils.roku_companion import RokuAudioSink, RokuCompanion, RokuDisplay, roku_host
 
 WIDTH = 480
 HEIGHT = 270
-buf = bytearray(WIDTH * HEIGHT * 2)
-base_display = FBDisplay(buf, width=WIDTH, height=HEIGHT)
 
 # Connect to the Roku TV
 tv = RokuCompanion(roku_host())
 
-# Wrap the base display with the Roku companion display
-display_drv = RokuDisplayWrapper(base_display, tv, port=8090)
+display_drv = RokuDisplay(tv, width=WIDTH, height=HEIGHT, port=8090)
+
+# appdev.App(board_config) reads input from here: the remote's buttons.
+get_events = display_drv.get_events
 
 # Other stubs that PyDevices examples sometimes expect from board_config
 has_touch = False
