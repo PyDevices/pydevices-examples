@@ -17,6 +17,10 @@
       "../lib/examples/roku/roku_companion_displaydev.py"
     ],
     [
+      "roku/roku_companion_remote.py",
+      "../lib/examples/roku/roku_companion_remote.py"
+    ],
+    [
       "roku/roku_companion_tts.py",
       "../lib/examples/roku/roku_companion_tts.py"
     ]

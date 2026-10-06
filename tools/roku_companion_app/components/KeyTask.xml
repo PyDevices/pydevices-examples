@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Sends remote button presses to the PyDevices frame server. A Task, because
+     SceneGraph's render thread may not do network I/O. -->
+<component name="KeyTask" extends="Task">
+    <script type="text/brightscript" uri="pkg:/components/KeyTask.brs" />
+    <interface>
+        <field id="url" type="string" />
+        <field id="key" type="string" alwaysNotify="true" />
+    </interface>
+</component>

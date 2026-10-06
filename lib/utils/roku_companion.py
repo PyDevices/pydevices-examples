@@ -97,6 +97,23 @@ _ECP_PORT = 8060
 # Sideloaded dev channel ID.
 _DEV_CHANNEL = "dev"
 
+# Remote buttons as the channel's onKeyEvent names them, and the keys.K_* code
+# each becomes. Home, Power, Volume, Mute and the shortcut buttons never reach
+# a channel. A name not listed here still arrives, with key code 0.
+_REMOTE_KEYS = (
+    ("up", "K_UP"),
+    ("down", "K_DOWN"),
+    ("left", "K_LEFT"),
+    ("right", "K_RIGHT"),
+    ("OK", "K_RETURN"),
+    ("back", "K_AC_BACK"),
+    ("options", "K_MENU"),  # the * button
+    ("play", "K_AUDIOPLAY"),
+    ("rewind", "K_AUDIOPREV"),  # keys has no rewind/fast-forward codes yet
+    ("fastforward", "K_AUDIONEXT"),
+    ("replay", "K_AC_REFRESH"),  # instant replay
+)
+
 # Longest a frame request waits for a new frame before the current one is resent.
 _HOLD_SECONDS = 1.0
 
@@ -376,6 +393,8 @@ class _FrameServer:
         # one (time, version) per update_frame(), when trace is a list.
         self.trace = None
         self.updates = None
+        # (remote button name, pressed, arrival time), drained by get_events().
+        self.key_events = []
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
@@ -459,6 +478,20 @@ class _FrameServer:
                     and first_line.endswith("HTTP/1.1")
                     and "connection: close" not in headers
                 )
+                if first_line.startswith("GET /key?"):
+                    self._remote_key(first_line, requested)
+                    conn.sendall(
+                        (
+                            b"HTTP/1.1 204 No Content\r\n"
+                            if persist
+                            else b"HTTP/1.0 204 No Content\r\n"
+                        )
+                        + (b"Connection: keep-alive\r\n" if persist else b"Connection: close\r\n")
+                        + b"Content-Length: 0\r\n\r\n"
+                    )
+                    if not persist:
+                        return
+                    continue
                 delta = 0.0 if self._last_req is None else requested - self._last_req
                 self._last_req = requested
                 print("[FrameServer] #%d %s (delta: %.3fs)" % (conn_id, first_line, delta))
@@ -488,6 +521,15 @@ class _FrameServer:
                 conn.close()
             except OSError:
                 pass
+
+    def _remote_key(self, first_line, when):
+        """Queue a remote button from "GET /key?k=<name>&p=<0|1> HTTP/1.1"."""
+        query = first_line.split(" ")[1].split("?", 1)[1]
+        fields = dict(item.split("=", 1) for item in query.split("&") if "=" in item)
+        name = fields.get("k", "")
+        pressed = fields.get("p") in ("1", "true")
+        print("[FrameServer] remote %s %s" % (name, "down" if pressed else "up"))
+        self.key_events.append((name, pressed, when))
 
     def _wait_for_new_frame(self, sent_version, limit=_HOLD_SECONDS):
         """Hold a request until show() has drawn a frame this connection has not had.
@@ -604,6 +646,36 @@ class RokuDisplay(FBDisplay):
 
         if hasattr(self._server, "poll"):
             self._server.poll()
+
+    def get_events(self):
+        """Remote button presses since the last call, as events.Key records.
+
+        Pass it as ``App(host_read=display.get_events)`` and the remote drives
+        an app like a keyboard: arrows, OK (K_RETURN), Back (K_AC_BACK) and the
+        media buttons, mapped in _REMOTE_KEYS.
+        """
+        if self._server is None or not self._server.key_events:
+            return []
+        import events
+        import keys
+
+        queued = self._server.key_events
+        self._server.key_events = []
+        codes = dict(_REMOTE_KEYS)
+        out = []
+        for name, pressed, _when in queued:
+            code = getattr(keys, codes.get(name, ""), 0)
+            out.append(
+                events.Key(
+                    events.KEYDOWN if pressed else events.KEYUP,
+                    keys.keyname(code) if code else name,
+                    code,
+                    0,
+                    0,
+                    None,
+                )
+            )
+        return out
 
     def close(self):
         """Shut down the background frame server."""

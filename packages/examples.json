@@ -593,6 +593,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/roku/roku_companion_displaydev.py"
     ],
     [
+      "roku/roku_companion_remote.py",
+      "github:PyDevices/pydevices-examples/lib/examples/roku/roku_companion_remote.py"
+    ],
+    [
       "roku/roku_companion_tts.py",
       "github:PyDevices/pydevices-examples/lib/examples/roku/roku_companion_tts.py"
     ],

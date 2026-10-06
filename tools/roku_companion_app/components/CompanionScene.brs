@@ -7,6 +7,9 @@ sub init()
     m.cameraView1.observeField("loadStatus", "onCameraLoadStatusChanged")
     m.cameraView2.observeField("loadStatus", "onCameraLoadStatusChanged")
     
+    m.keyTask = CreateObject("roSGNode", "KeyTask")
+    m.keyTask.control = "run"
+
     m.tts = CreateObject("roTextToSpeech")
     m.audioPlayer = m.top.findNode("audioPlayer")
     
@@ -36,6 +39,7 @@ sub onLaunchArgsChanged()
         m.cameraView2.visible = false
         m.cameraTimer.control = "stop"
         m.cameraUrl = ""
+        m.keyTask.url = ""
         print "[CompanionScene] TTS text: "; args.text
         
         if m.tts <> invalid
@@ -48,6 +52,7 @@ sub onLaunchArgsChanged()
         m.cameraView2.visible = false
         m.cameraTimer.control = "stop"
         m.cameraUrl = ""
+        m.keyTask.url = ""
         m.statusLabel.text = "Streaming Audio..."
         print "[CompanionScene] Audio URL: "; args.url
         
@@ -65,6 +70,8 @@ sub onLaunchArgsChanged()
         m.cameraView1.visible = false
         m.cameraView2.visible = false
         m.cameraUrl = args.url
+        ' Remote buttons go to the server that serves the frames.
+        m.keyTask.url = Left(args.url, Instr(9, args.url, "/") - 1) + "/key"
         m.frameCount = 0
         m.activeBuffer = 1
         m.isLoading = false
@@ -77,6 +84,7 @@ sub onLaunchArgsChanged()
         m.cameraView2.visible = false
         m.cameraTimer.control = "stop"
         m.cameraUrl = ""
+        m.keyTask.url = ""
         m.statusLabel.text = args.text
         print "[CompanionScene] Dashboard text: "; args.text
     end if
@@ -134,3 +142,13 @@ sub onCameraLoadStatusChanged(event as Object)
         m.statusLabel.visible = true
     end if
 end sub
+
+' While frames are streaming, every remote button the TV lets a channel see goes
+' to the PyDevices app, Back included (Home always leaves the channel).
+function onKeyEvent(key as String, press as Boolean) as Boolean
+    if m.cameraUrl = "" then return false
+    p = "0"
+    if press then p = "1"
+    m.keyTask.key = "k=" + key + "&p=" + p
+    return true
+end function
