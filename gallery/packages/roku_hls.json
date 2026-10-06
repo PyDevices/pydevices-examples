@@ -1,0 +1,13 @@
+{
+  "urls": [
+    [
+      "roku_hls/board_config.py",
+      "../lib/examples/roku_hls/board_config.py"
+    ],
+    [
+      "roku_hls/hls_display.py",
+      "../lib/examples/roku_hls/hls_display.py"
+    ]
+  ],
+  "version": "0.0.1"
+}
