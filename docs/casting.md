@@ -87,8 +87,9 @@ on it.
 - **The remote as input.** All eleven buttons a channel can see arrive as key
   presses and releases, and a held button repeats. testris plays from the
   couch through [`roku/board_config.py`](../lib/examples/roku/board_config.py).
-- **Speech, a dashboard and camera frames**: `say()`, `dashboard()` and
-  `camera(url)`, one example each in [`lib/examples/roku/`](../lib/examples/roku/).
+- **Speech, a dashboard, and frames from any URL**: `say()`, `dashboard()`
+  and `frames(url)`, which shows the PNG or JPEG a URL serves, over and over.
+  One example each in [`lib/examples/roku/`](../lib/examples/roku/).
 - **Video**: `video(url)` plays HLS, which is how the next method reaches a
   TV.
 

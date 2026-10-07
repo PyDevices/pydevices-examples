@@ -13,17 +13,17 @@
             <!-- Dashboard / Status Text -->
             <Label id="statusLabel" text="PyDevices Companion Ready" horizAlign="center" vertAlign="center" width="1920" height="1080" wrap="true" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
             
-            <!-- Camera Viewers (Double buffered for MJPEG via rapid Poster updates) -->
-            <Poster id="cameraView1" width="1920" height="1080" visible="false" loadDisplayMode="scaleToFit" />
-            <Poster id="cameraView2" width="1920" height="1080" visible="false" loadDisplayMode="scaleToFit" />
+            <!-- Frames mode: still images (PNG or JPEG) fetched one after another from a URL, double buffered -->
+            <Poster id="frameView1" width="1920" height="1080" visible="false" loadDisplayMode="scaleToFit" />
+            <Poster id="frameView2" width="1920" height="1080" visible="false" loadDisplayMode="scaleToFit" />
 
             <!-- Video mode: H.264 (HLS, MP4, ...) from a URL -->
             <Video id="videoPlayer" width="1920" height="1080" visible="false" enableUI="false" />
             
         </Rectangle>
         
-        <!-- Timer for MJPEG frame fetching -->
-        <Timer id="cameraTimer" repeat="true" duration="0.1" />
+        <!-- Restarts frame fetching after a failed load, and notices when the app has gone -->
+        <Timer id="frameTimer" repeat="true" duration="0.1" />
         
         <!-- Audio Player for live streaming -->
         <Audio id="audioPlayer" />

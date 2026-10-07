@@ -597,16 +597,16 @@
       "github:PyDevices/pydevices-examples/lib/examples/roku/board_config.py"
     ],
     [
-      "roku/roku_companion_camera.py",
-      "github:PyDevices/pydevices-examples/lib/examples/roku/roku_companion_camera.py"
-    ],
-    [
       "roku/roku_companion_dashboard.py",
       "github:PyDevices/pydevices-examples/lib/examples/roku/roku_companion_dashboard.py"
     ],
     [
       "roku/roku_companion_displaydev.py",
       "github:PyDevices/pydevices-examples/lib/examples/roku/roku_companion_displaydev.py"
+    ],
+    [
+      "roku/roku_companion_frames.py",
+      "github:PyDevices/pydevices-examples/lib/examples/roku/roku_companion_frames.py"
     ],
     [
       "roku/roku_companion_remote.py",

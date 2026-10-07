@@ -12,8 +12,10 @@ on a Roku TV, enabling:
 
 * **Text-to-Speech** — speak arbitrary text through the TV speakers
   (``roTextToSpeech``).
-* **Camera Monitor** — display a live MJPEG-style feed by rapidly fetching
-  JPEG frames from a URL served by ``cameraif`` (or any HTTP JPEG source).
+* **Frames** — show the still images (PNG or JPEG) a URL serves, fetched
+  one after another as fast as the TV can load them. ``RokuDisplay`` is
+  built on this; any program that serves a picture over HTTP can use it.
+* **Video** — play an HLS or MP4 stream from a URL.
 * **Dashboard** — show sensor readings, status text, or notifications on
   the TV screen.
 
@@ -28,12 +30,12 @@ Usage::
     tv = RokuCompanion("192.0.2.10")
     tv.say("Hello from PyDevices!")
     tv.dashboard("Temperature: 72°F  Humidity: 45%")
-    tv.camera("http://192.0.2.20:8080/frame.jpg")
+    tv.frames("http://192.0.2.20:8080/frame.jpg")
 
 Requires
 --------
 * The **PyDevices Companion** Roku app sideloaded on the target TV
-  (see ``roku_companion_app/`` in ``.scratch``).
+  (see ``tools/roku_companion_app/`` in this repo).
 * Roku setting **Control by mobile apps → Enabled**.
 
 Network Discovery
@@ -499,19 +501,19 @@ class RokuCompanion:
         """
         self._launch({"mode": "video", "url": str(url), "format": format})
 
-    def camera(self, url):
-        """Stream live JPEG frames from *url* on the TV.
+    def frames(self, url):
+        """Show the image *url* serves, fetched over and over, on the TV.
 
-        The Companion app fetches the URL repeatedly (~10 fps) as
-        individual JPEG images, displaying each on a full-screen
-        ``<Poster>`` node.  This is the simplest way to push a
-        ``cameraif`` MJPEG feed to a Roku without transcoding.
+        The Companion app asks for the next frame as soon as the last one
+        has loaded, and shows each full screen on a ``<Poster>`` node. It
+        takes PNG or JPEG. Remote buttons go back to ``/key`` on the same
+        server, and the channel closes after 5 s without a frame.
 
         Example::
 
-            tv.camera("http://192.0.2.20:8080/frame.jpg")
+            tv.frames("http://192.0.2.20:8080/frame.jpg")
         """
-        self._launch({"mode": "camera", "url": _session_url(str(url))})
+        self._launch({"mode": "frames", "url": _session_url(str(url))})
 
 
 def _would_block(e):
@@ -832,15 +834,6 @@ class RokuDisplay(FBDisplay):
         self._raw_buf = bytearray(width * height * 2)
 
         super().__init__(self._raw_buf, width=width, height=height, **kwargs)
-        # framebuf fills and blits in C on MicroPython; FBDisplay's own do it a
-        # row at a time in Python, which on a board costs more than the frame
-        try:
-            import framebuf
-
-            self._fbuf = framebuf.FrameBuffer(self._raw_buf, width, height, framebuf.RGB565)
-        except (ImportError, AttributeError):
-            self._fbuf = None
-
         self._server = None
         self._png = None
         self._launched = False
@@ -873,13 +866,28 @@ class RokuDisplay(FBDisplay):
 
         if not self._launched:
             frame_url = "http://%s:%d/frame.png" % (self.local_ip, self.port)
-            print("[RokuDisplay] Launching TV camera mode with URL: %s" % frame_url)
-            self.tv.camera(frame_url)
+            print("[RokuDisplay] Showing frames from %s" % frame_url)
+            self.tv.frames(frame_url)
             self._launched = True
             _at_exit(self.close)
 
         if hasattr(self._server, "poll"):
             self._server.poll()
+
+    def init(self):
+        """framebuf fills and blits in C on MicroPython; FBDisplay's own do it a
+        row at a time in Python, which on a board costs more than the frame.
+        Remade on each rotation: a quarter turn re-reads the same buffer with
+        width and height swapped, so the framebuf's rows must change too."""
+        super().init()
+        try:
+            import framebuf
+
+            self._fbuf = framebuf.FrameBuffer(
+                self._raw_buf, self.width, self.height, framebuf.RGB565
+            )
+        except (ImportError, AttributeError):
+            self._fbuf = None
 
     def fill_rect(self, x, y, w, h, c):
         if self._fbuf is None:
@@ -1049,8 +1057,8 @@ class RokuDisplayWrapper:
 
         if not self._launched:
             frame_url = "http://%s:%d/frame.png" % (self.local_ip, self.port)
-            print("[RokuDisplayWrapper] Launching TV camera mode with URL: %s" % frame_url)
-            self.tv.camera(frame_url)
+            print("[RokuDisplayWrapper] Showing frames from %s" % frame_url)
+            self.tv.frames(frame_url)
             self._launched = True
             _at_exit(self.close)
 
