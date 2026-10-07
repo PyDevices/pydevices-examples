@@ -180,7 +180,7 @@ class _RoundState:
         self.score = 0
         self.lines = 0
         self.drop_time = 1000
-        self.last_read = 0
+        self.last_read = ticks_ms()  # not 0: a desktop's ticks can be past half the wrap, where 0 reads as the future
         self.hard_drop = False
 
 
