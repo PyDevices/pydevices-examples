@@ -72,6 +72,8 @@ class CastDisplay(FBDisplay):
             self.cast = pycast.FfmpegCaster(width, height, canvas=canvas, fps=fps, bitrate=bitrate)
         self.uibc = UibcInput(width, height)
         self.sessions = 0
+        self._session = None
+        self._idr_before = 0        # IDR requests in the sessions before this one
         self._stop = False
         self._running = False
         self._start()
@@ -101,10 +103,14 @@ class CastDisplay(FBDisplay):
 
     def stats(self):
         """How the cast is going: frames encoded and sent, frames a second
-        (measured by castif, or by pycast on a desktop), and sessions joined."""
+        (measured by castif, or by pycast on a desktop), sessions joined, and
+        the keyframes the sink asked for: a sink asks when it lost part of the
+        stream, so it counts the glitches the screen showed."""
         st = self.cast.stats()
+        s = self._session
+        idr = self._idr_before + (s.idr_requests if s is not None else 0)
         return {"frames": st.get("frames", 0), "fps": st.get("fps", 0) / 1000.0,
-                "sent": st.get("sent", 0), "sessions": self.sessions}
+                "sent": st.get("sent", 0), "sessions": self.sessions, "idr_requests": idr}
 
     # touch_read / keypad_read for a board_config: the laptop's mouse (left
     # button held) and keys
@@ -141,6 +147,7 @@ class CastDisplay(FBDisplay):
                 s.session_request = 0 if self.kind == "roku" else None
                 s.hidc_caps = "Keyboard/USB, Mouse/USB"
                 self.sessions += 1
+                self._session = s
 
                 def make(dst_ip, dst_port, server_port):
                     if castfast is None:
@@ -154,6 +161,8 @@ class CastDisplay(FBDisplay):
                     self.log("cast session ended:", result)
                 except Exception as e:
                     self.log("cast session:", repr(e))
+                self._idr_before += s.idr_requests
+                self._session = None
                 # the sink went away (closed, asleep, out of range): try again
                 for _ in range(30):
                     if self._stop:
