@@ -141,7 +141,7 @@ for testris and for the LVGL `lv_test_timer`.
 | `micropython` (unix) | 11.8, 7.4 | no H.264 | no H.264 | no H.264 |
 | `micropython.exe` (Windows) | 8.4, 7.7 | no H.264 | no H.264 | no H.264 |
 | ESP32-P4 4" panel | 2.2, 2.1 | 29, 18 | 24 | plays |
-| ESP32-S3 LCD-7 | not run yet | no H.264 | no H.264 | no H.264 |
+| ESP32-S3 LCD-7 | 1.8, 1.7 | no H.264 | no H.264 | no H.264 |
 
 **No H.264** is by design. Desktop MicroPython and the S3 have no H.264
 encoder, and adding one isn't planned, so `CastDisplay` and `HlsDisplay` stop
@@ -154,8 +154,8 @@ the same MPEG-TS over RTP that the P4 sends, byte for byte.
 cast from itself, and the only PC on this bench is the receiver.
 
 On a desktop, a frame costs a few milliseconds of PNG encoding. On the P4 it's
-about 180 ms at 480x270, which is why the board gets 2 frames a second over
-the Companion channel and 18 to 29 over Miracast, where the P4's H.264 encoder
+about 180 ms at 480x270 and on the S3 about 380 ms, which is why the boards get
+2 frames a second over the Companion channel and 18 to 29 over Miracast, where the P4's H.264 encoder
 does the work.
 
 To run any of these from `lib/`, with the TV's address:
@@ -175,8 +175,7 @@ mpftp, with its settings at the top of the file.
 The Roku's remote as input over Miracast is
 [#168](https://github.com/PyDevices/pydevices-examples/issues/168).
 
-The S3 LCD-7 hasn't run the Companion channel yet, and Miracast to Windows
-from CPython hasn't been run from a second PC.
+Miracast to Windows from CPython hasn't been run from a second PC.
 
 ## How it works
 
