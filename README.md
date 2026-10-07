@@ -181,6 +181,8 @@ a single `pydevices` package, not one per component.
 - [android-template](https://github.com/PyDevices/android-template) — Android application packaging
 - [pyscript-template](https://github.com/PyDevices/pyscript-template) — standalone PyScript application template
 
+What's planned next is in [ROADMAP.md](ROADMAP.md).
+
 ## Development
 
 ```bash

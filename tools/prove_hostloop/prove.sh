@@ -2,7 +2,7 @@
 # Prove that appdev.App keeps itself alive with no trailing app.run(),
 # on every interpreter PyDevices targets.
 cd "$(dirname "$0")"
-PD=${PD:-/home/brad/gh/pydevices/pydevices}
+PD=${PD:-$(cd ../../.. && pwd)/pydevices}   # the sibling pydevices checkout
 BIN=${BIN:-$PD/bin}
 export MICROPYPATH=".:$PD/lib:$PD/utils"
 export PYTHONPATH=".:$PD/lib:$PD/utils"

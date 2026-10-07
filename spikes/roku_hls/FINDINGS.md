@@ -34,7 +34,7 @@ serve a playlist and the segments over HTTP, and encode audio as AAC (the P4
 has no AAC hardware; Espressif's `esp_audio_codec` has a software AAC-LC
 encoder) or send video only.
 
-**Step 2 is parked (Brad, 2026-10-06).** esp-vision's H.264 encoder is
+**Step 2 is parked (2026-10-06).** esp-vision's H.264 encoder is
 expected to come into micropython-pydevices beside castif; step 2 starts after
 that, on whichever encoder the P4 then has, video only first.
 

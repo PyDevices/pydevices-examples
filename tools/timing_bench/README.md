@@ -4,7 +4,7 @@ Two scripts, run the same way on the current multimer and on the redesign.
 The Numbers section of pydevices' `docs/timing-design.md` is made from the
 `.jsonl` files here. The `results-*.jsonl` files without a host suffix are the
 cloud session's (a 4-core container); files named `results-<host>.jsonl` were
-measured on Brad's bench by the local session, each row carrying its `host`.
+measured on the maintainer's bench by a local session, each row carrying its `host`.
 
 `bench_timer.py OLD|NEW idle|busy [period_ms] [duration_ms]` arms one
 periodic timer and records every callback. `OLD` uses `multimer.auto`
