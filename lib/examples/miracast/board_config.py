@@ -19,7 +19,6 @@ _cast = _here.rsplit("/", 1)[0] + "/cast" if "/" in _here else "../cast"
 if _cast not in sys.path:
     sys.path.append(_cast)
 
-from _common import wifi_up  # noqa: E402
 from cast_display import CastDisplay  # noqa: E402
 
 from utils import cast_target  # noqa: E402
@@ -33,6 +32,8 @@ WIDTH = 720
 HEIGHT = 720
 
 if sys.implementation.name != "cpython":     # a board joins Wi-Fi; a desktop is on the LAN
+    from _common import wifi_up
+
     wifi_up()
 display_drv = CastDisplay(SINK, WIDTH, HEIGHT, kind=KIND)
 

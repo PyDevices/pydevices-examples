@@ -117,11 +117,13 @@ class CastDisplay(FBDisplay):
     def _start(self):
         import _thread
 
-        # the default thread stack is small for the session's socket work
-        try:
-            _thread.stack_size(32 * 1024)
-        except Exception:
-            pass
+        # the default thread stack is small for the session's socket work on a
+        # board; on CPython 32 KB would be far too little, for every thread after
+        if sys.implementation.name != "cpython":
+            try:
+                _thread.stack_size(32 * 1024)
+            except Exception:
+                pass
         self._running = True
         _thread.start_new_thread(self._run, ())
 
