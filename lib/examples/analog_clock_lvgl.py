@@ -506,6 +506,9 @@ class AnalogClock:
         label.set_style_text_color(_color(self.skin["accent"]), 0)
         _set_scaled_font(label, max(12, dial // 20))
         label.align(lv.ALIGN.CENTER, 0, -dial // 7)
+        # Printed on the dial: behind the scale and its hands (children of the
+        # scale, which this label would otherwise follow and cover).
+        label.move_background()
 
     def _line(self, color, width):
         line = lv.line(self.scale)
