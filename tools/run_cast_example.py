@@ -4,8 +4,10 @@
 
 The first argument is the method's board_config folder in lib/examples
 (roku, miracast or roku_hls). The example runs unchanged; after SECONDS
-(default 30) one CAST line reports the display's stats(), and it reports
-again every SECONDS after that until the example ends or is stopped.
+(default 30) one CAST line reports the display's stats() and its frame
+rate (displaydev's measure_fps: show_fps, show_frames, show_ms_mean,
+show_ms_max, show_busy), and it reports again every SECONDS after that until
+the example ends or is stopped.
 
 On a board, set CFG, EXAMPLE and SECONDS below and run it with mpftp; the
 line also goes to /cast.txt, written once, after the first report.
@@ -56,10 +58,15 @@ def report():
     try:
         import board_config
 
-        st = board_config.display_drv.stats()
-        if _shows[0]:
-            st["show_ms_mean"] = _shows[1] / _shows[0]
-            st["show_ms_max"] = _shows[2]
+        d = board_config.display_drv
+        st = d.stats()
+        fps = d.fps() if hasattr(d, "fps") else None
+        if fps and fps["frames"]:
+            st["show_fps"] = fps["avg_fps"]
+            st["show_frames"] = fps["frames"]
+            st["show_ms_mean"] = fps["present_ms"]
+            st["show_ms_max"] = fps["present_ms_max"]
+            st["show_busy"] = fps["busy"]
         line = "CAST %s %s %s %s %s" % (
             cfg,
             example,
@@ -92,26 +99,15 @@ def report():
         machine.soft_reset()
 
 
-_shows = [0, 0.0, 0.0]  # count, total ms, longest ms
-
-
-def time_shows():
-    """Every show() timed, for the report: where an app's frame time goes."""
+def measure_shows():
+    """The display's frame meter, for the report: where an app's frame time goes."""
     import board_config
 
-    d = board_config.display_drv
-    show = d.show
-
-    def timed(*args, **kwargs):
-        t = now()
-        r = show(*args, **kwargs)
-        ms = (now() - t) * 1000
-        _shows[0] += 1
-        _shows[1] += ms
-        _shows[2] = max(_shows[2], ms)
-        return r
-
-    d.show = timed
+    measure = getattr(board_config.display_drv, "measure_fps", None)
+    if measure is None:
+        print("run_cast_example: this displaydev has no measure_fps; no show_* fields")
+    else:
+        measure(True)
 
 
 def report_loop():
@@ -168,7 +164,7 @@ if cfg == "roku":
     from utils import roku_companion
 
     roku_companion.ROKU_IP = target
-time_shows()
+measure_shows()
 if board:
     # an LVGL app holds a board's interpreter and starves a reporting thread
     report_from_show()

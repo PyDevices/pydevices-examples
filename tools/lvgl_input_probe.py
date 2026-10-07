@@ -20,7 +20,6 @@ _workspace = _root.rsplit("/", 1)[0] if "/" in _root else ".."
 for _path in (
     _workspace + "/pydevices/lib",
     _workspace + "/pydevices/tools",
-    _workspace + "/lvgl-bindings/python",
     _root + "/lib",
 ):
     if _path not in sys.path:

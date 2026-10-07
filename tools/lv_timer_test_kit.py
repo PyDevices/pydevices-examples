@@ -119,6 +119,9 @@ def summarize(result: dict | None, returncode: int, timed_out: bool) -> str:
     if status == "skip":
         return "NA"
     if status == "ok":
+        fps = result.get("fps")
+        if isinstance(fps, dict):
+            return f"{backend}, ok, {fps.get('avg_fps', 0):.1f} fps"
         return f"{backend}, ok"
     if status == "error":
         return f"{backend}, error"

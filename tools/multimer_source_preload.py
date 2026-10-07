@@ -81,7 +81,6 @@ def _bootstrap_path(source_workspace=False):
                 "../../pydevices/drivers",
                 "../../pydevices/utils",
                 "../../pydevices/lib",
-                "../../lvgl-bindings/python",
             )
         )
     for directory in directories:
