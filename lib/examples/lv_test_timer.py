@@ -146,9 +146,13 @@ def _lvgl_label():
 
 
 def _timer_type():
-    # multimer has one Timer class; what differs per host is the wake source.
+    """multimer's wake source on this host (machine, native, signal, pending,
+    asyncio, wasm or none). Callbacks run between bytecodes almost everywhere,
+    so the delivery is shown only when it's the other kind, ``idle``, where
+    they run only when the program yields to its loop (asyncio, a browser)."""
     info = multimer.info()
-    return "%s/%s" % (info.get("source"), info.get("delivery"))
+    source = info.get("source")
+    return source if info.get("delivery") != "idle" else "%s, idle" % source
 
 
 def get_platform_info():
