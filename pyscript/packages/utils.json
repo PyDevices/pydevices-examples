@@ -93,6 +93,10 @@
       "github:PyDevices/pydevices-examples/lib/utils/viper_tools.py"
     ],
     [
+      "wifi_manager.py",
+      "github:PyDevices/pydevices-examples/lib/utils/wifi_manager.py"
+    ],
+    [
       "fonts/__init__.py",
       "github:PyDevices/pydevices-examples/lib/utils/fonts/__init__.py"
     ],
