@@ -64,6 +64,7 @@
   "hello.py",
   "joystick_list_select.py",
   "logo.py",
+  "lv_dynamic_fonts.py",
   "lv_gestures.py",
   "lv_interactive_test.py",
   "lv_multi_display.py",

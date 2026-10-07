@@ -149,6 +149,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/logo.py"
     ],
     [
+      "lv_dynamic_fonts.py",
+      "github:PyDevices/pydevices-examples/lib/examples/lv_dynamic_fonts.py"
+    ],
+    [
       "lv_gestures.py",
       "github:PyDevices/pydevices-examples/lib/examples/lv_gestures.py"
     ],
