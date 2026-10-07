@@ -176,8 +176,7 @@ PATCHES = (
 # -- not any two the P4 will carry.
 #
 # Two classes are out of the list entirely. Measured on the T-Embed with the
-# pump playing and nothing else running, against each class's OWN block
-# (`docs/spikes/live-audio-path-s3.md` in the workspace anchor):
+# pump playing and nothing else running, against each class's OWN block:
 #
 #     ShimmerHall   10.14 ms of its own 10.67 ms block -- 92 %, and it
 #                   starves 21 ms in 8 seconds with nothing beside it
