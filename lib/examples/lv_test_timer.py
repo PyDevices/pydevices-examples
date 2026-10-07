@@ -6,7 +6,9 @@ LVGL timer smoke test. Uses whatever timer mode ``board_config`` / ``app``
 already has.
 
 Shows interpreter, OS, display, timer backend, and LVGL version; a seconds counter
-and spinning arc prove LVGL timers fire; a tap button exercises input.
+and spinning arc prove LVGL timers fire; a tap button exercises input. The
+display's frame rate (``display_drv.measure_fps``) is on screen, updated each
+second, and in kit mode's ``KIT_RESULT`` line as ``fps``.
 
 Interactive (default): build the UI and let the app run itself — no trailing
 ``app.run()``. At a REPL the prompt comes back for introspection while LVGL
@@ -58,6 +60,29 @@ _arc_angle = 0
 
 _DURATION_S = 4
 _RESULT_PREFIX = "KIT_RESULT="
+
+# A displaydev older than measure_fps has no meter: the label says so.
+_measure = getattr(display_drv, "measure_fps", None)
+if _measure is not None:
+    _measure(True)
+
+
+def get_fps():
+    """The display's frame-rate dict, or None without a meter."""
+    fps = getattr(display_drv, "fps", None)
+    return fps() if fps is not None else None
+
+
+def _fps_text():
+    s = get_fps()
+    if s is None:
+        return "fps: n/a"
+    return "%.1f fps (avg %.1f)  %.1f ms  busy %d%%" % (
+        s["fps"],
+        s["avg_fps"],
+        s["present_ms"],
+        round(s["busy"] * 100),
+    )
 
 
 def _mode_label():
@@ -207,10 +232,16 @@ def build_ui():
         seconds_lbl.set_text("Seconds: 0")
         seconds_lbl.align_to(arc, lv.ALIGN.OUT_TOP_MID, 0, -4)
 
+        fps_lbl = lv.label(scr)
+        fps_lbl.set_text(_fps_text())
+        fps_lbl.align_to(seconds_lbl, lv.ALIGN.OUT_TOP_MID, 0, -4)
+
         def on_seconds_timer(_t):
             global _seconds
             _seconds += 1
             seconds_lbl.set_text(f"Seconds: {_seconds}")
+            fps_lbl.set_text(_fps_text())
+            fps_lbl.align_to(seconds_lbl, lv.ALIGN.OUT_TOP_MID, 0, -4)
 
         def on_arc_timer(_t):
             global _arc_angle
@@ -329,6 +360,7 @@ def _emit_result(state, taps):
         "backend": timer_backend_name(),
         "seconds": seconds,
         "taps": taps,
+        "fps": get_fps(),
     }
     print(_RESULT_PREFIX + json.dumps(payload, separators=(",", ":")))
     sys.stdout.flush()
