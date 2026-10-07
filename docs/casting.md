@@ -17,7 +17,7 @@ not, and the app's display is the TV. The same configs run on a desktop too:
 | Method | The screen | What the screen needs | Sound | Input back | Boards | From a desktop |
 |---|---|---|---|---|---|---|
 | [Miracast to a Roku](#miracast-to-a-roku-tv) | Roku TV | Screen mirroring on, nothing installed | yes, 48 kHz, in sync | not yet ([#168](https://github.com/PyDevices/pydevices-examples/issues/168)) | ESP32-P4 | CPython with ffmpeg |
-| [Miracast to Windows](#miracast-to-a-windows-laptop) | Windows laptop | the Wireless Display app open | yes | the laptop's mouse and keyboard | ESP32-P4 | CPython with ffmpeg, from another PC |
+| [Miracast to Windows](#miracast-to-a-windows-laptop) | Windows laptop | the Wireless Display app open | yes | the laptop's mouse and keyboard | ESP32-P4 | CPython with ffmpeg, from another PC; glitches on a busy network |
 | [The Companion channel](#the-pydevices-companion-channel) | Roku TV | our channel, sideloaded once | through the TV | the TV's remote | any board with Wi-Fi and `pngio` | CPython and MicroPython |
 | [HLS video](#hls-video-to-a-roku-or-vlc) | Roku TV, or VLC anywhere | the Companion channel, or any HLS player | not yet (needs AAC) | none | ESP32-P4 | CPython with ffmpeg |
 
@@ -65,14 +65,27 @@ app.
 
 Open the laptop's **Wireless Display** app (Settings > System > Projecting to
 this PC) and the P4 appears in a window. The same `miracast/board_config.py`
-works with `KIND = "windows"`.
+works with `KIND = "windows"`. The sink can be the laptop's name, such as
+`windows:elitebook`, where the runtime's resolver knows it (Windows'
+`python.exe` does; WSL doesn't, so give it the address).
 
 This one talks back. Windows sends the laptop's mouse and keyboard to the
 board (Miracast's UIBC), and `CastDisplay` turns them into touch and key
 events. An app on the P4 can't tell them from its own touch screen: testris
 plays from the laptop's keyboard, and
 [`cast/laptop_input.py`](../lib/examples/cast/laptop_input.py) draws the
-cursor and a dot per click.
+cursor and a dot per click. The Wireless Display window has to have focus:
+it then takes the mouse pointer and the keys, and the Windows key gives them
+back.
+
+**Expect glitches on a busy 2.4 GHz network.** Miracast sends its video over
+UDP, so a packet Wi-Fi loses is gone. Windows draws the damage instead of
+hiding it: a band of smeared or discoloured blocks, or a pink or grey flash,
+until the board sends a fresh keyframe a moment later. On this bench, with
+about 0.5 % of packets lost, that was one every two to three seconds, the same
+from the P4 and from CPython and at any bitrate. A quieter channel, or the
+board and laptop closer to the router, means fewer. `CastDisplay.stats()`
+counts them as `idr_requests`, the keyframes the laptop asked for after a loss.
 
 ## The PyDevices Companion channel
 
@@ -136,11 +149,11 @@ for testris and for the LVGL `lv_test_timer`.
 
 | Runtime | Companion channel | Miracast to a Roku | Miracast to Windows | HLS |
 |---|---|---|---|---|
-| `python` (Linux) | 12.7, 11.3 | 30, 30 | not run | plays |
-| `python.exe` (Windows) | 12.2, 10.6 | 30, 30 | not run | plays |
+| `python` (Linux) | 12.7, 11.3 | 30, 30 | 30 | plays |
+| `python.exe` (Windows) | 12.2, 10.6 | 30, 30 | 30 | plays |
 | `micropython` (unix) | 11.8, 7.4 | no H.264 | no H.264 | no H.264 |
 | `micropython.exe` (Windows) | 8.4, 7.7 | no H.264 | no H.264 | no H.264 |
-| ESP32-P4 4" panel | 2.2, 2.1 | 29, 18 | 24 | plays |
+| ESP32-P4 4" panel | 2.2, 2.1 | 29, 18 | 30 | plays |
 | ESP32-S3 LCD-7 | 1.8, 1.7 | no H.264 | no H.264 | no H.264 |
 
 **No H.264** is by design. Desktop MicroPython and the S3 have no H.264
@@ -150,8 +163,9 @@ on the PATH, or name it in the `FFMPEG` environment variable (Windows
 `python.exe` started from WSL needs that). The Miracast stream from CPython is
 the same MPEG-TS over RTP that the P4 sends, byte for byte.
 
-**Miracast to Windows from CPython** needs a second PC. Windows won't take a
-cast from itself, and the only PC on this bench is the receiver.
+**Miracast to Windows** is testris only, with glitches from Wi-Fi loss (see
+[Miracast to a Windows laptop](#miracast-to-a-windows-laptop)). From CPython
+it needs a second PC as the receiver: Windows won't take a cast from itself.
 
 On a desktop, a frame costs a few milliseconds of PNG encoding. On the P4 it's
 about 180 ms at 480x270 and on the S3 about 380 ms, which is why the boards get
@@ -174,8 +188,6 @@ mpftp, with its settings at the top of the file.
 
 The Roku's remote as input over Miracast is
 [#168](https://github.com/PyDevices/pydevices-examples/issues/168).
-
-Miracast to Windows from CPython hasn't been run from a second PC.
 
 ## How it works
 
