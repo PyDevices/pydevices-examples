@@ -7,7 +7,7 @@ serves it as HLS, and tells the TV's PyDevices Companion channel to play it.
 Set TV to your Roku's address, or to None and open the printed URL in VLC
 (Media > Open Network Stream).
 
-HLS runs 7-10 s behind, so this suits apps you watch, not ones you drive:
+HLS runs about 10 s behind, so this suits apps you watch, not ones you drive:
 there is no input here. For an interactive app, use ../miracast/board_config.py.
 """
 
