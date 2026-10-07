@@ -739,6 +739,14 @@ class RokuDisplay(FBDisplay):
         self._raw_buf = bytearray(width * height * 2)
 
         super().__init__(self._raw_buf, width=width, height=height, **kwargs)
+        # framebuf fills and blits in C on MicroPython; FBDisplay's own do it a
+        # row at a time in Python, which on a board costs more than the frame
+        try:
+            import framebuf
+
+            self._fbuf = framebuf.FrameBuffer(self._raw_buf, width, height, framebuf.RGB565)
+        except (ImportError, AttributeError):
+            self._fbuf = None
 
         self._server = None
         self._png = None
@@ -779,6 +787,24 @@ class RokuDisplay(FBDisplay):
 
         if hasattr(self._server, "poll"):
             self._server.poll()
+
+    def fill_rect(self, x, y, w, h, c):
+        if self._fbuf is None:
+            return super().fill_rect(x, y, w, h, c)
+        self._fbuf.fill_rect(x, y, w, h, c & 0xFFFF)
+        return (x, y, w, h)
+
+    def blit_rect(self, buf, x, y, w, h):
+        if self._fbuf is None:
+            return super().blit_rect(buf, x, y, w, h)
+        try:
+            import framebuf
+
+            src = framebuf.FrameBuffer(buf, w, h, framebuf.RGB565)
+        except (TypeError, ValueError):  # a read-only buffer: FBDisplay's copy
+            return super().blit_rect(buf, x, y, w, h)
+        self._fbuf.blit(src, x, y)
+        return (x, y, w, h)
 
     def stats(self):
         """How the cast is going: frames shown, distinct frames the TV fetched,

@@ -57,6 +57,9 @@ def report():
         import board_config
 
         st = board_config.display_drv.stats()
+        if _shows[0]:
+            st["show_ms_mean"] = _shows[1] / _shows[0]
+            st["show_ms_max"] = _shows[2]
         line = "CAST %s %s %s %s %s" % (
             cfg,
             example,
@@ -82,6 +85,28 @@ def report():
     if board and _reports[0] == 1:
         with open("/cast.txt", "w") as f:
             f.write(line + "\n")
+
+
+_shows = [0, 0.0, 0.0]  # count, total ms, longest ms
+
+
+def time_shows():
+    """Every show() timed, for the report: where an app's frame time goes."""
+    import board_config
+
+    d = board_config.display_drv
+    show = d.show
+
+    def timed(*args, **kwargs):
+        t = now()
+        r = show(*args, **kwargs)
+        ms = (now() - t) * 1000
+        _shows[0] += 1
+        _shows[1] += ms
+        _shows[2] = max(_shows[2], ms)
+        return r
+
+    d.show = timed
 
 
 def report_loop():
@@ -138,6 +163,7 @@ if cfg == "roku":
     from utils import roku_companion
 
     roku_companion.ROKU_IP = target
+time_shows()
 try:
     import threading
 
