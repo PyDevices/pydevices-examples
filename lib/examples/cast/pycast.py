@@ -96,7 +96,10 @@ class TsMux:
 
 
 def _ffmpeg():
-    ff = shutil.which("ffmpeg")
+    """ffmpeg: the FFMPEG environment variable's, or the one on the PATH."""
+    import os
+
+    ff = os.environ.get("FFMPEG") or shutil.which("ffmpeg")
     if ff is None:
         raise RuntimeError("CastDisplay on a desktop needs ffmpeg on the PATH (https://ffmpeg.org)")
     return ff
@@ -112,13 +115,13 @@ class FfmpegCaster:
         self.cw, self.ch = canvas or (width, height)
         self.fps, self.bitrate = fps, bitrate
         self.frames = self.sent = self.stalls = 0
-        self._t0 = time.monotonic()
+        self._t0 = None             # the first frame sent: the rate counts from there
 
     def mark_dirty(self):
         pass                # every tick is encoded; there is no skip to defeat
 
     def stats(self):
-        el = time.monotonic() - self._t0
+        el = time.monotonic() - self._t0 if self._t0 is not None else 0
         return {"frames": self.frames, "fps": int(1000 * self.frames / el) if el else 0,
                 "sent": self.sent, "stalls": self.stalls}
 
@@ -210,6 +213,8 @@ class FfmpegStreamer:
         self._last_pts = pts
         packets = (self.mux.tables() if key else []) + self.mux.video(au, pts, key)
         self._send(packets)
+        if self.c._t0 is None:
+            self.c._t0 = time.monotonic()
         self.c.frames += 1
 
     def _read(self):

@@ -51,7 +51,7 @@ class _FfmpegHls:
         import tempfile
         import threading
 
-        self.ffmpeg = shutil.which("ffmpeg")
+        self.ffmpeg = os.environ.get("FFMPEG") or shutil.which("ffmpeg")
         if self.ffmpeg is None:
             raise RuntimeError("HlsDisplay on a desktop needs ffmpeg on the PATH (https://ffmpeg.org)")
         self.w, self.h, self.fps, self.bitrate = width, height, fps, bitrate

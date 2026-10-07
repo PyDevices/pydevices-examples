@@ -35,7 +35,8 @@ if sys.implementation.name != "cpython":     # a board joins Wi-Fi; a desktop is
     from _common import wifi_up
 
     wifi_up()
-display_drv = CastDisplay(SINK, WIDTH, HEIGHT, kind=KIND)
+# the session's progress on the console: joining, the sink's answers, frame rates
+display_drv = CastDisplay(SINK, WIDTH, HEIGHT, kind=KIND, log=print)
 
 # what appdev.App and the examples read from a board_config
 fb = display_drv._buf
