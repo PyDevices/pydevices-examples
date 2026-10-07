@@ -37,6 +37,10 @@
       "../lib/examples/cast/micecast.py"
     ],
     [
+      "cast/pycast.py",
+      "../lib/examples/cast/pycast.py"
+    ],
+    [
       "cast/roku_cast.py",
       "../lib/examples/cast/roku_cast.py"
     ],
