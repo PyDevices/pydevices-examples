@@ -14,6 +14,9 @@ Also turn on **Settings > System > Advanced system settings > Control by mobile
 apps**. Then run any example in `lib/examples/roku/` with the TV's address as
 its argument, or with `ROKU_IP` set.
 
+What else can put a picture on the TV, with nothing installed on it, is in the
+[casting guide](../../docs/casting.md).
+
 Updates reach the running channel as ECP `input` events, so the screen doesn't
 restart for each one; the library launches the channel only when it isn't the
 active app.
