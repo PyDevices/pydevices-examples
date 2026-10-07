@@ -8,9 +8,9 @@ already has.
 Two cards. One says what this run is: the interpreter and OS, the display
 driver, the screen (size, rotation and, on a desktop, the window's scale), the
 timer's wake source, and LVGL's version. The other holds every moving part, so
-the dirty areas stay together: an arc that turns once a second on a 50 ms
-timer, with the seconds counted in its middle (if the two timers drift apart,
-it shows), the display's frame rate (``display_drv.measure_fps``), and a tap
+the dirty areas stay together: an arc that turns once a second, stepping
+every frame at the display's refresh period, with the seconds counted in its
+middle (if the two timers drift apart, it shows), the display's frame rate (``display_drv.measure_fps``), and a tap
 button for input. The frame rate is also in kit mode's ``KIT_RESULT`` line as
 ``fps``.
 
@@ -356,10 +356,18 @@ def build_ui():
             seconds_lbl.set_text(str(_seconds))
             fps_lbl.set_text(_fps_short(across))
 
+        # The arc steps at the display's refresh period (33 ms unless the
+        # display or PYDEVICES_REFRESH_MS says otherwise), so it changes every
+        # frame and the frame rate shown is the display's, not this app's pace.
+        # Its angle comes from the clock: one turn a second at any period, in
+        # step with the seconds counter, which shows if the two timers drift.
+        frame_ms = int(getattr(display_drv, "refresh_period_ms", 0) or 33)
+        t0 = multimer.ticks_ms()
+
         def on_arc_timer(_t):
-            # 18 degrees every 50 ms: one turn a second, in step with the counter.
             global _arc_angle
-            _arc_angle = (_arc_angle + 18) % 360
+            ms = multimer.ticks_diff(multimer.ticks_ms(), t0) % 1000
+            _arc_angle = ms * 360 // 1000
             arc.set_angles(0, _arc_angle)
 
         def on_click(_e):
@@ -368,7 +376,7 @@ def build_ui():
             btn_lbl.set_text("Tap  %d" % _taps)
 
         lv.timer_create(on_seconds_timer, 1000, None)
-        lv.timer_create(on_arc_timer, 50, None)
+        lv.timer_create(on_arc_timer, frame_ms, None)
         btn.add_event_cb(on_click, lv.EVENT.CLICKED, None)
         return btn
     finally:
