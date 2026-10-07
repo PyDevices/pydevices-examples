@@ -142,6 +142,7 @@
   "utils/tree.py",
   "utils/uctypes.py",
   "utils/viper_tools.py",
+  "utils/wifi_manager.py",
   "widgets_clinic_queue.py",
   "widgets_energy_panel.py",
   "widgets_locker_kiosk.py"
