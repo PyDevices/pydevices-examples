@@ -102,7 +102,7 @@ Board configs never own an `appdev.App`. `AutoDisplay` is imported from
 Host defaults and env semantics:
 [App and board config — `timer_async`](https://github.com/PyDevices/pydevices/blob/main/docs/app-and-board-config.md#timer_async).
 Examples never read this variable — only library `board_config` and harnesses
-that call `displaydev.env_set`.
+that call `boarddev.env_set`.
 
 **Preferred for agents / matrix:** pass wrapper `--timer-async` (the example
 kit does this). That uses `env_set` and works for Windows PE under WSL without

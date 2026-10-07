@@ -712,7 +712,7 @@ def main(argv=None):
     # Apply --env / --timer-async via env_set before board_config / SDL init
     # (deadline hook and the example both import board_config).
     try:
-        from displaydev import env_set
+        from boarddev import env_set
     except Exception:
         env_set = None
     if env_set is not None:

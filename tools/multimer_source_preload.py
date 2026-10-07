@@ -13,7 +13,7 @@ Environment variables cover direct runs, but Windows MicroPython / CPython
 launched from WSL cannot see exported ones, so a sweep across interpreters sets
 ``MULTIMER_SOURCE`` inside the child, makes multimer choose its source at once,
 and checks that the one it got is the one asked for. Other ``--env`` values go
-through ``displaydev.env_set()``. The target script keeps the real command line
+through ``boarddev.env_set()``. The target script keeps the real command line
 (``sys.argv`` is read-only on CircuitPython), so scripts must locate their own
 flags anywhere in ``sys.argv`` rather than at a fixed index.
 
@@ -118,7 +118,7 @@ def main(argv):
     _bootstrap_path(source_workspace)
 
     if env:
-        from displaydev import env_set
+        from boarddev import env_set
 
         for name, value in env:
             env_set(name, value)

@@ -26,7 +26,7 @@ screenshot of a real panel.
 
 import sys
 
-from displaydev import env_get, env_set
+from boarddev import env_get, env_set
 
 # A desktop board_config reads these; a real board's display ignores them.
 if env_get("PYDEVICES_WIDTH") is None:

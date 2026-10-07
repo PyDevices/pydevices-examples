@@ -38,7 +38,7 @@ Requires Roku **Control by mobile apps -> Enabled**; join WiFi before running
 on a microcontroller. Optional fixed target: ``ROKU_HOST`` in :mod:`roku_engine`.
 
 Desktop panel size: edit ``_WIDTH`` / ``_HEIGHT`` / ``_SCALE`` below. Those are
-applied via ``displaydev.env_set`` before any front end imports ``board_config``.
+applied via ``boarddev.env_set`` before any front end imports ``board_config``.
 Leave ``_SCALE`` as ``None`` to keep the desktop ``AutoDisplay`` default
 (autoscale still fits the window).
 """
@@ -49,7 +49,7 @@ _PKG = __file__.replace("\\", "/").rsplit("/", 1)[0]
 if _PKG not in sys.path:
     sys.path.insert(0, _PKG)
 
-from displaydev import env_set
+from boarddev import env_set
 
 # Local desktop test panel — change these and re-run. Must stay above board_config.
 # Match LilyGO T-HMI (ST7789 I80): 240x320. Never apply on MCU boards (panel
