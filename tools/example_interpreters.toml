@@ -23,7 +23,7 @@ setup_notes = "MicroPython unix build with SDL display support resolved via PATH
 
 [interpreters."micropython.exe"]
 platform = "micropython"
-display_backend = "SDLDisplay"
+display_backend = "WinDisplay"
 available_on = ["windows", "wsl"]
 kind = "subprocess"
 command = ["micropython.exe", "-X", "heapsize=64M"]

@@ -76,6 +76,66 @@ def check_deadline():
     return True
 
 
+def _current_apps():
+    """Every live app: LVGL's ``display_driver.app`` and ``appdev.App._current``
+    (an LVGL example can run both, e.g. drum_machine's ``appdev`` ``app.run()``)."""
+    import sys
+
+    apps = []
+    module = sys.modules.get("display_driver")
+    if module is not None and getattr(module, "app", None) is not None:
+        apps.append(module.app)
+    appdev = sys.modules.get("appdev")
+    current = (
+        getattr(getattr(appdev, "App", None), "_current", None) if appdev is not None else None
+    )
+    if current is not None and current not in apps:
+        apps.append(current)
+    return apps
+
+
+def arm_quit_timer():
+    """Request every app's quit ``DURATION_S`` from now, from a multimer timer.
+
+    On a host without threads (``micropython.exe``) nothing else can end an
+    LVGL example: :func:`check_deadline` is gated on ``_blocking_run`` /
+    ``_blocking``, and neither ``appdev.App.run()`` (``multimer.run_until``) nor
+    multimer's exit-hook loop (examples that build their UI and end) calls the
+    deadline hook from their ``sleep_ms``, so such an example ran until the
+    kit's timeout. A multimer one-shot timer is delivered by both loops. When it
+    fires before any app exists (slow imports), it tries again in 250 ms.
+    Returns True when armed.
+    """
+    if not ENABLED:
+        return False
+    try:
+        import multimer
+    except ImportError:
+        return False
+
+    def _fire(_timer):
+        global _deadline_fired
+        apps = _current_apps()
+        if not apps:
+            multimer.after(250, _fire, name="test_mode.quit")
+            return
+        for rt in apps:
+            try:
+                request = getattr(rt, "request_quit", None)
+                if callable(request):
+                    request()
+                else:
+                    handle = getattr(rt, "_handle_quit", None)
+                    if callable(handle):
+                        handle()
+            except Exception:
+                pass
+        _deadline_fired = True
+
+    multimer.after(int(float(DURATION_S) * 1000), _fire, name="test_mode.quit")
+    return True
+
+
 def install_deadline_hook():
     """Register :func:`check_deadline` with ``multimer.set_deadline_hook``.
 

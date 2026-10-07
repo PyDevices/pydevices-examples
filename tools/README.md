@@ -128,6 +128,20 @@ via temp files so a timeout kill does not wipe stdout the way pipes often did.
 Fix the quit path (wrapper deadline / `pydevices_test_mode` / inject) rather
 than treating PE as “failed to launch.”
 
+**From native Windows.** The kit also runs from PowerShell with python.org's
+Python (3.11 or newer, for `tomllib`): it finds `micropython.exe` on `PATH`,
+and nothing in its launch path needs WSL. With an exe built by
+micropython-pydevices (`--port windows --variant pydevices --modules all`):
+
+```powershell
+$env:PATH = "<micropython-pydevices>\builds\windows\pydevices;$env:PATH"
+python tools/example_test_kit.py --no-unit-tests --only-interpreter micropython.exe
+```
+
+The exe has no threads, so the wrapper quits LVGL examples with a multimer
+one-shot timer (`pydevices_test_mode.arm_quit_timer()`); the deadline hook
+alone never fires there.
+
 **Scheduling:** with `--order examples` and `--jobs 0` (default), **all**
 selected interpreters for an example — including both `.exe` launchers — run
 concurrently.
