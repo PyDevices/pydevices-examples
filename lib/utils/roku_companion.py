@@ -287,8 +287,24 @@ def _now():
         return time.ticks_ms() / 1000
 
 
+def _board_stack():
+    """MicroPython's default thread stack is a few kB, too little for a frame
+    server answering the TV (a board resets when it overflows); CPython's is
+    ample and must be left alone."""
+    import sys
+
+    if sys.implementation.name == "micropython":
+        try:
+            import _thread
+
+            _thread.stack_size(16 * 1024)
+        except (ImportError, AttributeError, ValueError):
+            pass
+
+
 def _spawn(fn, *args):
     """Run fn(*args) on a new thread; False when the runtime has no threads."""
+    _board_stack()
     try:
         import threading
 
@@ -498,6 +514,13 @@ class RokuCompanion:
         self._launch({"mode": "camera", "url": _session_url(str(url))})
 
 
+def _would_block(e):
+    """A non-blocking recv() with nothing to read, not a real error: EAGAIN on
+    Linux and a board (11), on BSD (35), WSAEWOULDBLOCK on Windows (10035)."""
+    code = e.args[0] if e.args else None
+    return code in (11, 35, 10035)
+
+
 class _FrameServer:
     """Lightweight HTTP server serving the latest PNG frame to the Roku TV."""
 
@@ -538,6 +561,22 @@ class _FrameServer:
 
     def _start(self):
         self._running = True
+        self._conns = []  # cooperative mode: [socket, bytes received so far]
+        import sys
+
+        if sys.platform not in ("linux", "win32", "darwin"):
+            # A board: no thread. An LVGL app holds the interpreter and starves
+            # every Python thread, so a frame server thread would never answer
+            # the TV. show() serves instead, which is also when there is a new
+            # frame to give.
+            self._threaded = False
+            print("[FrameServer] Serving from show() (a board)")
+            try:
+                self._sock.setblocking(False)
+            except OSError:
+                pass
+            return
+        _board_stack()
         try:
             import threading
 
@@ -675,26 +714,80 @@ class _FrameServer:
             time.sleep(0.002)
 
     def poll(self):
-        """Serve what's waiting, without blocking (single-threaded runtimes such as
-        micropython.exe): each connection's request is read and answered by the
-        same handler the threaded server uses, then closed."""
+        """Serve what's waiting, without blocking, for a runtime with no
+        frame server thread (a board, micropython.exe). The TV keeps one
+        connection alive; each request on it is answered with the frame show()
+        has just made, so a fetch between frames waits for the next one."""
         if self._threaded:
             return
-        for _ in range(4):
+        while True:  # new connections
             try:
-                self._sock.setblocking(False)
                 conn, _addr = self._sock.accept()
             except OSError:
-                return
-            self._served_count += 1
+                break
             try:
-                conn.setblocking(True)
+                conn.setblocking(False)
             except OSError:
                 pass
-            self._serve(conn, self._served_count, _now(), keep_alive=False)
+            self._served_count += 1
+            self._conns.append([conn, b""])
+        for entry in list(self._conns):
+            conn = entry[0]
+            try:
+                chunk = conn.recv(1024)
+            except OSError as e:
+                if not _would_block(e):
+                    self._drop(entry)
+                    continue
+                chunk = None
+            if chunk == b"":  # the TV closed it
+                self._drop(entry)
+                continue
+            if chunk:
+                entry[1] += chunk
+            while b"\r\n\r\n" in entry[1]:
+                head, entry[1] = entry[1].split(b"\r\n\r\n", 1)
+                first = head.decode("utf-8", "ignore").split("\r\n")[0]
+                try:
+                    self._answer(conn, first)
+                except OSError:
+                    self._drop(entry)
+                    break
+
+    def _answer(self, conn, first_line):
+        conn.setblocking(True)
+        try:
+            if first_line.startswith("GET /key?"):
+                self._remote_key(first_line, _now())
+                conn.sendall(
+                    b"HTTP/1.1 204 No Content\r\nConnection: keep-alive\r\nContent-Length: 0\r\n\r\n"
+                )
+                return
+            if self._version > self._newest_sent:
+                self._newest_sent = self._version
+                self.fetched += 1
+            data = self.frame or b""
+            conn.sendall(
+                b"HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: "
+                + str(len(data)).encode("ascii")
+                + b"\r\nConnection: keep-alive\r\nCache-Control: no-cache\r\n\r\n"
+                + data
+            )
+        finally:
+            conn.setblocking(False)
+
+    def _drop(self, entry):
+        try:
+            entry[0].close()
+        except OSError:
+            pass
+        if entry in self._conns:
+            self._conns.remove(entry)
 
     def close(self):
         self._running = False
+        for entry in list(getattr(self, "_conns", [])):
+            self._drop(entry)
         print("[FrameServer] Closed")
         try:
             self._sock.close()

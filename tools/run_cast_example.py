@@ -85,6 +85,11 @@ def report():
     if board and _reports[0] == 1:
         with open("/cast.txt", "w") as f:
             f.write(line + "\n")
+        # the example, the frame server and this thread would all keep running;
+        # a soft reset ends every thread, so the board answers its REPL again
+        import machine
+
+        machine.soft_reset()
 
 
 _shows = [0, 0.0, 0.0]  # count, total ms, longest ms
@@ -164,15 +169,19 @@ if cfg == "roku":
 
     roku_companion.ROKU_IP = target
 time_shows()
-try:
-    import threading
-
-    threading.Thread(target=report_loop, daemon=True).start()
-except ImportError:
+if board:
+    # an LVGL app holds a board's interpreter and starves a reporting thread
+    report_from_show()
+else:
     try:
-        import _thread
+        import threading
 
-        _thread.start_new_thread(report_loop, ())
+        threading.Thread(target=report_loop, daemon=True).start()
     except ImportError:
-        report_from_show()
+        try:
+            import _thread
+
+            _thread.start_new_thread(report_loop, ())
+        except ImportError:  # micropython.exe
+            report_from_show()
 __import__(example)
