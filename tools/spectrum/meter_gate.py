@@ -1,7 +1,7 @@
 """Audio meter gate, board half. Mode set by the host before upload.
 
 MODE 'off'  : sound card pump only (soundcard.py's configuration).
-MODE 'c'    : plus the C meter analysing, nothing drawn.
+MODE 'c'    : plus audiometer analysing in the pump, nothing drawn.
 MODE 'draw' : plus the spectrum drawing on the panel at frame rate.
 
 Every 10 s: packets/s against 8000, pump% against the wire rate, the meter's
@@ -13,6 +13,11 @@ import time
 
 import _usbif
 import board_peripherals as bp
+
+try:
+    import audiometer
+except ImportError:
+    audiometer = None  # an image without audiodsp: MODE "off" still measures the card
 import usbif.auto
 
 MODE = "draw"
@@ -47,17 +52,19 @@ if w.mck is not None and w.mck >= 0:
     kw["mclk"] = w.mck
     kw["mclk_multiple"] = w.mck_fs
 dev.uac_pump_stop()
-_usbif.uac_pump_meter(0)
 dev.uac_pump_start(w.sck, w.ws, w.sd, **kw)
 
 spectrum = None
+meter = None
 if MODE == "c":
-    _usbif.uac_pump_meter(44, 20, 20000)
+    meter = audiometer.Meter(44, low_hz=20, high_hz=20000)
+    meter.attach(audiometer.UAC)
 elif MODE == "draw":
     sys.path.insert(0, "/spectrum")
     import spectrum  # noqa: F811
 
     spectrum.start()
+    meter = spectrum.music.meter
 
     if TRACK:
         spectrum.music.track_start()
@@ -69,9 +76,19 @@ while k < WINDOWS:
     time.sleep_ms(10000)
     s = dev.uac_pump_stats()
     c = _usbif.uac_pump_clock()
-    mt = _usbif.uac_pump_meter()
+    mt = meter.stats() if meter else {}
     host, wire, _ = dev.uac_pump_rate()
-    cur = (s[1], c[0], c[4], s[3], mt[2], mt[3], mt[4], mt[6], c[2])
+    cur = (
+        s[1],
+        c[0],
+        c[4],
+        s[3],
+        mt.get("analyses", 0),
+        mt.get("feed_us", 0),
+        mt.get("analysis_us", 0),
+        mt.get("elapsed_us", 0),
+        c[2],
+    )
     if prev:
         k += 1
         dt = (cur[2] - prev[2]) / 1e6
@@ -96,7 +113,7 @@ while k < WINDOWS:
                 an,
                 feed,
                 fft,
-                mt[5],
+                mt.get("max_analysis_us", 0),
                 fps,
             )
         )

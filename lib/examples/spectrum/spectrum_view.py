@@ -39,7 +39,9 @@ BASELINE = (30, 70, 120)
 LABEL = (96, 136, 180)
 LABEL_DECADE = (150, 205, 240)
 
-LOW_HZ = 20.0
+# 35 Hz, not 20: on the P4 with a full-range track the 22, 26 and 30 Hz bars
+# sat near empty and every bar from 35 Hz up moved (audiometer's default).
+LOW_HZ = 35.0
 HIGH_HZ = 20000.0
 LABELS = (50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000)
 
@@ -82,7 +84,7 @@ def label_text(hz):
 
 
 def band_centres(n):
-    """Centre frequency of each of ``n`` log-spaced bands between 20 Hz and 20 kHz."""
+    """Centre frequency of each of ``n`` log-spaced bands between LOW_HZ and HIGH_HZ."""
     span = HIGH_HZ / LOW_HZ
     return [LOW_HZ * span ** ((i + 0.5) / n) for i in range(n)]
 

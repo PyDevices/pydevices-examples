@@ -61,12 +61,21 @@ The timer caps it at 50 fps.
 
 ![The P4 panel's framebuffer, music playing](../../../docs/screenshots/spectrum_p4_music.png)
 
-This needs a firmware with usbif's meter ([usbif#50](https://github.com/PyDevices/usbif/pull/50)),
-which adds `uac_pump_meter()` and `uac_pump_levels()`. Import `spectrum` before
-running `soundcard.py`, and the meter draws from a timer while the sound card
-runs. `pump_levels.py` is the real source.
+This needs a firmware with audiodsp's
+[`audiometer`](https://github.com/PyDevices/audiodsp#audiometermeter--band-levels-for-a-spectrum-meter)
+(`--modules all` has it). Import `spectrum` before running `soundcard.py`, and
+the meter draws from a timer while the sound card runs: `pump_levels.PumpLevels`
+attaches an `audiometer.Meter` to the sound card, whose pump feeds it in C on
+the other core. `pump_levels.TapLevels` meters any audiopump stream instead,
+through the pump's tap: the drum machine's, for one, with no USB at all.
 
-What the measurements found (2026-09-25):
+Since the meter moved from usbif to audiodsp (2026-10-06), on the same panel:
+the sound card delivers 99.77-99.86 % of its packets with the meter drawing,
+and the meter costs 1.6-1.8 % of a core for the feed plus 2.7 % for the
+analysis, with the longest analysis 0.6 ms. On the drum machine's tap it costs
+3 % of the reading thread, and the kick band swings a median 35 dB a beat.
+
+What the spike's measurements found (2026-09-25), when the meter was usbif's:
 
 - **Drawing costs no USB packets, once one setting changes.** A cache
   writeback (`esp_cache_msync`) runs with interrupts off, and syncing the
@@ -89,4 +98,6 @@ What the measurements found (2026-09-25):
 
 [`tools/spectrum/meter_gate.py`](../../../tools/spectrum/meter_gate.py) (board) and
 [`tools/spectrum/play_src.py`](../../../tools/spectrum/play_src.py) (Windows Python)
-reproduce the numbers.
+reproduce the sound card's numbers, and
+[`tools/spectrum/tap_gate.py`](../../../tools/spectrum/tap_gate.py) the drum
+machine's.
