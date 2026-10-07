@@ -384,15 +384,16 @@ ROKU_IP = None
 
 def roku_host():
     """The Roku TV's address for an example: the first command-line argument,
-    the ``ROKU_IP`` environment variable, or this module's ``ROKU_IP``."""
+    the ``ROKU_IP`` environment variable, this module's ``ROKU_IP``, or the
+    ``CAST_TARGET`` environment variable the other cast configs read."""
     import sys
 
     argv = getattr(sys, "argv", [])  # a board has none
     if len(argv) > 1:
         return argv[1]
-    host = _getenv("ROKU_IP") or ROKU_IP
+    host = _getenv("ROKU_IP") or ROKU_IP or _getenv("CAST_TARGET")
     if not host:
-        raise SystemExit("pass the Roku's IP address as the first argument, or set ROKU_IP")
+        raise SystemExit("pass the Roku's IP address as the first argument, or set CAST_TARGET")
     return host
 
 
