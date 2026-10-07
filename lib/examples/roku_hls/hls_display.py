@@ -13,18 +13,148 @@
 # the cast example's CastDisplay (Miracast, about a frame behind) or the
 # Companion channel's RokuDisplay.
 #
-# The stream is castif.Hls, a task on the P4's core 0 that encodes (h264enc),
-# segments (tsmux) and serves without the interpreter, so an app holding it
-# for a long redraw can't starve the stream. All this class does is hand it
-# each finished frame at show(). Video only: HLS on a Roku plays audio only as
-# AAC. Needs firmware with castif, h264enc and tsmux (an `all` build of an
-# ESP32-P4).
+# On an ESP32-P4 the stream is castif.Hls, a task on core 0 that encodes
+# (h264enc), segments (tsmux) and serves without the interpreter, so an app
+# holding it for a long redraw can't starve the stream. On CPython (python,
+# python.exe) ffmpeg encodes and segments, and a thread serves. All this class
+# does is hand either one each finished frame at show(). Video only: HLS on a
+# Roku plays audio only as AAC. Desktop MicroPython has no H.264 encoder, by
+# decision, so there it raises.
+import sys
 import time
 
 import framebuf
 from displaydev.fbdisplay import FBDisplay
 
-import castif
+try:
+    import castif
+except ImportError:
+    castif = None
+
+
+def _ms():
+    try:
+        return time.ticks_ms()
+    except AttributeError:
+        return int(time.time() * 1000)
+
+
+class _FfmpegHls:
+    """castif.Hls's interface on CPython: ffmpeg encodes H.264 and cuts
+    one-second segments, a feeder thread gives it the latest frame at a fixed
+    rate (so a keyframe, and a segment, lands every second whatever the app
+    draws), and a threaded HTTP server serves the playlist and segments."""
+
+    def __init__(self, width, height, fps=20, bitrate=2_000_000, port=8090, path="", segments=4):
+        import os
+        import shutil
+        import tempfile
+        import threading
+
+        self.ffmpeg = shutil.which("ffmpeg")
+        if self.ffmpeg is None:
+            raise RuntimeError("HlsDisplay on a desktop needs ffmpeg on the PATH (https://ffmpeg.org)")
+        self.w, self.h, self.fps, self.bitrate = width, height, fps, bitrate
+        self.port, self.path, self.segments = port, path.rstrip("/"), segments
+        self.dir = tempfile.mkdtemp(prefix="pydevices-hls-")
+        self.frame = bytes(width * height * 2)
+        self.lock = threading.Lock()
+        self.offers = self.frames = self.requests = 0
+        self.running = False
+        self.proc = self.server = None
+        self._os = os
+
+    def start(self):
+        import subprocess
+        import threading
+        from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+        os = self._os
+        cmd = [self.ffmpeg, "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb565le",
+               "-s", "%dx%d" % (self.w, self.h), "-r", str(self.fps), "-i", "-",
+               "-c:v", "libx264", "-preset", "ultrafast", "-tune", "zerolatency", "-pix_fmt", "yuv420p",
+               "-g", str(self.fps), "-keyint_min", str(self.fps), "-sc_threshold", "0",
+               "-b:v", str(self.bitrate), "-maxrate", str(self.bitrate), "-bufsize", str(self.bitrate),
+               "-f", "hls", "-hls_time", "1", "-hls_list_size", str(self.segments),
+               # segments stay servable a while after they leave the playlist (a
+               # Roku fetches late and 404s otherwise)
+               "-hls_flags", "delete_segments+independent_segments",
+               "-hls_delete_threshold", str(self.segments),
+               "-hls_segment_filename", os.path.join(self.dir, "seg%05d.ts"),
+               os.path.join(self.dir, "stream.m3u8")]
+        self.proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+        self.running = True
+        threading.Thread(target=self._feed, daemon=True).start()
+
+        hls = self
+
+        class Handler(SimpleHTTPRequestHandler):
+            def __init__(self, *a, **k):
+                super().__init__(*a, directory=hls.dir, **k)
+
+            def translate_path(self, path):
+                path = path.split("?", 1)[0]
+                if hls.path and path.startswith(hls.path + "/"):
+                    path = path[len(hls.path):]
+                return super().translate_path(path)
+
+            def end_headers(self):
+                self.send_header("Cache-Control", "no-cache")
+                super().end_headers()
+
+            def do_GET(self):
+                hls.requests += 1
+                super().do_GET()
+
+            def log_message(self, *a):
+                pass
+
+        self.server = ThreadingHTTPServer(("", self.port), Handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def _feed(self):
+        period = 1.0 / self.fps
+        nxt = time.monotonic()
+        while self.running:
+            with self.lock:
+                frame = self.frame
+            try:
+                self.proc.stdin.write(frame)
+                self.proc.stdin.flush()
+            except (BrokenPipeError, OSError, ValueError):
+                break
+            self.frames += 1
+            nxt += period
+            time.sleep(max(0.0, nxt - time.monotonic()))
+        self.running = False
+
+    def offer(self, buf):
+        frame = bytes(buf)
+        with self.lock:
+            self.frame = frame
+        self.offers += 1
+
+    def stats(self):
+        return {"frames": self.frames, "offers": self.offers, "requests": self.requests,
+                "overruns": 0, "running": self.running}
+
+    def close(self):
+        import shutil
+
+        self.running = False
+        if self.server is not None:
+            self.server.shutdown()
+            self.server.server_close()
+        if self.proc is not None:
+            try:
+                self.proc.stdin.close()
+            except OSError:
+                pass
+            try:
+                self.proc.wait(5)
+            except Exception:
+                self.proc.kill()
+        shutil.rmtree(self.dir, ignore_errors=True)
 
 
 class HlsDisplay(FBDisplay):
@@ -51,9 +181,16 @@ class HlsDisplay(FBDisplay):
         self._fbuf = framebuf.FrameBuffer(self._buf, width, height, framebuf.RGB565)
         self.tv = tv
         self.log = log
-        self.path = "/r%d" % (time.ticks_ms() & 0xFFFFFF)   # a TV caches by URL: each run its own
-        self.hls = castif.Hls(width, height, fps=fps, bitrate=bitrate, port=port, path=self.path,
-                              segments=segments)
+        self.path = "/r%d" % (_ms() & 0xFFFFFF)   # a TV caches by URL: each run its own
+        if castif is not None:
+            self.hls = castif.Hls(width, height, fps=fps, bitrate=bitrate, port=port, path=self.path,
+                                  segments=segments)
+        elif sys.implementation.name == "cpython":
+            self.hls = _FfmpegHls(width, height, fps=fps, bitrate=bitrate, port=port, path=self.path,
+                                  segments=segments)
+        else:
+            raise RuntimeError("HlsDisplay needs an ESP32-P4 (castif) or CPython with ffmpeg; "
+                               "desktop MicroPython has no H.264 encoder")
         self.hls.start()
         self.ip = self._local_ip()
         self.url = "http://%s:%d%s/stream.m3u8" % (self.ip, port, self.path)
@@ -67,9 +204,13 @@ class HlsDisplay(FBDisplay):
                 pass
             _thread.start_new_thread(self._tell_tv, ())
 
-    @staticmethod
-    def _local_ip():
-        import network
+    def _local_ip(self):
+        try:
+            import network
+        except ImportError:     # a desktop: the address on the route to the TV
+            from utils.roku_companion import _routed_ip
+
+            return _routed_ip(self.tv or "8.8.8.8")
 
         wlan = network.WLAN(network.STA_IF)
         # Wi-Fi power save holds each packet up to a beacon interval: every

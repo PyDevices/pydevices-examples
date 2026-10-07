@@ -47,15 +47,24 @@ running from WSL, pass the Roku's IP address directly.
 
 import socket
 
+# Frames go to the TV as PNG through pngio: MicroPython's built-in module, or
+# pydevices-desktop's pngio.py over Pillow on CPython. Compressed, a typical
+# 480x270 screen is a few kB rather than 389 kB, which is what decides how many
+# frames a second the TV can fetch over Wi-Fi.
 try:
-    from pygraphics import RGB565, encode_png
+    import pngio
 except ImportError:
-    try:
-        from pygraphics._framebuf_plus import RGB565
-        from pygraphics._png import encode_png
-    except ImportError:
-        RGB565 = 1
-        encode_png = None
+    pngio = None
+
+
+def _png_encoder():
+    if pngio is None:
+        raise RuntimeError(
+            "RokuDisplay needs pngio: MicroPython firmware built with it (micropython-pydevices' "
+            "modules/pngio), or on CPython pydevices-desktop and Pillow (pip install pillow)"
+        )
+    return pngio.PngEncoder()
+
 
 try:
     from displaydev.fbdisplay import FBDisplay
@@ -118,23 +127,79 @@ _REMOTE_KEYS = (
 # it asks at least once a second (plus Wi-Fi delay) while the channel is up.
 _REMOTE_GONE_SECONDS = 3.0
 
+# Per-frame logging (each encode and each fetch). Off: at 10 frames a second it
+# is two console lines a frame, which a board pays for.
+VERBOSE = False
+
 # Longest a frame request waits for a new frame before the current one is resent.
 _HOLD_SECONDS = 1.0
 
 
-def _get_local_ip(target_host):
-    """Find the local IP address routable to target_host."""
-    import os
-
-    env_ip = os.getenv("PYDEVICES_MY_IP")
-    if env_ip:
-        return env_ip
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def _getenv(name):
+    """An environment variable, or None where the runtime has none (a board's
+    os has no getenv)."""
     try:
-        s.connect((target_host, 80))
-        ip = s.getsockname()[0]
+        import os
+
+        return os.getenv(name)
+    except (ImportError, AttributeError):
+        return None
+
+
+def _ip_of(sockaddr):
+    """The address from getsockname(): a tuple on CPython, raw sockaddr bytes
+    on MicroPython (family, port, then the four address bytes)."""
+    if isinstance(sockaddr, tuple):
+        return sockaddr[0]
+    return ".".join(str(b) for b in sockaddr[4:8])
+
+
+def _ip_from_proc(target_host):
+    """Linux without getsockname() (unix MicroPython): connect to the TV's ECP
+    port and find the connection's local end in /proc/net/tcp."""
+    peer = socket.getaddrinfo(target_host, _ECP_PORT)[0][-1]
+    want = "".join("%02X" % int(p) for p in reversed(target_host.split("."))) + ":%04X" % _ECP_PORT
+    s = socket.socket()
+    try:
+        s.connect(peer)
+        with open("/proc/net/tcp") as f:
+            for line in f:
+                cols = line.split()
+                if len(cols) > 2 and cols[2] == want:
+                    h = cols[1].split(":")[0]
+                    return ".".join(str(int(h[i : i + 2], 16)) for i in (6, 4, 2, 0))
     finally:
         s.close()
+    return None
+
+
+def _routed_ip(target_host):
+    """This machine's address on the route to target_host, on any runtime."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(socket.getaddrinfo(target_host, 80)[0][-1])
+        if hasattr(s, "getsockname"):
+            return _ip_of(s.getsockname())
+    finally:
+        s.close()
+    try:
+        import network  # a board: its Wi-Fi interface's address
+
+        return network.WLAN(network.STA_IF).ifconfig()[0]
+    except ImportError:
+        pass
+    ip = _ip_from_proc(target_host)
+    if ip is None:
+        raise OSError("can't tell this machine's address; set PYDEVICES_MY_IP")
+    return ip
+
+
+def _get_local_ip(target_host):
+    """Find the local IP address routable to target_host."""
+    env_ip = _getenv("PYDEVICES_MY_IP")
+    if env_ip:
+        return env_ip
+    ip = _routed_ip(target_host)
     # WSL in its default NAT mode has a 172.x address the TV can't reach.
     # (WSL's mirrored networking mode shares the PC's LAN address instead.)
     if ip.startswith("172."):
@@ -198,7 +263,7 @@ def _ecp_post(host, path, timeout=5.0):
         s.sendall(req.encode("utf-8"))
         # Read status response
         try:
-            resp = s.recv(256).decode("utf-8", errors="ignore")
+            resp = s.recv(256).decode("utf-8", "ignore")
             status_line = resp.split("\r\n")[0] if resp else "no response"
             print("[RokuCompanion] ECP Response: %s" % status_line)
         except OSError:
@@ -294,19 +359,20 @@ def _ecp_get(host, path, timeout=5.0):
     return resp.split("\r\n\r\n", 1)[1] if "\r\n\r\n" in resp else ""
 
 
+# The TV's address when neither the command line nor the environment gives it:
+# a board has neither, so a runner sets this before the example starts.
+ROKU_IP = None
+
+
 def roku_host():
     """The Roku TV's address for an example: the first command-line argument,
-    or the ``ROKU_IP`` environment variable."""
+    the ``ROKU_IP`` environment variable, or this module's ``ROKU_IP``."""
     import sys
 
-    if len(sys.argv) > 1:
-        return sys.argv[1]
-    try:
-        import os
-
-        host = os.getenv("ROKU_IP")
-    except (ImportError, AttributeError):
-        host = None
+    argv = getattr(sys, "argv", [])  # a board has none
+    if len(argv) > 1:
+        return argv[1]
+    host = _getenv("ROKU_IP") or ROKU_IP
     if not host:
         raise SystemExit("pass the Roku's IP address as the first argument, or set ROKU_IP")
     return host
@@ -444,6 +510,9 @@ class _FrameServer:
         self._served_count = 0
         self._version = 0
         self._last_req = None
+        # distinct frames the TV has fetched, for RokuDisplay.stats()
+        self.fetched = 0
+        self._newest_sent = 0
         # One (accepted, requested, sent, version, request line, connection)
         # per fetch, and
         # one (time, version) per update_frame(), when trace is a list.
@@ -453,10 +522,9 @@ class _FrameServer:
         self.key_events = []
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
-            addr = socket.getaddrinfo(host, port, socket.AF_INET)[0][-1]
-        except Exception:
-            addr = (host, port)
+        # every interface: "" is CPython's spelling, and unix MicroPython's
+        # getaddrinfo() refuses it, so ask for 0.0.0.0 by name
+        addr = socket.getaddrinfo(host or "0.0.0.0", port)[0][-1]
         self._sock.bind(addr)
         self._sock.listen(4)
         print("[FrameServer] Bound on %s:%d" % (host or "0.0.0.0", port))
@@ -501,12 +569,13 @@ class _FrameServer:
         while self._running:
             try:
                 conn, addr = self._sock.accept()
-            except (socket.timeout, OSError):
+            except OSError:  # socket.timeout is an OSError; MicroPython has no socket.timeout
                 continue
             accepted = _now()
             self._served_count += 1
             conn_id = self._served_count
-            print("[FrameServer] Connection #%d from %s" % (conn_id, addr[0]))
+            if VERBOSE:
+                print("[FrameServer] Connection #%d from %s" % (conn_id, addr[0]))
             # One thread per connection: a kept-alive connection must not
             # hold the accept loop.
             if not _spawn(self._serve, conn, conn_id, accepted):
@@ -550,11 +619,15 @@ class _FrameServer:
                     continue
                 delta = 0.0 if self._last_req is None else requested - self._last_req
                 self._last_req = requested
-                print("[FrameServer] #%d %s (delta: %.3fs)" % (conn_id, first_line, delta))
+                if VERBOSE:
+                    print("[FrameServer] #%d %s (delta: %.3fs)" % (conn_id, first_line, delta))
                 if persist and sent_version is not None:
                     self._wait_for_new_frame(sent_version)
                 version = self._version
                 sent_version = version
+                if version > self._newest_sent:
+                    self._newest_sent = version
+                    self.fetched += 1
                 data = self.frame or b""
                 conn.sendall(
                     (b"HTTP/1.1 200 OK\r\n" if persist else b"HTTP/1.0 200 OK\r\n")
@@ -602,32 +675,23 @@ class _FrameServer:
             time.sleep(0.002)
 
     def poll(self):
-        """Non-blocking service of pending connections (for single-threaded runtimes)."""
+        """Serve what's waiting, without blocking (single-threaded runtimes such as
+        micropython.exe): each connection's request is read and answered by the
+        same handler the threaded server uses, then closed."""
         if self._threaded:
             return
-        try:
-            self._sock.setblocking(False)
-            conn, addr = self._sock.accept()
-        except OSError:
-            return
-        self._served_count += 1
-        print("[FrameServer/poll] Connection from %s" % (addr[0],))
-        try:
-            data = self.frame or b""
-            resp = (
-                b"HTTP/1.0 200 OK\r\n"
-                b"Content-Type: image/png\r\n"
-                b"Content-Length: " + str(len(data)).encode("ascii") + b"\r\n"
-                b"Connection: close\r\n\r\n"
-            ) + data
-            conn.sendall(resp)
-        except OSError:
-            pass
-        finally:
+        for _ in range(4):
             try:
-                conn.close()
+                self._sock.setblocking(False)
+                conn, _addr = self._sock.accept()
+            except OSError:
+                return
+            self._served_count += 1
+            try:
+                conn.setblocking(True)
             except OSError:
                 pass
+            self._serve(conn, self._served_count, _now(), keep_alive=False)
 
     def close(self):
         self._running = False
@@ -643,7 +707,7 @@ class RokuDisplay(FBDisplay):
 
     Inherits all DisplayDriver drawing operations (fill_rect, blit_rect, pixel, etc.),
     drawing into an in-memory RGB565 framebuffer.  On show(), encodes the frame
-    to PNG using pygraphics and serves it to the PyDevices Companion app on the TV.
+    to PNG with pngio and serves it to the PyDevices Companion app on the TV.
 
     Parameters
     ----------
@@ -677,7 +741,10 @@ class RokuDisplay(FBDisplay):
         super().__init__(self._raw_buf, width=width, height=height, **kwargs)
 
         self._server = None
+        self._png = None
         self._launched = False
+        self._shown = 0
+        self._t0 = None
         self.key_repeat = key_repeat
         self._held = {}  # remote button name -> (key name, code, next repeat)
         print(
@@ -687,14 +754,16 @@ class RokuDisplay(FBDisplay):
 
     def show(self, _timer=None):
         """Encode the current framebuffer to PNG and update the Roku stream."""
-        if encode_png is None:
-            raise RuntimeError("pygraphics.encode_png is required for RokuDisplay")
-
-        png_bytes = encode_png(self._raw_buf, width=self.width, height=self.height, format=RGB565)
-        print(
-            "[RokuDisplay] Encoded %dx%d frame -> %d bytes PNG"
-            % (self.width, self.height, len(png_bytes))
-        )
+        if self._png is None:
+            self._png = _png_encoder()
+            self._t0 = _now()
+        png_bytes = self._png.encode(self._raw_buf, self.width, self.height)
+        self._shown += 1
+        if VERBOSE:
+            print(
+                "[RokuDisplay] Encoded %dx%d frame -> %d bytes PNG"
+                % (self.width, self.height, len(png_bytes))
+            )
 
         if self._server is None:
             self._server = _FrameServer(host="", port=self.port)
@@ -710,6 +779,20 @@ class RokuDisplay(FBDisplay):
 
         if hasattr(self._server, "poll"):
             self._server.poll()
+
+    def stats(self):
+        """How the cast is going: frames shown, distinct frames the TV fetched,
+        the TV's rate in frames a second, and the size of the last PNG."""
+        el = (_now() - self._t0) if self._t0 is not None else 0
+        fetched = self._server.fetched if self._server is not None else 0
+        last = len(self._server.frame or b"") if self._server is not None else 0
+        return {
+            "shown": self._shown,
+            "fetched": fetched,
+            "fps": fetched / el if el > 0 else 0.0,
+            "png_bytes": last,
+            "seconds": el,
+        }
 
     def get_events(self):
         """Remote button presses since the last call, as events.Key records.
@@ -810,6 +893,7 @@ class RokuDisplayWrapper:
         self.port = port
         self.local_ip = my_ip or _get_local_ip(self.tv.host)
         self._server = None
+        self._png = None
         self._launched = False
         print(
             "[RokuDisplayWrapper] Initialized with display %s, stream host %s:%d"
@@ -823,8 +907,8 @@ class RokuDisplayWrapper:
         except AttributeError:
             pass
 
-        if encode_png is None:
-            raise RuntimeError("pygraphics.encode_png is required for RokuDisplayWrapper")
+        if self._png is None:
+            self._png = _png_encoder()
 
         raw_buf = getattr(self.display, "_raw_buffer", None)
         if raw_buf is None:
@@ -833,8 +917,11 @@ class RokuDisplayWrapper:
         w = getattr(self.display, "width", 320)
         h = getattr(self.display, "height", 240)
 
-        png_bytes = encode_png(raw_buf, width=w, height=h, format=RGB565)
-        print("[RokuDisplayWrapper] Encoded %dx%d frame -> %d bytes PNG" % (w, h, len(png_bytes)))
+        png_bytes = self._png.encode(raw_buf, w, h)
+        if VERBOSE:
+            print(
+                "[RokuDisplayWrapper] Encoded %dx%d frame -> %d bytes PNG" % (w, h, len(png_bytes))
+            )
 
         if self._server is None:
             self._server = _FrameServer(host="", port=self.port)

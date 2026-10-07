@@ -413,6 +413,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/cast/micecast.py"
     ],
     [
+      "cast/pycast.py",
+      "github:PyDevices/pydevices-examples/lib/examples/cast/pycast.py"
+    ],
+    [
       "cast/roku_cast.py",
       "github:PyDevices/pydevices-examples/lib/examples/cast/roku_cast.py"
     ],

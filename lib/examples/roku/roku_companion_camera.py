@@ -12,7 +12,7 @@ Starts a tiny HTTP server, then tells the Roku to fetch frames from it
 repeatedly (~10 fps). On a real device the frames would come from
 ``cameraif``; here each one is drawn with ``pygraphics`` (a colour field that
 changes every ten frames, with the frame number on it) and encoded with
-``pygraphics.encode_png``.
+``pngio`` (built into MicroPython; pydevices-desktop's over Pillow on CPython).
 
 Prerequisites
 -------------
@@ -33,7 +33,8 @@ import time
 
 from utils.roku_companion import RokuCompanion, get_local_ip, roku_host
 
-from pygraphics import RGB565, FrameBuffer, encode_png
+import pngio
+from pygraphics import RGB565, FrameBuffer
 
 # -- Configuration ----------------------------------------------------------
 ROKU_IP = roku_host()
@@ -57,14 +58,18 @@ COLOURS = (
 )
 
 
+_png = pngio.PngEncoder()
+
+
 def make_frame(n):
     """Frame *n* as PNG bytes: a colour field that changes every ten frames,
     with the frame number in black."""
     name, colour = COLOURS[(n // 10) % len(COLOURS)]
-    fb = FrameBuffer(bytearray(WIDTH * HEIGHT * 2), WIDTH, HEIGHT, RGB565)
+    buf = bytearray(WIDTH * HEIGHT * 2)
+    fb = FrameBuffer(buf, WIDTH, HEIGHT, RGB565)
     fb.fill(colour)
     fb.text("%s %d" % (name, n), 8, 8, 0x0000)
-    return name, encode_png(fb)
+    return name, _png.encode(buf, WIDTH, HEIGHT)
 
 
 def serve_frames(port):

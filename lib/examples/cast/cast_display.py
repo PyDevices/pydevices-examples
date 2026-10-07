@@ -11,18 +11,31 @@
 #
 # or let ../miracast/board_config.py build one, and run any app unchanged.
 #
-# The cast is castif's C task on core 0 (the firmware needs castif and
-# h264enc, which only the ESP32-P4 has); the Wi-Fi Display session runs on a
-# thread and rejoins by itself if the sink goes away. show() only tells castif
-# the picture changed, so drawing costs what drawing into RAM costs.
+# On an ESP32-P4 the cast is castif's C task on core 0 (the firmware needs
+# castif and h264enc). On CPython (python, python.exe) it is pycast.py: ffmpeg
+# encodes, Python muxes castif's own TS and sends it. Either way the Wi-Fi
+# Display session runs on a thread and rejoins by itself if the sink goes
+# away, and drawing costs what drawing into RAM costs. Desktop MicroPython has
+# no H.264 encoder, by decision, so there it raises.
+import sys
 import time
 
 import framebuf
 from displaydev.fbdisplay import FBDisplay
 
-import castfast
 from micecast import Session
 from uibcinput import UibcInput
+
+try:
+    import castif  # noqa: F401  (the P4's cast task)
+    import castfast
+    pycast = None
+except ImportError:
+    castfast = None
+    if sys.implementation.name != "cpython":
+        raise RuntimeError("CastDisplay needs an ESP32-P4 (castif) or CPython with ffmpeg; "
+                           "desktop MicroPython has no H.264 encoder")
+    import pycast
 
 
 class CastDisplay(FBDisplay):
@@ -52,8 +65,11 @@ class CastDisplay(FBDisplay):
         self.kind = kind
         self.name = name
         self.log = log or (lambda *a: None)
-        self.cast = castfast.make_caster(width, height, canvas=canvas or (width, height),
-                                         fps=fps, bitrate=bitrate)
+        if castfast is not None:
+            self.cast = castfast.make_caster(width, height, canvas=canvas or (width, height),
+                                             fps=fps, bitrate=bitrate)
+        else:
+            self.cast = pycast.FfmpegCaster(width, height, canvas=canvas, fps=fps, bitrate=bitrate)
         self.uibc = UibcInput(width, height)
         self.sessions = 0
         self._stop = False
@@ -82,6 +98,13 @@ class CastDisplay(FBDisplay):
             return super().blit_rect(buf, x, y, w, h)
         self._fbuf.blit(src, x, y)
         return (x, y, w, h)
+
+    def stats(self):
+        """How the cast is going: frames encoded and sent, frames a second
+        (measured by castif, or by pycast on a desktop), and sessions joined."""
+        st = self.cast.stats()
+        return {"frames": st.get("frames", 0), "fps": st.get("fps", 0) / 1000.0,
+                "sent": st.get("sent", 0), "sessions": self.sessions}
 
     # touch_read / keypad_read for a board_config: the laptop's mouse (left
     # button held) and keys
@@ -118,6 +141,9 @@ class CastDisplay(FBDisplay):
                 self.sessions += 1
 
                 def make(dst_ip, dst_port, server_port):
+                    if castfast is None:
+                        return pycast.FfmpegStreamer(self.cast, self._buf, dst_ip, dst_port,
+                                                     server_port, 24 * 3600, self.log)
                     return castfast.CastifStreamer(self.cast, self._buf, dst_ip, dst_port,
                                                    server_port, 24 * 3600, self.log)
 
@@ -130,7 +156,7 @@ class CastDisplay(FBDisplay):
                 for _ in range(30):
                     if self._stop:
                         break
-                    time.sleep_ms(100)
+                    time.sleep(0.1)
         finally:
             self._running = False
 
@@ -140,7 +166,7 @@ class CastDisplay(FBDisplay):
         for _ in range(60):
             if not self._running:
                 break
-            time.sleep_ms(100)
+            time.sleep(0.1)
         self.cast.close()
 
     def deinit(self):
