@@ -17,8 +17,8 @@ run at a time, nothing else running.
 `lv_pace.py` builds an LVGL screen with an arc moved by a 16 ms LVGL timer,
 records `REFR_READY` events for `PACE_MS` (3000) and prints one `PACE=`
 line. `PACE_API=OLD|NEW`, `PACE_STATIC=1` for the static-screen case. The
-path also has `lvgl-bindings/python` (the driver under test) and
-`pydevices/board_configs/desktop` on it. Both interpreters were run
+path also had `lvgl-bindings/python` (the driver under test, which has lived in
+`pydevices/lib` since 2026-10) and `pydevices/board_configs/desktop` on it. Both interpreters were run
 headless with SDL's dummy video driver.
 
 Results:

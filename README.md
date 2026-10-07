@@ -150,7 +150,7 @@ a single `pydevices` package, not one per component.
 
 - [pydevices](https://github.com/PyDevices/pydevices) — canonical product source and core driver package home
 - [mip](https://github.com/PyDevices/mip) — PyDevices MIP index fork
-- [lvgl-bindings](https://github.com/PyDevices/lvgl-bindings) — shared LVGL binding and `display_driver` source
+- [lvgl-bindings](https://github.com/PyDevices/lvgl-bindings) — shared LVGL binding source (LVGL's `display_driver` is in pydevices)
 - [lvgl-micropython](https://github.com/PyDevices/lvgl-micropython),
   [lvgl-circuitpython](https://github.com/PyDevices/lvgl-circuitpython), and
   [lvgl-python](https://github.com/PyDevices/lvgl-python) — interpreter-specific LVGL distributions

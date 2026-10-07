@@ -124,8 +124,8 @@ passes `--timer-async`.
 ### Architecture note: timers and refresh
 
 - Non-LVGL examples instantiate `appdev.App(board_config)`.
-  LVGL's frozen/bundled `display_driver` owns an independent coordinator and
-  does not import `appdev`. Both consume neutral board-config callables and
+  LVGL's `display_driver` (pydevices) builds its own coordinator on
+  `appdev.App`. Both consume neutral board-config callables and
   use `multimer`; display drivers remain policy-free.
 
 ### MCU: no `_thread` for network / blocking work
@@ -141,11 +141,12 @@ App pattern: queue work and drain on the main tick — see `roku_widgets` /
 - Install the CPython LVGL binding from TestPyPI (import name `lvgl`):
   `.venv/bin/pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ pydevices-lvgl`
   (see https://github.com/PyDevices/lvgl-python). The update script installs it.
-- `display_driver` (frozen in MP/CP LVGL firmwares; bundled with `pydevices-lvgl`)
-  owns the LVGL `event_loop` (tick via `app.on_tick`, `asyncio` from
-  `multimer`) and claims app display refresh so LVGL presents frames from
-  `task_handler`. SoT: [lvgl-bindings](https://github.com/PyDevices/lvgl-bindings)
-  `python/display_driver.py` — not shipped from this repo.
+- `display_driver` owns the LVGL `event_loop` (tick via `app.on_tick`,
+  `asyncio` from `multimer`) and claims app display refresh so LVGL presents
+  frames from `task_handler`. SoT:
+  [pydevices](https://github.com/PyDevices/pydevices) `lib/display_driver.py`,
+  shipped with pydevices (mip, wheel, frozen) — not from this repo, and since
+  2026-10 not from lvgl-bindings either.
 - Test LVGL timers with `tools/lv_timer_test_kit.py` (modes: `sync`, `async`).
   Headless: `SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python tools/lv_timer_test_kit.py --only cpython-venv`.
 - Non-obvious: the sync `multimer.auto.Timer` provider on CPython/Linux delivers via a
