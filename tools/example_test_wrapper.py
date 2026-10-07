@@ -432,6 +432,10 @@ def _run_bounded_main_thread(script_path, kind, duration_s, timeout_s, quit_mode
             pydevices_test_mode.ENABLED = True
             pydevices_test_mode.DURATION_S = duration_s
             pydevices_test_mode.install_deadline_hook()
+            if cooperative and not _has_background_inject():
+                # No thread to inject quit, and the deadline hook is never called
+                # from appdev's run() or multimer's exit-hook loop: a timer quits.
+                pydevices_test_mode.arm_quit_timer()
         except ImportError:
             pass
 
