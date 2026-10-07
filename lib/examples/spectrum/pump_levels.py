@@ -1,14 +1,17 @@
 """
-pump_levels.py -- band levels from the sound card's C pump.
+pump_levels.py -- band levels from audiodsp's audiometer, fed in C.
 
-The real source behind the same interface as ``fake_music.FakeMusic``:
-``PumpLevels(n).levels(t)`` returns ``n`` levels in 0..1. The work happens in
-C, in usbif's UAC pump task, where the audio from the PC already passes. This
-file only asks for the bands once and reads the latest levels each frame.
+The real sources behind the same interface as ``fake_music.FakeMusic``:
+``PumpLevels(n).levels(t)`` returns ``n`` levels in 0..1. Python never sees a
+sample. ``PumpLevels`` meters usbif's sound card: its pump feeds the meter on
+its own core, where the audio from the PC already passes. ``TapLevels`` meters
+any audiopump stream, the drum machine's for one, through the pump's tap; the
+tap is read in C each time the levels are.
 
-It needs a firmware whose ``_usbif`` has ``uac_pump_levels`` (usbif#50) and something else running the sound card's pump,
-such as ``soundcard.py``. With no audio flowing the levels stop advancing, and
-after ``STALE_MS`` this returns zeros so the bars fall.
+It needs a firmware with audiodsp's ``audiometer``. ``PumpLevels`` also needs
+something running the sound card's pump, such as ``soundcard.py``. With no
+audio flowing the levels stop advancing, and after ``STALE_MS`` this returns
+zeros so the bars fall.
 
 The mapping from dB to bar height is here, not in C, because it's a matter of
 taste: ``FLOOR_DB`` is an empty bar, ``TOP_DB`` a full one, and ``TILT_DB``
@@ -18,7 +21,7 @@ has far less energy up there than a bar chart would like.
 
 from time import ticks_diff, ticks_ms
 
-import _usbif
+import audiometer
 
 from spectrum_view import HIGH_HZ, LOW_HZ, band_centres
 
@@ -30,13 +33,23 @@ STALE_MS = 150
 
 
 def available():
-    return hasattr(_usbif, "uac_pump_levels")
+    try:
+        import _usbif  # noqa: F401
+    except ImportError:
+        return False
+    return True
 
 
 class PumpLevels:
-    def __init__(self, bands, low_hz=LOW_HZ, high_hz=HIGH_HZ):
+    """The sound card's meter. ``source`` and ``rate`` are for TapLevels."""
+
+    def __init__(self, bands, low_hz=LOW_HZ, high_hz=HIGH_HZ, source=audiometer.UAC, rate=None):
         self.bands = bands
-        _usbif.uac_pump_meter(bands, low_hz, high_hz)
+        self.meter = audiometer.Meter(bands, low_hz=low_hz, high_hz=high_hz)
+        if rate is None:
+            self.meter.attach(source)
+        else:
+            self.meter.attach(source, rate)
         self._buf = bytearray(bands)
         self._out = [0.0] * bands
         self._seq = -1
@@ -57,10 +70,10 @@ class PumpLevels:
 
     def raw(self):
         """(seq, levels bytes, peak, rms) straight from C."""
-        return _usbif.uac_pump_levels(self._buf)
+        return self.meter.levels(self._buf)
 
     def levels(self, t=None):
-        seq, buf, pk, rms = _usbif.uac_pump_levels(self._buf)
+        seq, buf, pk, rms = self.meter.levels(self._buf)
         out = self._out
         now = ticks_ms()
         if seq != self._seq:
@@ -96,4 +109,23 @@ class PumpLevels:
         return self.track
 
     def close(self):
-        _usbif.uac_pump_meter(0)
+        self.meter.deinit()
+
+
+class TapLevels(PumpLevels):
+    """Any audiopump stream, through the pump's tap: ``TapLevels(n, rate)``.
+
+    Attaches a tap of its own unless one is given. The pump has one tap at a
+    time, and each reader keeps its own place in it, so a tap someone else
+    attached (castfast's audio feed, say) can be shared.
+    """
+
+    def __init__(self, bands, rate=48000, low_hz=LOW_HZ, high_hz=HIGH_HZ, tap=None, channels=2):
+        if tap is None:
+            from audiodev import pump
+
+            mod = pump.module()
+            tap = mod.Tap(frames=4096, channel_count=channels)
+            mod.tap(tap)
+        self.tap = tap
+        super().__init__(bands, low_hz, high_hz, source=tap, rate=rate)

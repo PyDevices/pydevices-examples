@@ -18,8 +18,8 @@ import math
 import threading
 import time
 
-# The same dB-to-bar mapping as pump_levels (which needs _usbif, so it can't
-# be imported on a desktop).
+# The same dB-to-bar mapping as pump_levels (which needs a board's audiometer,
+# so it can't be imported on a desktop).
 FLOOR_DB = -66.0
 TOP_DB = -6.0
 TILT_DB = 3.0  # per octave
