@@ -5,10 +5,19 @@ lv_test_timer.py
 LVGL timer smoke test. Uses whatever timer mode ``board_config`` / ``app``
 already has.
 
-Shows interpreter, OS, display, timer backend, and LVGL version; a seconds counter
-and spinning arc prove LVGL timers fire; a tap button exercises input. The
-display's frame rate (``display_drv.measure_fps``) is on screen, updated each
-second, and in kit mode's ``KIT_RESULT`` line as ``fps``.
+Two cards. One says what this run is: the interpreter and OS, the display
+driver, the screen (size, rotation and, on a desktop, the window's scale), the
+timer's wake source, and LVGL's version. The other holds every moving part, so
+the dirty areas stay together: an arc that turns once a second on a 50 ms
+timer, with the seconds counted in its middle (if the two timers drift apart,
+it shows), the display's frame rate (``display_drv.measure_fps``), and a tap
+button for input. The frame rate is also in kit mode's ``KIT_RESULT`` line as
+``fps``.
+
+The layout fits any screen from 240x240 to 1280x720 with two rules: the cards
+sit side by side only when the screen is more than 1.5 times wider than tall,
+and the font is the largest built-in size at or below a twentieth of the
+screen's short side.
 
 Interactive (default): build the UI and let the app run itself — no trailing
 ``app.run()``. At a REPL the prompt comes back for introspection while LVGL
@@ -71,18 +80,6 @@ def get_fps():
     """The display's frame-rate dict, or None without a meter."""
     fps = getattr(display_drv, "fps", None)
     return fps() if fps is not None else None
-
-
-def _fps_text():
-    s = get_fps()
-    if s is None:
-        return "fps: n/a"
-    return "%.1f fps (avg %.1f)  %.1f ms  busy %d%%" % (
-        s["fps"],
-        s["avg_fps"],
-        s["present_ms"],
-        round(s["busy"] * 100),
-    )
 
 
 def _mode_label():
@@ -166,6 +163,8 @@ def get_platform_info():
         "lvgl": _lvgl_label(),
         "mode": _mode_label(),
         "rotation": int(getattr(display_drv, "rotation", 0) or 0),
+        # a desktop window's scale (after fitting the desktop); boards have none
+        "scale": getattr(display_drv, "scale", None) or getattr(display_drv, "_scale", None),
     }
 
 
@@ -173,22 +172,41 @@ def timer_backend_name():
     return get_platform_info()["timer"]
 
 
-def _add_info_labels(scr, info, y_start=26, line_h=16):
-    lines = (
-        f"Mode: {info['mode']}",
-        f"Interpreter: {info['interpreter']}",
-        f"OS: {info['os']}",
-        f"Display: {info['display']} {info.get('resolution', '?')}",
-        f"Timer: {info['timer']}",
-        f"LVGL: {info['lvgl']}",
-        f"Rotation: {info.get('rotation', 0)}",
+_FONT_SIZES = (14, 16, 24, 32, 40)
+
+
+def _font_for(short_side):
+    """The largest built-in Montserrat at or below a twentieth of the short side."""
+    best = None
+    for size in _FONT_SIZES:
+        font = getattr(lv, "font_montserrat_%d" % size, None)
+        if font is not None and (best is None or size <= short_side // 20):
+            best = font
+    return best
+
+
+def _fps_short(split=False):
+    """The frame rate, the time each present takes, and the share of time
+    spent presenting; on two lines when it sits beside the arc."""
+    s = get_fps()
+    if s is None:
+        return "fps n/a"
+    return "%.1f fps%s%.1f ms, %d%% busy" % (
+        s["fps"],
+        "\n" if split else ", ",
+        s["present_ms"],
+        round(s["busy"] * 100),
     )
-    y = y_start
-    for text in lines:
-        lbl = lv.label(scr)
-        lbl.set_text(text)
-        lbl.align(lv.ALIGN.TOP_MID, 0, y)
-        y += line_h
+
+
+def _card(parent, flow, pad):
+    c = lv.obj(parent)
+    c.set_style_pad_all(pad, 0)
+    c.set_style_pad_gap(pad // 2, 0)
+    c.set_flex_flow(flow)
+    c.remove_flag(lv.obj.FLAG.SCROLLABLE)
+    c.set_flex_grow(1)
+    return c
 
 
 def build_ui():
@@ -198,7 +216,6 @@ def build_ui():
     _taps = 0
     _arc_angle = 0
 
-    # Pause shared LVGL task_handler while constructing widgets (not re-entrant).
     import display_driver
 
     inst = display_driver.event_loop.current_instance()
@@ -206,52 +223,145 @@ def build_ui():
         inst.disable()
     try:
         scr = lv.screen_active()
+        w = scr.get_width()
+        h = scr.get_height()
+        short = min(w, h)
+        font = _font_for(short)
+        big = _font_for(short * 2) or font
+        pad = max(4, short // 40)
+        try:
+            th = lv.theme_default_init(
+                lv.display_get_default(),
+                lv.palette_main(lv.PALETTE.BLUE),
+                lv.palette_main(lv.PALETTE.TEAL),
+                True,
+                font,
+            )
+            lv.display_get_default().set_theme(th)
+        except AttributeError:
+            pass
+        scr.set_style_text_font(font, 0)
+        scr.set_style_pad_all(pad, 0)
+        scr.set_style_pad_gap(pad, 0)
+        scr.remove_flag(lv.obj.FLAG.SCROLLABLE)
+        landscape = (
+            w * 2 > h * 3
+        )  # side by side only when the screen is more than 1.5 times wider than tall
+        scr.set_flex_flow(lv.FLEX_FLOW.ROW if landscape else lv.FLEX_FLOW.COLUMN)
+
         info = get_platform_info()
+        # The info card: what this run is, read once.
+        card = _card(scr, lv.FLEX_FLOW.COLUMN, pad)
+        if landscape:
+            card.set_height(lv.pct(100))
+        else:
+            card.set_width(lv.pct(100))
+        title = lv.label(card)
+        title.set_text("LVGL timer test")
+        title.set_style_text_color(lv.palette_main(lv.PALETTE.BLUE), 0)
+        rows = (
+            ("Python", "%s, %s" % (info["interpreter"], info["os"])),
+            ("Display", info["display"]),
+            (
+                "Screen",
+                "%s, rot %d%s"
+                % (
+                    info["resolution"],
+                    info["rotation"],
+                    ", x%.3g" % info["scale"] if info["scale"] and info["scale"] != 1 else "",
+                ),
+            ),
+            ("Timer", info["timer"]),
+            ("LVGL", info["lvgl"]),
+        )
+        muted = lv.palette_main(lv.PALETTE.GREY)
+        for key, value in rows:
+            row = lv.obj(card)
+            row.remove_style_all()
+            row.set_size(lv.pct(100), lv.SIZE_CONTENT)
+            row.set_flex_flow(lv.FLEX_FLOW.ROW)
+            row.set_flex_align(
+                lv.FLEX_ALIGN.SPACE_BETWEEN, lv.FLEX_ALIGN.CENTER, lv.FLEX_ALIGN.CENTER
+            )
+            row.set_style_pad_column(pad, 0)  # a key never runs into its value
+            k = lv.label(row)
+            k.set_text(key)
+            k.set_style_text_color(muted, 0)
+            v = lv.label(row)
+            v.set_text(value)
+            v.set_long_mode(lv.label.LONG_MODE.DOTS)
+            v.set_style_max_width(lv.pct(72), 0)
 
-        title = lv.label(scr)
-        title.set_text("LVGL Timer Test")
-        title.align(lv.ALIGN.TOP_MID, 0, 8)
-        _add_info_labels(scr, info)
+        if landscape:
+            card.set_flex_align(lv.FLEX_ALIGN.CENTER, lv.FLEX_ALIGN.START, lv.FLEX_ALIGN.START)
+        else:
+            card.set_flex_grow(0)
+            card.set_height(lv.SIZE_CONTENT)
+        # The live card lays out along its own long side: down when it's tall
+        # (beside the info card, or under it on a portrait screen), across when
+        # it's wide (under the info card on a square or landscape screen).
+        across = not landscape and w * 10 >= h * 9
 
-        btn = lv.button(scr)
-        btn.set_size(120, 50)
-        btn.align(lv.ALIGN.BOTTOM_MID, 0, -30)
-        btn_lbl = lv.label(btn)
-        btn_lbl.set_text("Tap me (0)")
-        btn_lbl.center()
+        # The live card: every moving part, so the dirty areas stay together.
+        live = _card(scr, lv.FLEX_FLOW.ROW if across else lv.FLEX_FLOW.COLUMN, pad)
+        live.set_flex_align(lv.FLEX_ALIGN.SPACE_EVENLY, lv.FLEX_ALIGN.CENTER, lv.FLEX_ALIGN.CENTER)
+        if landscape:
+            live.set_height(lv.pct(100))
+        else:
+            live.set_width(lv.pct(100))
 
-        arc = lv.arc(scr)
-        arc.set_size(80, 80)
-        arc.align_to(btn, lv.ALIGN.OUT_TOP_MID, 0, -8)
+        arc_d = short // 3 if across else short * 2 // 5
+        arc = lv.arc(live)
+        arc.set_size(arc_d, arc_d)
         arc.set_bg_angles(0, 360)
+        arc.set_rotation(270)
         arc.set_angles(0, 0)
+        arc.set_style_arc_width(max(4, arc_d // 12), lv.PART.MAIN)
+        arc.set_style_arc_width(max(4, arc_d // 12), lv.PART.INDICATOR)
         arc.remove_style(None, lv.PART.KNOB)
         arc.remove_flag(lv.obj.FLAG.CLICKABLE)
+        seconds_lbl = lv.label(arc)
+        seconds_lbl.set_style_text_font(big, 0)
+        seconds_lbl.set_text("0")
+        seconds_lbl.center()
 
-        seconds_lbl = lv.label(scr)
-        seconds_lbl.set_text("Seconds: 0")
-        seconds_lbl.align_to(arc, lv.ALIGN.OUT_TOP_MID, 0, -4)
+        side = live
+        if across:
+            # beside the arc: the frame rate over the button
+            side = lv.obj(live)
+            side.remove_style_all()
+            side.set_size(lv.SIZE_CONTENT, lv.SIZE_CONTENT)
+            side.set_flex_flow(lv.FLEX_FLOW.COLUMN)
+            side.set_flex_align(lv.FLEX_ALIGN.CENTER, lv.FLEX_ALIGN.CENTER, lv.FLEX_ALIGN.CENTER)
+            side.set_style_pad_gap(pad, 0)
+        fps_lbl = lv.label(side)
+        fps_lbl.set_style_text_color(muted, 0)
+        fps_lbl.set_style_text_align(lv.TEXT_ALIGN.CENTER, 0)
+        fps_lbl.set_text(_fps_short(across))
 
-        fps_lbl = lv.label(scr)
-        fps_lbl.set_text(_fps_text())
-        fps_lbl.align_to(seconds_lbl, lv.ALIGN.OUT_TOP_MID, 0, -4)
+        btn = lv.button(side)
+        btn.set_style_pad_hor(pad * 2, 0)
+        btn.set_style_pad_ver(pad, 0)
+        btn_lbl = lv.label(btn)
+        btn_lbl.set_text("Tap  0")
+        btn_lbl.center()
 
         def on_seconds_timer(_t):
             global _seconds
             _seconds += 1
-            seconds_lbl.set_text(f"Seconds: {_seconds}")
-            fps_lbl.set_text(_fps_text())
-            fps_lbl.align_to(seconds_lbl, lv.ALIGN.OUT_TOP_MID, 0, -4)
+            seconds_lbl.set_text(str(_seconds))
+            fps_lbl.set_text(_fps_short(across))
 
         def on_arc_timer(_t):
+            # 18 degrees every 50 ms: one turn a second, in step with the counter.
             global _arc_angle
-            _arc_angle = (_arc_angle + 10) % 360
+            _arc_angle = (_arc_angle + 18) % 360
             arc.set_angles(0, _arc_angle)
 
         def on_click(_e):
             global _taps
             _taps += 1
-            btn_lbl.set_text(f"Tap me ({_taps})")
+            btn_lbl.set_text("Tap  %d" % _taps)
 
         lv.timer_create(on_seconds_timer, 1000, None)
         lv.timer_create(on_arc_timer, 50, None)
