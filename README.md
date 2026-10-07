@@ -27,6 +27,10 @@ Those libraries are designed to work across MicroPython, CircuitPython, and
 CPython on microcontrollers, Linux, Windows, Android, browsers, and notebooks.
 This repo demonstrates that portability; it is not the package source of truth.
 
+An ESP32-P4 can put any of these apps on a TV or a Windows laptop, with sound
+and with the laptop's mouse and keyboard as its input: see
+[Casting from a microcontroller](docs/casting.md).
+
 New here? Read the [newcomer's guide](docs/newcomers.md) for the fastest
 entrypoints, application ownership, and examples-to-product boundary.
 
