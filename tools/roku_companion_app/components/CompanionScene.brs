@@ -1,11 +1,11 @@
 sub init()
     m.statusLabel = m.top.findNode("statusLabel")
-    m.cameraView1 = m.top.findNode("cameraView1")
-    m.cameraView2 = m.top.findNode("cameraView2")
-    m.cameraTimer = m.top.findNode("cameraTimer")
-    m.cameraTimer.observeField("fire", "onCameraTimerFired")
-    m.cameraView1.observeField("loadStatus", "onCameraLoadStatusChanged")
-    m.cameraView2.observeField("loadStatus", "onCameraLoadStatusChanged")
+    m.frameView1 = m.top.findNode("frameView1")
+    m.frameView2 = m.top.findNode("frameView2")
+    m.frameTimer = m.top.findNode("frameTimer")
+    m.frameTimer.observeField("fire", "onFrameTimerFired")
+    m.frameView1.observeField("loadStatus", "onFrameLoadStatusChanged")
+    m.frameView2.observeField("loadStatus", "onFrameLoadStatusChanged")
     
     m.keyTask = CreateObject("roSGNode", "KeyTask")
     m.keyTask.control = "run"
@@ -19,7 +19,7 @@ sub init()
     
     m.top.setFocus(true)
     
-    m.cameraUrl = ""
+    m.frameUrl = ""
     m.frameCount = 0
     m.activeBuffer = 1
     m.isLoading = false
@@ -46,10 +46,10 @@ sub onLaunchArgsChanged()
     if mode = "tts"
         m.statusLabel.text = "TTS: " + args.text
         m.statusLabel.visible = true
-        m.cameraView1.visible = false
-        m.cameraView2.visible = false
-        m.cameraTimer.control = "stop"
-        m.cameraUrl = ""
+        m.frameView1.visible = false
+        m.frameView2.visible = false
+        m.frameTimer.control = "stop"
+        m.frameUrl = ""
         m.keyTask.url = ""
         print "[CompanionScene] TTS text: "; args.text
         
@@ -59,10 +59,10 @@ sub onLaunchArgsChanged()
         
     else if mode = "audio"
         m.statusLabel.visible = true
-        m.cameraView1.visible = false
-        m.cameraView2.visible = false
-        m.cameraTimer.control = "stop"
-        m.cameraUrl = ""
+        m.frameView1.visible = false
+        m.frameView2.visible = false
+        m.frameTimer.control = "stop"
+        m.frameUrl = ""
         m.keyTask.url = ""
         m.statusLabel.text = "Streaming Audio..."
         print "[CompanionScene] Audio URL: "; args.url
@@ -76,28 +76,28 @@ sub onLaunchArgsChanged()
         
         m.audioPlayer.control = "play"
         
-    else if mode = "camera"
+    else if mode = "frames"
         m.statusLabel.visible = false
-        m.cameraView1.visible = false
-        m.cameraView2.visible = false
-        m.cameraUrl = args.url
+        m.frameView1.visible = false
+        m.frameView2.visible = false
+        m.frameUrl = args.url
         m.sinceFrame.Mark()
         ' Remote buttons go to the server that serves the frames.
         m.keyTask.url = Left(args.url, Instr(9, args.url, "/") - 1) + "/key"
         m.frameCount = 0
         m.activeBuffer = 1
         m.isLoading = false
-        m.cameraTimer.control = "start"
-        print "[CompanionScene] Camera URL: "; args.url
+        m.frameTimer.control = "start"
+        print "[CompanionScene] Frames URL: "; args.url
         
     else if mode = "video"
         ' Play H.264 from a URL. Reports state and position to /video on
         ' the server that sent it, so the sender can measure the delay.
         m.statusLabel.visible = false
-        m.cameraView1.visible = false
-        m.cameraView2.visible = false
-        m.cameraTimer.control = "stop"
-        m.cameraUrl = ""
+        m.frameView1.visible = false
+        m.frameView2.visible = false
+        m.frameTimer.control = "stop"
+        m.frameUrl = ""
         m.keyTask.url = Left(args.url, Instr(9, args.url, "/") - 1) + "/video"
         content = CreateObject("roSGNode", "ContentNode")
         content.url = args.url
@@ -115,25 +115,37 @@ sub onLaunchArgsChanged()
 
     else if mode = "dashboard"
         m.statusLabel.visible = true
-        m.cameraView1.visible = false
-        m.cameraView2.visible = false
-        m.cameraTimer.control = "stop"
-        m.cameraUrl = ""
+        m.frameView1.visible = false
+        m.frameView2.visible = false
+        m.frameTimer.control = "stop"
+        m.frameUrl = ""
         m.keyTask.url = ""
         m.statusLabel.text = args.text
         print "[CompanionScene] Dashboard text: "; args.text
+
+    else if mode <> invalid
+        ' A mode this channel doesn't have, such as one from an older
+        ' PyDevices app: say so on the screen rather than ignore it.
+        m.statusLabel.text = "Unknown mode: " + mode
+        m.statusLabel.visible = true
+        m.frameView1.visible = false
+        m.frameView2.visible = false
+        m.frameTimer.control = "stop"
+        m.frameUrl = ""
+        m.keyTask.url = ""
+        print "[CompanionScene] unknown mode: "; mode
     end if
     
 end sub
 
-sub onCameraTimerFired()
+sub onFrameTimerFired()
     ' Fallback only: frames are requested as soon as the previous one is ready.
     ' The timer restarts the chain after a failed load, and notices when the
     ' app has gone.
-    if m.cameraUrl <> "" and m.sinceFrame.TotalMilliseconds() >= m.goneAfterMs
+    if m.frameUrl <> "" and m.sinceFrame.TotalMilliseconds() >= m.goneAfterMs
         print "[CompanionScene] no frame for "; m.sinceFrame.TotalMilliseconds(); " ms, closing"
-        m.cameraUrl = ""
-        m.cameraTimer.control = "stop"
+        m.frameUrl = ""
+        m.frameTimer.control = "stop"
         m.top.exitChannel = true
         return
     end if
@@ -141,19 +153,19 @@ sub onCameraTimerFired()
 end sub
 
 sub requestFrame()
-    if m.cameraUrl = "" then return
+    if m.frameUrl = "" then return
     m.frameCount = m.frameCount + 1
     ' Append cache-busting parameter
     sep = "?"
-    if Instr(1, m.cameraUrl, "?") > 0 then sep = "&"
+    if Instr(1, m.frameUrl, "?") > 0 then sep = "&"
 
-    uri = m.cameraUrl + sep + "t=" + m.frameCount.toStr()
+    uri = m.frameUrl + sep + "t=" + m.frameCount.toStr()
     m.isLoading = true
 
     if m.activeBuffer = 1
-        m.cameraView2.uri = uri
+        m.frameView2.uri = uri
     else
-        m.cameraView1.uri = uri
+        m.frameView1.uri = uri
     end if
 
     if m.frameCount = 1 or (m.frameCount mod 25 = 0)
@@ -161,28 +173,28 @@ sub requestFrame()
     end if
 end sub
 
-sub onCameraLoadStatusChanged(event as Object)
+sub onFrameLoadStatusChanged(event as Object)
     node = event.getRoSGNode()
     status = node.loadStatus
     id = node.id
     
     if status = "ready"
-        if id = "cameraView1"
-            m.cameraView1.visible = true
-            m.cameraView2.visible = false
+        if id = "frameView1"
+            m.frameView1.visible = true
+            m.frameView2.visible = false
             m.activeBuffer = 1
-        else if id = "cameraView2"
-            m.cameraView2.visible = true
-            m.cameraView1.visible = false
+        else if id = "frameView2"
+            m.frameView2.visible = true
+            m.frameView1.visible = false
             m.activeBuffer = 2
         end if
         m.isLoading = false
         m.sinceFrame.Mark()
         requestFrame()
     else if status = "failed"
-        print "[CompanionScene] cameraView loadStatus="; status; " for "; node.uri
+        print "[CompanionScene] frameView loadStatus="; status; " for "; node.uri
         m.isLoading = false
-        m.statusLabel.text = "Error: Failed to load camera frame from\n" + m.cameraUrl
+        m.statusLabel.text = "Error: Failed to load a frame from\n" + m.frameUrl
         m.statusLabel.visible = true
     end if
 end sub
@@ -190,7 +202,7 @@ end sub
 ' While frames are streaming, every remote button the TV lets a channel see goes
 ' to the PyDevices app, Back included (Home always leaves the channel).
 function onKeyEvent(key as String, press as Boolean) as Boolean
-    if m.cameraUrl = "" then return false
+    if m.frameUrl = "" then return false
     p = "0"
     if press then p = "1"
     m.keyTask.key = "k=" + key + "&p=" + p

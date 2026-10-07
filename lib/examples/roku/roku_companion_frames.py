@@ -2,17 +2,18 @@
 #
 # SPDX-License-Identifier: MIT
 """
-roku_companion_camera.py
-=========================
+roku_companion_frames.py
+========================
 
-Demonstrates using a Roku TV as a live camera monitor with the PyDevices
-Companion app.
+Shows pictures a program serves over HTTP on a Roku TV, through the PyDevices
+Companion channel's frames mode.
 
-Starts a tiny HTTP server, then tells the Roku to fetch frames from it
-repeatedly (~10 fps). On a real device the frames would come from
-``cameraif``; here each one is drawn with ``pygraphics`` (a colour field that
-changes every ten frames, with the frame number on it) and encoded with
-``pygraphics.encode_png``.
+Starts a tiny HTTP server, then tells the Roku to fetch a frame from it, and
+another as soon as that one has loaded. Any program that can serve a PNG or
+JPEG can drive the TV this way: a camera, a chart, a game. Here each frame is
+drawn with ``pygraphics`` (a colour field that changes every ten frames, with
+the frame number on it) and encoded with ``pngio`` (built into MicroPython;
+pydevices-desktop's over Pillow on CPython).
 
 Prerequisites
 -------------
@@ -23,7 +24,7 @@ Prerequisites
 
 Usage::
 
-    python roku_companion_camera.py ROKU_IP
+    python roku_companion_frames.py ROKU_IP
 
 Press Ctrl-C to stop serving and exit.
 """
@@ -33,7 +34,8 @@ import time
 
 from utils.roku_companion import RokuCompanion, get_local_ip, roku_host
 
-from pygraphics import RGB565, FrameBuffer, encode_png
+import pngio
+from pygraphics import RGB565, FrameBuffer
 
 # -- Configuration ----------------------------------------------------------
 ROKU_IP = roku_host()
@@ -57,14 +59,18 @@ COLOURS = (
 )
 
 
+_png = pngio.PngEncoder()
+
+
 def make_frame(n):
     """Frame *n* as PNG bytes: a colour field that changes every ten frames,
     with the frame number in black."""
     name, colour = COLOURS[(n // 10) % len(COLOURS)]
-    fb = FrameBuffer(bytearray(WIDTH * HEIGHT * 2), WIDTH, HEIGHT, RGB565)
+    buf = bytearray(WIDTH * HEIGHT * 2)
+    fb = FrameBuffer(buf, WIDTH, HEIGHT, RGB565)
     fb.fill(colour)
     fb.text("%s %d" % (name, n), 8, 8, 0x0000)
-    return name, encode_png(fb)
+    return name, _png.encode(buf, WIDTH, HEIGHT)
 
 
 def serve_frames(port):
@@ -110,8 +116,8 @@ def serve_frames(port):
 def main():
     tv = RokuCompanion(ROKU_IP)
 
-    print("Launching camera view on Roku at", ROKU_IP)
-    tv.camera("http://%s:%d/frame.png" % (MY_IP, SERVE_PORT))
+    print("Showing frames on the Roku at", ROKU_IP)
+    tv.frames("http://%s:%d/frame.png" % (MY_IP, SERVE_PORT))
 
     # Give the Roku a moment to launch the app before we start serving.
     time.sleep(1)

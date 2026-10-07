@@ -6,7 +6,59 @@ RTSP session served on 7236, then RTP/UDP from the advertised server port
 ``make_streamer(dst_ip, dst_port, server_port)`` produces the RTP: it has
 ``pump(budget_us)``, ``done`` and ``close()``.
 """
-import socket, struct, time, select, network
+import socket, struct, time, select
+
+try:
+    import network          # a board: its Wi-Fi interface
+except ImportError:
+    network = None          # CPython on a desktop (pycast.py streams there)
+
+# MicroPython's tick functions, or the same on CPython's monotonic clock
+try:
+    ticks_ms, ticks_add, ticks_diff, sleep_ms = time.ticks_ms, time.ticks_add, time.ticks_diff, time.sleep_ms
+except AttributeError:
+    def ticks_ms():
+        return int(time.monotonic() * 1000)
+
+    def ticks_add(t, d):
+        return t + d
+
+    def ticks_diff(a, b):
+        return a - b
+
+    def sleep_ms(ms):
+        time.sleep(ms / 1000)
+
+
+def _send(sock, data):
+    """MicroPython sockets write(); CPython's sendall()."""
+    (sock.write if hasattr(sock, "write") else sock.sendall)(data)
+
+
+class _Poller:
+    """select.poll() as MicroPython has it -- events name the socket object --
+    over select.select(), which CPython has everywhere (Windows has no poll)."""
+
+    def __init__(self):
+        self.socks = []
+
+    def register(self, s, mask=None):
+        if s not in self.socks:
+            self.socks.append(s)
+
+    def unregister(self, s):
+        if s in self.socks:
+            self.socks.remove(s)
+
+    def poll(self, timeout_ms):
+        if not self.socks:
+            sleep_ms(timeout_ms)
+            return []
+        r, _, _ = select.select(self.socks, [], [], max(0, timeout_ms) / 1000)
+        return [(s, _POLLIN if hasattr(select, "POLLIN") else 1) for s in r]
+
+
+_POLLIN = getattr(select, "POLLIN", 1)
 
 MICE_PORT = 7250
 
@@ -69,7 +121,7 @@ class Rtsp:
 
     def send_raw(self, text):
         self.log("RTSP >>> " + text.replace("\r\n", " | "))
-        self.conn.write(text.encode())
+        _send(self.conn, text.encode())
 
     def request(self, method, target, label, extra="", body=""):
         self.cseq += 1
@@ -163,30 +215,37 @@ class Session:
 
     def run(self, make_streamer, seconds=3600, idle_after_done=3, stop=None):
         log = self.log
-        w = network.WLAN(network.STA_IF)
-        my_ip = w.ifconfig()[0]
-        log("ip", my_ip, "rssi", w.status("rssi"))
-        try:
-            w.config(pm=network.WLAN.PM_NONE)
-        except Exception as e:
-            log("pm", e)
+        if network is not None:
+            w = network.WLAN(network.STA_IF)
+            my_ip = w.ifconfig()[0]
+            log("ip", my_ip, "rssi", w.status("rssi"))
+            try:
+                w.config(pm=network.WLAN.PM_NONE)
+            except Exception as e:
+                log("pm", e)
+        else:
+            probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            probe.connect((self.sink, MICE_PORT))
+            my_ip = probe.getsockname()[0]
+            probe.close()
+            log("ip", my_ip)
         ls = socket.socket()
         ls.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         ls.bind(("0.0.0.0", self.rtsp_port))
         ls.listen(1)
         mc = socket.socket()
         mc.settimeout(10)
-        mc.connect((self.sink, MICE_PORT))
+        mc.connect(socket.getaddrinfo(self.sink, MICE_PORT)[0][-1])
         mc.setblocking(False)
         if self.session_request is not None:
             sreq = mice_msg(4, [tlv(0, utf16(self.name)), tlv(3, self.source_id), tlv(5, bytes([self.session_request]))])
-            mc.write(sreq)
+            _send(mc, sreq)
             log("MICE >>> Session Request (security options %d) to %s" % (self.session_request, self.sink))
-            time.sleep_ms(500)
+            sleep_ms(500)
             ready = mice_msg(1, [tlv(2, struct.pack(">H", self.rtsp_port)), tlv(3, self.source_id)])
         else:
             ready = mice_msg(1, [tlv(0, utf16(self.name)), tlv(2, struct.pack(">H", self.rtsp_port)), tlv(3, self.source_id)])
-        mc.write(ready)
+        _send(mc, ready)
         log("MICE >>> Source Ready to", self.sink)
         uls = socket.socket()
         uls.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -194,15 +253,15 @@ class Session:
         uls.listen(1)
         uconn = None
         ubuf = b""
-        poller = select.poll()
-        poller.register(mc, select.POLLIN)
-        poller.register(ls, select.POLLIN)
-        poller.register(uls, select.POLLIN)
+        poller = select.poll() if hasattr(select, "poll") and network is not None else _Poller()
+        poller.register(mc, _POLLIN)
+        poller.register(ls, _POLLIN)
+        poller.register(uls, _POLLIN)
         r = conn = None
         streamer = None
         sink_params = {}
-        last_keepalive = time.ticks_ms()
-        deadline = time.ticks_add(time.ticks_ms(), seconds * 1000)
+        last_keepalive = ticks_ms()
+        deadline = ticks_add(ticks_ms(), seconds * 1000)
         done_at = None
 
         def send_m3(r):
@@ -217,14 +276,14 @@ class Session:
                           body="wfd_content_protection\r\nwfd_video_formats\r\nwfd_audio_codecs\r\nwfd_client_rtp_ports\r\nwfd_uibc_capability\r\n")
 
         try:
-            while time.ticks_diff(deadline, time.ticks_ms()) > 0:
+            while ticks_diff(deadline, ticks_ms()) > 0:
                 if stop is not None and stop():
                     log("stop requested")
                     return "stopped"
                 if streamer and not streamer.done:
-                    tp = time.ticks_ms()
+                    tp = ticks_ms()
                     streamer.pump(4000)
-                    dp = time.ticks_diff(time.ticks_ms(), tp)
+                    dp = ticks_diff(ticks_ms(), tp)
                     if dp > 500:
                         log("slow pump: %d ms" % dp)
                     # A Python pump has to be called back often, so it busy-polls.
@@ -235,9 +294,9 @@ class Session:
                     timeout = 50 if getattr(streamer, "idle_poll", False) else 0
                 else:
                     timeout = 200
-                tq = time.ticks_ms()
+                tq = ticks_ms()
                 events = poller.poll(timeout)
-                dq = time.ticks_diff(time.ticks_ms(), tq)
+                dq = ticks_diff(ticks_ms(), tq)
                 if dq > 500:
                     log("slow poll: %d ms (timeout %d)" % (dq, timeout))
                 for obj, ev in events:
@@ -259,12 +318,12 @@ class Session:
                         conn.setblocking(False)
                         r = Rtsp(conn, log)
                         r.m1_ok = r.m2_done = r.m3_sent = False
-                        poller.register(conn, select.POLLIN)
+                        poller.register(conn, _POLLIN)
                         r.request("OPTIONS", "*", "M1", extra="Require: org.wfa.wfd1.0\r\n")
                     elif obj is uls:
                         uconn, uaddr = uls.accept()
                         uconn.setblocking(False)
-                        poller.register(uconn, select.POLLIN)
+                        poller.register(uconn, _POLLIN)
                         log("UIBC: sink connected from", uaddr)
                     elif obj is uconn:
                         try:
@@ -345,7 +404,7 @@ class Session:
                                 if streamer is None:
                                     streamer = make_streamer(addr[0], r.client_port, self.server_port)
                                     self.streamer = streamer
-                                    last_keepalive = time.ticks_ms()
+                                    last_keepalive = ticks_ms()
                                 if self.sink_uibc and self.sink_uibc != "none":
                                     r.request("SET_PARAMETER", "rtsp://localhost/wfd1.0", "M14", extra="Session: %s\r\n" % r.session,
                                               body="wfd_uibc_setting: enable\r\n")
@@ -361,20 +420,20 @@ class Session:
                                 r.respond(cseq, extra=("Session: %s\r\n" % r.session) if r.session else "")
                             else:
                                 r.respond(cseq, status="405 Method Not Allowed")
-                if r and r.session and time.ticks_diff(time.ticks_ms(), last_keepalive) > 10000:
+                if r and r.session and ticks_diff(ticks_ms(), last_keepalive) > 10000:
                     r.request("GET_PARAMETER", "rtsp://localhost/wfd1.0", "M16", extra="Session: %s\r\n" % r.session)
-                    last_keepalive = time.ticks_ms()
+                    last_keepalive = ticks_ms()
                 if streamer and streamer.done:
                     if done_at is None:
-                        done_at = time.ticks_ms()
+                        done_at = ticks_ms()
                         log("stream finished")
-                    elif time.ticks_diff(time.ticks_ms(), done_at) > idle_after_done * 1000:
+                    elif ticks_diff(ticks_ms(), done_at) > idle_after_done * 1000:
                         return "finished"
             return "timeout"
         finally:
             try:
-                mc.write(mice_msg(2, [tlv(0, utf16(self.name)), tlv(3, self.source_id)]))
-                time.sleep_ms(300)
+                _send(mc, mice_msg(2, [tlv(0, utf16(self.name)), tlv(3, self.source_id)]))
+                sleep_ms(300)
             except Exception as e:
                 log("stop:", e)
             if streamer:

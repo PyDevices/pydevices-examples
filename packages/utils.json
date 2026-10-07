@@ -1,6 +1,10 @@
 {
   "urls": [
     [
+      "cast_target.py",
+      "github:PyDevices/pydevices-examples/lib/utils/cast_target.py"
+    ],
+    [
       "color_setup.py",
       "github:PyDevices/pydevices-examples/lib/utils/color_setup.py"
     ],

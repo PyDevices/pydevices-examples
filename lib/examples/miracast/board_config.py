@@ -7,7 +7,8 @@ laptop its touch and keys are the laptop's mouse and keyboard.
 
 Set SINK and KIND first. A Windows laptop needs its Wireless Display app open
 (Settings > System > Projecting to this PC); a Roku TV needs Screen mirroring
-on. The firmware needs castif and h264enc, so this is the ESP32-P4.
+on. On a board the firmware needs castif and h264enc (the ESP32-P4); on a
+desktop, CPython with ffmpeg.
 """
 
 import sys
@@ -18,16 +19,24 @@ _cast = _here.rsplit("/", 1)[0] + "/cast" if "/" in _here else "../cast"
 if _cast not in sys.path:
     sys.path.append(_cast)
 
-from _common import wifi_up  # noqa: E402
 from cast_display import CastDisplay  # noqa: E402
 
-SINK = "192.168.1.143"    # the laptop's (or the Roku's) IP address
+from utils import cast_target  # noqa: E402
+
+# the laptop's (or the Roku's) address; "roku:ADDRESS" for a Roku
+SINK = cast_target.get("192.168.1.143")
 KIND = "windows"          # "windows" or "roku"
+if SINK.startswith("roku:") or SINK.startswith("windows:"):
+    KIND, SINK = SINK.split(":", 1)
 WIDTH = 720
 HEIGHT = 720
 
-wifi_up()
-display_drv = CastDisplay(SINK, WIDTH, HEIGHT, kind=KIND)
+if sys.implementation.name != "cpython":     # a board joins Wi-Fi; a desktop is on the LAN
+    from _common import wifi_up
+
+    wifi_up()
+# the session's progress on the console: joining, the sink's answers, frame rates
+display_drv = CastDisplay(SINK, WIDTH, HEIGHT, kind=KIND, log=print)
 
 # what appdev.App and the examples read from a board_config
 fb = display_drv._buf

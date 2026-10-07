@@ -104,6 +104,7 @@
   "tiny_toasters/tiny_toasters_bitmaps.py",
   "touch_gui_simpletest.py",
   "tv_remote_menu.py",
+  "utils/cast_target.py",
   "utils/color_setup.py",
   "utils/console.py",
   "utils/displaybuf.py",

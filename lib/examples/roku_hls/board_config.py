@@ -1,5 +1,5 @@
 """Run a PyDevices app as live video on a Roku TV (or in VLC), from an
-ESP32-P4 with no screen of its own.
+ESP32-P4 with no screen of its own, or from a desktop's CPython with ffmpeg.
 
 Put this folder first on the path and run the app: its display is HlsDisplay
 (hls_display.py beside this), which encodes what the app draws as H.264 and
@@ -18,15 +18,17 @@ _here = _here.rsplit("/", 1)[0] if "/" in _here else "."
 if _here not in sys.path:
     sys.path.append(_here)
 
-import wifi  # noqa: E402
-
 from hls_display import HlsDisplay  # noqa: E402
+from utils import cast_target  # noqa: E402
 
-TV = "192.168.1.129"      # your Roku's IP address, or None
+TV = cast_target.get("192.168.1.129")      # your Roku's IP address, or None
 WIDTH = 1280
 HEIGHT = 720
 
-wifi.connect_from_secrets()
+if sys.implementation.name != "cpython":     # a board joins Wi-Fi; a desktop is on the LAN
+    import wifi
+
+    wifi.connect_from_secrets()
 display_drv = HlsDisplay(TV, WIDTH, HEIGHT)
 
 # what appdev.App and the examples read from a board_config

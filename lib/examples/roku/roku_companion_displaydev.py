@@ -10,7 +10,7 @@ Demonstrates rendering to a Roku TV using PyDevices `displaydev` via:
 1. `RokuDisplay` — subclass of `FBDisplay`
 2. `RokuDisplayWrapper` — wrapper around an existing `FBDisplay` instance
 
-Both use `pygraphics.encode_png` to turn the in-memory RGB565 framebuffer
+Both use `pngio` to turn the in-memory RGB565 framebuffer
 into PNG frames and push them live to the PyDevices Companion app on the TV.
 
 Usage::
