@@ -215,6 +215,12 @@ class Session:
 
     def run(self, make_streamer, seconds=3600, idle_after_done=3, stop=None):
         log = self.log
+        # The sink may be a name (a laptop's host name): resolve it once, IPv4
+        # only, since every socket here is AF_INET and Windows lists a name's
+        # IPv6 addresses first. On a board the result is raw sockaddr bytes.
+        sink_addr = socket.getaddrinfo(self.sink, MICE_PORT, socket.AF_INET)[0][-1]
+        if isinstance(sink_addr, tuple):
+            self.sink = sink_addr[0]
         if network is not None:
             w = network.WLAN(network.STA_IF)
             my_ip = w.ifconfig()[0]
@@ -225,7 +231,7 @@ class Session:
                 log("pm", e)
         else:
             probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            probe.connect((self.sink, MICE_PORT))
+            probe.connect(sink_addr)
             my_ip = probe.getsockname()[0]
             probe.close()
             log("ip", my_ip)
@@ -235,7 +241,7 @@ class Session:
         ls.listen(1)
         mc = socket.socket()
         mc.settimeout(10)
-        mc.connect(socket.getaddrinfo(self.sink, MICE_PORT)[0][-1])
+        mc.connect(sink_addr)
         mc.setblocking(False)
         if self.session_request is not None:
             sreq = mice_msg(4, [tlv(0, utf16(self.name)), tlv(3, self.source_id), tlv(5, bytes([self.session_request]))])
