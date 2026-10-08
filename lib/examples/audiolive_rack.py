@@ -29,6 +29,10 @@ noise until you have touched it -- and click again to jump to the next patch.
 
 Runs unchanged on a board, where ``on_board`` is true, the pump writes to I2S
 itself and this file only draws.
+
+It runs unchanged under CPython on a desktop too: the pump has no thread there
+either, so this file services it exactly as it does in a browser and hands the
+bytes to the desktop's audio device.
 """
 
 import sys
@@ -126,7 +130,8 @@ _pump = pumpdev.module()
 # Two separate questions, and conflating them is a silent bug. Off a board the
 # pump fills a RAM ring and SOMEBODY has to drain it into a sink -- that is
 # true on a desktop as much as in a browser. Whether that somebody also has to
-# *run* the pump is the second question, and only WebAssembly answers yes.
+# *run* the pump is the second question: WebAssembly and CPython answer yes,
+# because neither gives the pump a thread of its own.
 _drains = live is not None and not live.on_board
 _services = _drains and not pumpdev.threaded()
 
@@ -145,7 +150,7 @@ _WHERE = (
     audiolive.why()
     if _no_sound is not None
     else ("on the board, straight into I2S" if live.on_board
-          else ("in the browser, serviced by a timer" if _services
+          else ("serviced by a timer, into a ring we drain" if _services
                 else "into a ring you drain"))
 )
 
