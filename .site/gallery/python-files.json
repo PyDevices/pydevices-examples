@@ -85,6 +85,7 @@
   "proverbs/proverbs_20.py",
   "proverbs/proverbs_30.py",
   "pydevices_demo.py",
+  "pygraphics_landscape.py",
   "roku_remote/__init__.py",
   "roku_remote/__main__.py",
   "roku_remote/roku_engine.py",

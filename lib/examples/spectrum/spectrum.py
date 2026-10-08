@@ -194,7 +194,7 @@ def start(bands=None, height=None, y=None, style=None):
     - ``style``: ``"smooth"`` or ``"segmented"``; default ``SPECTRUM_STYLE``
       or smooth.
 
-    Halving both was Brad's trade for frame rate under loud music
+    Halving both trades resolution for frame rate under loud music
     (2026-09-26): 18-19 fps full size, 35-45 at half by half on the P4.
     """
     global app, view, music, _send, _y, timer, _t0, _last, _stats
