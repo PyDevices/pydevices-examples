@@ -201,6 +201,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/pydevices_demo.py"
     ],
     [
+      "pygraphics_landscape.py",
+      "github:PyDevices/pydevices-examples/lib/examples/pygraphics_landscape.py"
+    ],
+    [
       "rotations.py",
       "github:PyDevices/pydevices-examples/lib/examples/rotations.py"
     ],
