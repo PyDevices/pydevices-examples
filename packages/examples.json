@@ -21,6 +21,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/appdev_touch_test.py"
     ],
     [
+      "audio_arpeggio.py",
+      "github:PyDevices/pydevices-examples/lib/examples/audio_arpeggio.py"
+    ],
+    [
       "audio_in_playback_test.py",
       "github:PyDevices/pydevices-examples/lib/examples/audio_in_playback_test.py"
     ],
