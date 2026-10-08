@@ -47,8 +47,14 @@ EOF
 }
 
 find_generator_script() {
+    # From a git worktree the sibling checkouts sit beside the main checkout,
+    # not beside this directory.
+    local main_root
+    main_root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$PWD/.git")")"
     if [[ -f "../dotgithub/scripts/generate_pyscript_filesystem_toml.py" ]]; then
         echo "../dotgithub/scripts/generate_pyscript_filesystem_toml.py"
+    elif [[ -f "$main_root/../dotgithub/scripts/generate_pyscript_filesystem_toml.py" ]]; then
+        echo "$main_root/../dotgithub/scripts/generate_pyscript_filesystem_toml.py"
     elif [[ -f ".pydevices-publishing-tools/scripts/generate_pyscript_filesystem_toml.py" ]]; then
         echo ".pydevices-publishing-tools/scripts/generate_pyscript_filesystem_toml.py"
     else

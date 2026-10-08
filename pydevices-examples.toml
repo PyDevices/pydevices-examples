@@ -136,6 +136,7 @@
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/proverbs/proverbs_20.py" = "/examples/proverbs/proverbs_20.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/proverbs/proverbs_30.py" = "/examples/proverbs/proverbs_30.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/pydevices_demo.py" = "/examples/pydevices_demo.py"
+"https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/pygraphics_landscape.py" = "/examples/pygraphics_landscape.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/roku/board_config.py" = "/examples/roku/board_config.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/roku/roku_companion_dashboard.py" = "/examples/roku/roku_companion_dashboard.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/roku/roku_companion_displaydev.py" = "/examples/roku/roku_companion_displaydev.py"
