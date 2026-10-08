@@ -13,9 +13,9 @@ from board_config import display_drv
 import board_config
 import appdev
 import sys
-import time
 
 import pygraphics
+from multimer import ticks_diff, ticks_ms
 from pygraphics import RGB565, FrameBuffer
 
 app = appdev.App(board_config)
@@ -80,14 +80,13 @@ def scene(fb, y0):
 def draw():
     buf = bytearray(W * BAND * 2)
     fb = FrameBuffer(buf, W, BAND, RGB565)
-    t0 = time.ticks_ms() if hasattr(time, "ticks_ms") else int(time.time() * 1000)
+    t0 = ticks_ms()
     for y0 in range(0, H, BAND):
         rows = min(BAND, H - y0)
         scene(fb, y0)
         display_drv.blit_rect(memoryview(buf)[: W * rows * 2], 0, y0, W, rows)
     display_drv.show()
-    t1 = time.ticks_ms() if hasattr(time, "ticks_ms") else int(time.time() * 1000)
-    print("landscape %dx%d drawn in %d ms" % (W, H, t1 - t0))
+    print("landscape %dx%d drawn in %d ms" % (W, H, ticks_diff(ticks_ms(), t0)))
 
 
 draw()
