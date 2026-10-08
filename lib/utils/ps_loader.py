@@ -107,7 +107,7 @@ def parse_names(raw):
 
 def set_board_defaults():
     """Set the gallery's browser defaults without importing board_config."""
-    from displaydev import env_set
+    from boarddev import env_set
 
     env_set("PYDEVICES_WIDTH", BOARD_WIDTH)
     env_set("PYDEVICES_HEIGHT", BOARD_HEIGHT)
@@ -337,7 +337,7 @@ def _ensure_board_config(mip_mod, status=None, url_base=None):
 def ensure_board_config(status=None):
     """Ensure browser ``board_config`` (desktop package) is importable.
 
-    Call after ``utils.path`` and before ``from displaydev import env_set`` /
+    Call after ``utils.path`` and before ``from boarddev import env_set`` /
     importing demos or setup modules that ``import board_config``. The desktop
     package pulls in ``displaydev`` (not frozen in the gallery wasm). Set size
     overrides with ``env_set`` after this returns and before the first

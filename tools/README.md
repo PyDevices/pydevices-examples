@@ -112,7 +112,7 @@ see [Windows PE under WSL](#windows-pe-under-wsl).
 `micropython.exe` and `python.exe` are Windows PE binaries launched from WSL.
 They cannot read Linux-exported environment variables. The kit therefore
 forwards only values that must cross that boundary via wrapper argv +
-`displaydev.env_set` (notably `--timer-async` / `--multimer-source`).
+`boarddev.env_set` (notably `--timer-async` / `--multimer-source`).
 
 **Do not forward `SDL_VIDEODRIVER` / `SDL_AUDIODRIVER` to PE.** Unix cells stay
 headless from the shell `SDL_*=dummy` export; PE keeps a real Windows video

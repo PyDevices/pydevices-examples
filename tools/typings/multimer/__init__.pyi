@@ -1,11 +1,16 @@
-from ._async_timer import AsyncTimer as AsyncTimer
 from ._asyncio_loader import loop_running as loop_running
-from ._schedule import schedule as schedule
-from ._ticks import monotonic as monotonic, run_deadline_hook as run_deadline_hook, set_deadline_hook as set_deadline_hook, ticks_add as ticks_add, ticks_diff as ticks_diff, ticks_less as ticks_less, ticks_ms as ticks_ms
+from ._dispatch import Timer as Timer, alive as alive, hold as hold, info as info, keepalive as keepalive, pump as pump, run_until as run_until, schedule as schedule, sleep_ms as sleep_ms, stop_all as stop_all, timers as timers
+from ._ticks import monotonic as monotonic, run_deadline_hook as run_deadline_hook, set_deadline_hook as set_deadline_hook, ticks_add as ticks_add, ticks_diff as ticks_diff, ticks_less as ticks_less, ticks_ms as ticks_ms, ticks_us as ticks_us
 
 from _typeshed import Incomplete
 
 asyncio: Incomplete
 
-__all__ = ['AsyncTimer', 'asyncio', 'loop_running', 'monotonic', 'run_deadline_hook', 'schedule', 'set_deadline_hook', 'ticks_add', 'ticks_diff', 'ticks_less', 'ticks_ms']
+__all__ = ['Timer', 'after', 'alive', 'asleep_ms', 'every', 'hold', 'info', 'keepalive', 'loop_running', 'monotonic', 'pump', 'repl', 'report', 'run_deadline_hook', 'run_until', 'schedule', 'set_deadline_hook', 'sleep_ms', 'stop_all', 'strategy', 'ticks_add', 'ticks_diff', 'ticks_less', 'ticks_ms', 'ticks_us', 'timers']
 
+def every(ms, callback, *, name=None): ...
+def after(ms, callback, *, name=None): ...
+async def asleep_ms(ms) -> None: ...
+def strategy(): ...
+def repl(namespace=None, prompt: str = '>>> ', tick_ms: int = 10): ...
+def report(file=None) -> None: ...

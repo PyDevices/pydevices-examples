@@ -82,7 +82,7 @@ def _positive_scale(value):
 
 
 def _apply_display_overrides(resolution, scale):
-    from displaydev import env_set
+    from boarddev import env_set
 
     if resolution is not None:
         width, height = resolution

@@ -37,7 +37,7 @@ Desktop launch from ``pydevices-examples/lib`` (same for ``micropython``,
 
 Join Wi-Fi before running on a microcontroller. Optional desktop panel size:
 edit ``_WIDTH`` / ``_HEIGHT`` / ``_SCALE`` below (applied via
-``displaydev.env_set`` before ``board_config`` is imported; never on MCUs).
+``boarddev.env_set`` before ``board_config`` is imported; never on MCUs).
 """
 
 import sys
@@ -46,7 +46,7 @@ _PKG = __file__.replace("\\", "/").rsplit("/", 1)[0]
 if _PKG not in sys.path:
     sys.path.insert(0, _PKG)
 
-from displaydev import env_set
+from boarddev import env_set
 
 # Local desktop test panel -- change these and re-run. Must stay above board_config.
 _WIDTH = None

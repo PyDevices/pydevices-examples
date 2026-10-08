@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Regenerate IDE type stubs for three core PyDevices packages into tools/typings/.
+# Regenerate IDE type stubs for the core PyDevices packages into tools/typings/.
 #
 # Usage:
 #   ./scripts/gen_package_pyi.sh
 #   ./scripts/gen_package_pyi.sh --help
 #
 # Requires the repo-root .venv (mypy / stubgen). Output is committed under
-# tools/typings/{displaydev,appdev,multimer}/ for stubPath.
+# tools/typings/{displaydev,appdev,multimer}/ and the single-module stubs
+# (events, keys, boarddev) for stubPath.
 
 set -euo pipefail
 
@@ -14,7 +15,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 PACKAGES=(displaydev appdev multimer)
-MODULES=(events keys)
+MODULES=(events keys boarddev)
 OUT=tools/typings
 STUBGEN="${ROOT}/.venv/bin/stubgen"
 PYTHON="${ROOT}/.venv/bin/python"
@@ -24,7 +25,7 @@ usage() {
 Usage: ./scripts/gen_package_pyi.sh
 
 Regenerate mypy stubgen .pyi trees for displaydev, appdev,
-multimer, events, and keys into tools/typings/ (Pylance / pyright stubPath).
+multimer, events, keys, and boarddev into tools/typings/ (Pylance / pyright stubPath).
 
 (source is gitignored; public API is pygraphics.FrameBuffer).
 EOF
@@ -66,7 +67,7 @@ fi
 echo "Running stubgen → ${OUT}/ …"
 "$STUBGEN" --ignore-errors -o "$OUT" \
     -p displaydev -p appdev -p multimer \
-    -m events -m keys
+    -m events -m keys -m boarddev
 
 # Gitignored generated module; public FrameBuffer lives in _framebuf_plus.
 

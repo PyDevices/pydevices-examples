@@ -48,7 +48,7 @@ import json
 import time
 
 from board_config import display_drv
-from displaydev import env_get
+from boarddev import env_get
 import multimer
 
 # Optional logical orientation for LVGL (hw MADCTL/SDL/PG or software rotate).
