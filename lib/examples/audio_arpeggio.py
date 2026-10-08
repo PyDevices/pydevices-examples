@@ -6,7 +6,8 @@ synthio plays the notes, audiodsp's Biquad low-pass shapes them, and the
 board's own audio output plays the result: an I2S amplifier on a board, the
 sound card on a desktop, Web Audio in a browser. The screen shows a bar for each
 note of the arpeggio, lit while it sounds. On a board with no display (no
-board_config.py, only board_peripherals.py) it just plays. It first played on a QT Py
+board_config.py, only board_peripherals.py) it just plays, on MicroPython
+or CircuitPython: a headless QT Py ESP32 Pico with an Audio BFF plays it. It first played on a QT Py
 ESP32 Pico with an Audio BFF, from a CircuitPython-compatible build with
 audiodsp compiled in.
 """
@@ -26,8 +27,11 @@ app = appdev.App(board_config)
 import board_peripherals  # noqa: E402  after the App, as the other examples do
 
 audio_out = board_peripherals.audio_out()
-RATE = audio_out.format.rate
-CHANNELS = audio_out.format.channels
+# pydevices' AudioOut reports its format; CircuitPython's own I2SOut doesn't,
+# and takes whatever rate it's given.
+_format = getattr(audio_out, "format", None)
+RATE = _format.rate if _format else 22050
+CHANNELS = _format.channels if _format else 1
 
 PEAK = 16000  # about -6 dBFS
 SINE = array("h", [int(PEAK * sin(2 * pi * i / 256)) for i in range(256)])
@@ -43,7 +47,8 @@ lowpass = audiobiquad.Biquad(
     mode=audiobiquad.LOW_PASS, frequency=3000.0, sample_rate=RATE, channel_count=CHANNELS
 )
 lowpass.play(synth)
-audio_out.attach(app)
+if hasattr(audio_out, "attach"):  # CircuitPython's I2SOut runs on its own
+    audio_out.attach(app)
 audio_out.play(lowpass)
 
 UP = [60, 64, 67, 72, 76, 79, 84]  # C4 E4 G4 C5 E5 G5 C6
