@@ -12,6 +12,7 @@
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/appdev_simpletest.py" = "/examples/appdev_simpletest.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/appdev_touch_coords.py" = "/examples/appdev_touch_coords.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/appdev_touch_test.py" = "/examples/appdev_touch_test.py"
+"https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/audio_arpeggio.py" = "/examples/audio_arpeggio.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/audio_in_playback_test.py" = "/examples/audio_in_playback_test.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/audio_out_test.py" = "/examples/audio_out_test.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/audiolive/__init__.py" = "/examples/audiolive/__init__.py"
