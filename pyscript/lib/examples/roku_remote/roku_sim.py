@@ -86,7 +86,7 @@ def sim_reason():
     (missing ``socket`` or no station IPv4 / Wi‑Fi).
     """
     try:
-        from displaydev import env_bool, env_get
+        from boarddev import env_bool, env_get
     except ImportError:
         if _is_pyscript():
             return "pyscript"

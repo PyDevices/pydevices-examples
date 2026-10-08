@@ -51,7 +51,7 @@ index="https://PyDevices.github.io/mip")`` on a board; pip on desktop).
 # board_config reads these; a board's board_config ignores them (its display
 # is a fixed size), so an app can ask for its designed resolution without
 # ever fighting real hardware.
-from displaydev import env_set
+from boarddev import env_set
 
 env_set("PYDEVICES_WIDTH", 720)
 env_set("PYDEVICES_HEIGHT", 480)
