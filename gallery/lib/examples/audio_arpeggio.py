@@ -4,13 +4,15 @@ A C-major arpeggio: two octaves up and back down, twice, then a held chord.
 
 synthio plays the notes, audiodsp's Biquad low-pass shapes them, and the
 board's own audio output plays the result: an I2S amplifier on a board, the
-sound card on a desktop, Web Audio in a browser. It first played on a QT Py
+sound card on a desktop, Web Audio in a browser. The screen shows a bar for each
+note of the arpeggio, lit while it sounds. It first played on a QT Py
 ESP32 Pico with an Audio BFF, from a CircuitPython-compatible build with
 audiodsp compiled in.
 """
 
 import board_config
 import appdev
+from displaydev import color565
 
 app = appdev.App(board_config)
 import board_peripherals
@@ -41,6 +43,28 @@ audio_out.attach(app)
 audio_out.play(lowpass)
 
 UP = [60, 64, 67, 72, 76, 79, 84]  # C4 E4 G4 C5 E5 G5 C6
+
+display_drv = board_config.display_drv
+BACKGROUND = color565(16, 20, 40)
+DIM = color565(50, 60, 100)
+LIT = [color565(255, 90, 60), color565(255, 170, 40), color565(250, 230, 60),
+       color565(90, 220, 110), color565(60, 200, 230), color565(90, 120, 255),
+       color565(200, 100, 250)]
+
+
+def draw(lit):
+    """A bar per arpeggio note, taller for higher notes; the sounding ones lit."""
+    w, h = display_drv.width, display_drv.height
+    display_drv.fill(BACKGROUND)
+    column = w // len(UP)
+    for i, midi in enumerate(UP):
+        bar = h * (i + 2) // (len(UP) + 2)
+        color = LIT[i] if midi in lit else DIM
+        display_drv.fill_rect(i * column + column // 6, h - bar, column * 2 // 3, bar, color)
+    display_drv.show()
+
+
+draw(())
 SEQUENCE = (UP + UP[-2:0:-1]) * 2
 STEP_MS = 160
 CHORD_STEPS = 10  # the chord rings for 10 steps, then everything stops
@@ -61,10 +85,13 @@ def step(timer):
     if i < len(SEQUENCE):
         state["note"] = note(SEQUENCE[i])
         synth.press(state["note"])
+        draw((SEQUENCE[i],))
     elif i == len(SEQUENCE):
         synth.press([note(m, 0.5) for m in (60, 64, 67, 72)])
+        draw((60, 64, 67, 72))
     elif i == len(SEQUENCE) + CHORD_STEPS:
         synth.release_all()
+        draw(())
     elif i > len(SEQUENCE) + CHORD_STEPS + 3:
         timer.deinit()
         audio_out.stop()
