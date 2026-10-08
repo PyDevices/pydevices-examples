@@ -26,7 +26,49 @@ function log(line, stream = "stdout") {
         element.textContent += `${line}\n`;
         element.scrollTop = element.scrollHeight;
     }
+    watchForUncaught(String(line));
 }
+
+// An example that started cleanly can still die in its first timer tick. The
+// interpreter prints that traceback (to stdout) and the page keeps running,
+// so without this the page would go on reporting "ready" over a dead app.
+const TRACEBACK = "Traceback (most recent call last):";
+let traceback = null;
+
+function failAfterStart(detail) {
+    if (state.phase !== "ready") return;
+    state.phase = "failed";
+    document.body.dataset.runtimeState = "failed";
+    dispatchEvent(new CustomEvent("pydevices-failed", {detail}));
+}
+
+function watchForUncaught(line) {
+    if (state.phase !== "ready" && state.phase !== "failed") return;
+    if (line.startsWith(TRACEBACK)) {
+        traceback = [line];
+        state.errors.push(line);
+    } else if (traceback) {
+        traceback.push(line);
+        state.errors[state.errors.length - 1] = traceback.join("\n");
+        // Frames are indented; the unindented line is the exception itself.
+        if (!/^\s/.test(line)) {
+            const detail = traceback.join("\n");
+            traceback = null;
+            failAfterStart(detail);
+        }
+    }
+}
+
+addEventListener("error", (event) => {
+    const detail = String(event.error?.stack || event.message);
+    if (state.phase === "ready") state.errors.push(detail);
+    failAfterStart(detail);
+});
+addEventListener("unhandledrejection", (event) => {
+    const detail = String(event.reason?.stack || event.reason);
+    if (state.phase === "ready") state.errors.push(detail);
+    failAfterStart(detail);
+});
 
 function mkdirTree(fs, path) {
     const parts = path.split("/").filter(Boolean);
@@ -135,6 +177,7 @@ async function createRuntime() {
 
 async function boot() {
     state.phase = "loading";
+    traceback = null;
     document.body.dataset.runtimeState = "loading";
     const plan = loaderPlan();
     try {
