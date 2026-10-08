@@ -17,6 +17,8 @@ package's own demos living beside that package.
 - Single-package demos move into their own repositories. This one stays the
   showcase and gallery, and the shared helpers (`tft_config`, `console`,
   `wifi.py` and others) become a package you can install whole or file by file.
+- The examples and the gallery move to their own address on the PyDevices
+  domain, beside the site, the docs, the package index and workbench.
 
 Bugs, and things you need that don't work yet, go to
 [issues](https://github.com/PyDevices/pydevices-examples/issues).
