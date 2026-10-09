@@ -494,7 +494,8 @@ class RokuCompanion:
         Any stream a Roku ``Video`` node plays works (``format`` is its
         ``streamFormat``: "hls", "mp4", "dash"...). For HLS, audio must be
         AAC; LPCM plays silent. A live stream runs about 7-10 s behind with
-        1-second segments and a 3-segment playlist (spikes/roku_hls).
+        1-second segments and a 3-segment playlist (docs/casting.md, "HLS
+        video to a Roku or VLC").
 
         Example::
 
