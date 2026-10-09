@@ -80,10 +80,11 @@ background.
 ## Known limits
 
 - **No flash writes while casting.** A littlefs write erases a block about
-  every two minutes, which parks core 0 and stalls the cast. With castif
-  reading the tap it has crashed the board
-  ([micropython-pydevices#26](https://github.com/PyDevices/micropython-pydevices/issues/26)).
-  The demos log to the console only.
+  every two minutes, which parks core 0 and stalls the cast. An early castif
+  build reading the tap crashed the board this way
+  ([micropython-pydevices#26](https://github.com/PyDevices/micropython-pydevices/issues/26));
+  current firmware ran a 65-minute cast to a TV with a block erased every
+  10 s and didn't crash. The demos log to the console only.
 - **A whole-panel refresh flashes the P4's glass white.** Draw, then refresh
   just the rows you changed (`display_drv.flush_rect`), as the demos do.
 - **Weak Wi-Fi is audible.** At -70 dBm about 0.4 % of packets were lost;
