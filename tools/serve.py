@@ -40,7 +40,7 @@ Pyodide gallery demos install third-party packages via ``?deps=`` on
 from __future__ import annotations
 
 import argparse
-import datetime
+import datetime as dt
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -55,7 +55,7 @@ DEBUG_PREFIX = "/__debug"
 
 
 def _stamp() -> str:
-    now = datetime.datetime.now(datetime.UTC)
+    now = dt.datetime.now(dt.UTC)
     return now.strftime("%H:%M:%S.") + f"{now.microsecond // 1000:03d}"
 
 
