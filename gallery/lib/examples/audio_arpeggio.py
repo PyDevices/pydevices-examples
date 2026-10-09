@@ -70,17 +70,29 @@ if display_drv is not None:
     ]
 
 
+_shown = {}  # bar index -> the colour it was last drawn in
+
+
 def draw(lit):
-    """A bar per arpeggio note, taller for higher notes; the sounding ones lit."""
+    """A bar per arpeggio note, taller for higher notes; the sounding ones lit.
+
+    Only the bars whose colour changed are drawn again. On a big panel a
+    full-screen repaint can take longer than the audio's buffering, and the
+    sound would click while the screen catches up.
+    """
     if display_drv is None:
         return
     w, h = display_drv.width, display_drv.height
-    display_drv.fill(BACKGROUND)
     column = w // len(UP)
+    if not _shown:
+        display_drv.fill(BACKGROUND)
     for i, midi in enumerate(UP):
-        bar = h * (i + 2) // (len(UP) + 2)
         color = LIT[i] if midi in lit else DIM
+        if _shown.get(i) == color:
+            continue
+        bar = h * (i + 2) // (len(UP) + 2)
         display_drv.fill_rect(i * column + column // 6, h - bar, column * 2 // 3, bar, color)
+        _shown[i] = color
     display_drv.show()
 
 
