@@ -4,8 +4,8 @@
 mp3_from_sd.py -- play an MP3 from the microSD card, with a spectrum analyzer.
 
 Mounts the board's card at /sd, plays the first .mp3 it finds through the
-board's audio output, and draws the music's spectrum on the display while it
-plays. It shows one way to put the analyzer in ``spectrum/`` on an app's own
+board's audio output, over and over, and draws the music's spectrum on the
+display while it plays. It shows one way to put the analyzer in ``spectrum/`` on an app's own
 sound: ``analyzer.Spectrum`` is the widget, and ``analyzer.levels_for`` meters
 whatever an audiodev output is playing.
 
@@ -43,7 +43,7 @@ print("playing", songs[0], "-", song.sample_rate, "Hz,", song.channel_count, "ch
 
 # Open the output at the song's own format, so nothing is resampled or remixed.
 out = board_peripherals.audio_out(AudioFormat(song.sample_rate, song.channel_count, 16))
-out.play(song)
+out.play(song, loop=True)  # back to the start when the song ends
 
 meter = Spectrum(board_config.display_drv, levels_for(out))
 # The meter presents just the rows it changed on panels that need presenting,
