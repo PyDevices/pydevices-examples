@@ -196,8 +196,8 @@ class TestPeterHinchPage(unittest.TestCase):
             "mono_test",
             "sharptest",
         }
-        assert _excluded("micro") == {"audio", "bitmap", "date", "qrcode"}
-        assert _excluded("touch") == {"audio", "bitmap", "date", "qrcode"}
+        assert _excluded("micro") == {"audio", "bitmap", "date", "qrcode", "refresh_lock"}
+        assert _excluded("touch") == {"audio", "bitmap", "date", "qrcode", "refresh_lock"}
 
     def test_selected_demo_must_be_discovered_and_supported(self):
         source = _source()
