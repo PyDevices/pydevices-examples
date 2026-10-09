@@ -2,7 +2,7 @@
 """
 Simon — classic memory game for round (and rectangular) displays.
 
-Uses PyDevices ``pygraphics`` (not LVGL) plus ``appdev`` touch. Designed as a
+Draws with ``display_drv.fill_rect`` and the interpreter's own font (not\nLVGL), plus ``appdev`` touch. Designed as a
 light-RAM display/touch driver demo: draws directly to the bus display with no
 full-frame buffer.
 
@@ -24,13 +24,70 @@ app = appdev.App(board_config)
 from random import getrandbits
 
 import appdev
-import pygraphics
 import events
 
 try:
     from multimer import ticks_add, ticks_diff, ticks_ms
 except ImportError:
     from time import ticks_add, ticks_diff, ticks_ms  # type: ignore
+
+
+def _text_fn():
+    """The hub's text drawer, from the lightest font the interpreter has.
+
+    MicroPython's ``framebuf`` and CircuitPython's ``terminalio`` are built
+    in, so a small board doesn't have to import ``pygraphics``, the largest
+    import here (on a XIAO nRF52840 running CircuitPython it doesn't fit
+    beside ``appdev``). Each draws one line into a small buffer and blits it.
+    """
+    try:
+        import framebuf
+
+        def text(s, x, y, color):
+            w = len(s) * 8
+            buf = bytearray(w * 16)
+            fb = framebuf.FrameBuffer(buf, w, 8, framebuf.RGB565)
+            fb.text(s, 0, 0, color)
+            display_drv.blit_rect(buf, x, y, w, 8)
+
+        return text
+    except ImportError:
+        pass
+    try:
+        import terminalio
+
+        font = terminalio.FONT
+        cw, ch = font.get_bounding_box()[:2]
+
+        def text(s, x, y, color):
+            w = len(s) * cw
+            buf = bytearray(w * ch * 2)
+            lo, hi = color & 0xFF, color >> 8  # native order; blit_rect swaps
+            for i, c in enumerate(s):
+                g = font.get_glyph(ord(c))
+                if g is None:
+                    continue
+                bmp, gw, gh, x0 = g.bitmap, g.width, g.height, g.tile_index * g.width
+                for yy in range(min(gh, ch)):
+                    row = (yy * w + i * cw) * 2
+                    for xx in range(min(gw, cw)):
+                        if bmp[x0 + xx, yy]:
+                            buf[row + 2 * xx] = lo
+                            buf[row + 2 * xx + 1] = hi
+            display_drv.blit_rect(buf, x, y, w, ch)
+
+        return text
+    except ImportError:
+        pass
+    import pygraphics
+
+    def text(s, x, y, color):
+        pygraphics.text(display_drv, s, x, y, color)
+
+    return text
+
+
+_text = _text_fn()
 
 # RGB565 — match other busdisplay examples (driver handles byte order).
 BLACK = 0x0000
@@ -123,9 +180,9 @@ def _hub_text(msg, sub=""):
     x = CX - HUB_TEXT_W // 2
     # Clear glyph rows then draw — spaces alone may not erase prior pixels.
     display_drv.fill_rect(x, HUB_Y0, HUB_TEXT_W, 8, BLACK)
-    pygraphics.text(display_drv, line0, x, HUB_Y0, WHITE)
+    _text(line0, x, HUB_Y0, WHITE)
     display_drv.fill_rect(x, HUB_Y1, HUB_TEXT_W, 8, BLACK)
-    pygraphics.text(display_drv, line1, x, HUB_Y1, GREY)
+    _text(line1, x, HUB_Y1, GREY)
 
 
 def _hub(msg, sub=""):
