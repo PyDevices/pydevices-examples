@@ -33,11 +33,20 @@ STALE_MS = 150
 
 
 def available():
+    """True on a board where usbif's sound card can feed the meter.
+
+    A desktop MicroPython build carries ``_usbif`` too, with no sound card
+    behind it, so importing it isn't enough: the audio pump also has to own a
+    real I2S peripheral. Without that the meter would wait on a sound card
+    that never plays, and the bars would never move.
+    """
     try:
         import _usbif  # noqa: F401
+
+        from audiodev import pump
     except ImportError:
         return False
-    return True
+    return pump.on_board()
 
 
 class PumpLevels:

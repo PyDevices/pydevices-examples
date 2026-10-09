@@ -173,6 +173,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/micro_gui_simpletest.py"
     ],
     [
+      "mp3_from_sd.py",
+      "github:PyDevices/pydevices-examples/lib/examples/mp3_from_sd.py"
+    ],
+    [
       "nano_gui_simpletest.py",
       "github:PyDevices/pydevices-examples/lib/examples/nano_gui_simpletest.py"
     ],
@@ -719,6 +723,10 @@
     [
       "spectrum/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/spectrum/__init__.py"
+    ],
+    [
+      "spectrum/analyzer.py",
+      "github:PyDevices/pydevices-examples/lib/examples/spectrum/analyzer.py"
     ],
     [
       "spectrum/capture.py",
