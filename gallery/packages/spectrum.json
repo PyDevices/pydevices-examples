@@ -5,6 +5,10 @@
       "../lib/examples/spectrum/__init__.py"
     ],
     [
+      "spectrum/analyzer.py",
+      "../lib/examples/spectrum/analyzer.py"
+    ],
+    [
       "spectrum/capture.py",
       "../lib/examples/spectrum/capture.py"
     ],
