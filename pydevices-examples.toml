@@ -113,6 +113,7 @@
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/joystick_list_select.py" = "/examples/joystick_list_select.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/keypins_simpletest.py" = "/examples/keypins_simpletest.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/logo.py" = "/examples/logo.py"
+"https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/lv_dynamic_fonts.py" = "/examples/lv_dynamic_fonts.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/lv_gestures.py" = "/examples/lv_gestures.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/lv_interactive_test.py" = "/examples/lv_interactive_test.py"
 "https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/lib/examples/lv_multi_display.py" = "/examples/lv_multi_display.py"
