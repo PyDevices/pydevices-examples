@@ -9,8 +9,9 @@ rate (displaydev's measure_fps: show_fps, show_frames, show_ms_mean,
 show_ms_max, show_busy), and it reports again every SECONDS after that until
 the example ends or is stopped.
 
-On a board, set CFG, EXAMPLE and SECONDS below and run it with mpftp; the
-line also goes to /cast.txt, written once, after the first report.
+On a board, set CFG, EXAMPLE and SECONDS below and run it with mpftp. There
+the run ends after the first report: the line goes to /cast.txt and the board
+soft-resets, so its REPL answers again.
 
 Any runtime: python, python.exe, micropython, micropython.exe, a board.
 """
@@ -51,6 +52,13 @@ def now():
 
 
 _reports = [0]
+# On a board: True once the example's script body has returned and this runner
+# holds the main thread, so the report and the soft reset happen out here.
+_held = [False]
+
+
+class _RunOver(BaseException):
+    """Raised from show() to end a board run whose example loops in its own body."""
 
 
 def report():
@@ -92,11 +100,6 @@ def report():
     if board and _reports[0] == 1:
         with open("/cast.txt", "w") as f:
             f.write(line + "\n")
-        # the example, the frame server and this thread would all keep running;
-        # a soft reset ends every thread, so the board answers its REPL again
-        import machine
-
-        machine.soft_reset()
 
 
 def measure_shows():
@@ -116,19 +119,28 @@ def report_loop():
         report()
 
 
+_due = [0]
+
+
 def report_from_show():
-    """No threads (micropython.exe): report from inside the display's show()."""
+    """No threads (micropython.exe, a board): report from inside the display's show()."""
     import board_config
 
     d = board_config.display_drv
     show = d.show
-    due = [now() + seconds]
 
     def timed_show(*args, **kwargs):
         r = show(*args, **kwargs)
-        if now() >= due[0]:
-            due[0] += seconds
+        if not _held[0] and now() >= _due[0]:
+            _due[0] += seconds
             report()
+            if board:
+                # Only an example still in its own loop gets here on a board.
+                # Raised into that loop, this unwinds it to the runner. Raised
+                # from a timer or an LVGL flush, it is printed and dropped, as
+                # anything raised in a callback is, which is why the soft reset
+                # happens below and never in here.
+                raise _RunOver
         return r
 
     d.show = timed_show
@@ -165,6 +177,7 @@ if cfg == "roku":
 
     roku_companion.ROKU_IP = target
 measure_shows()
+_due[0] = now() + seconds
 if board:
     # an LVGL app holds a board's interpreter and starves a reporting thread
     report_from_show()
@@ -180,4 +193,22 @@ else:
             _thread.start_new_thread(report_loop, ())
         except ImportError:  # micropython.exe
             report_from_show()
-__import__(example)
+try:
+    __import__(example)
+except _RunOver:
+    pass  # the example looped in its own body; show() reported and unwound it
+else:
+    if board:
+        # The example built its app and returned; the app's timers run it from
+        # here. Wait out the run at the top level, then report.
+        _held[0] = True
+        while now() < _due[0]:
+            time.sleep(0.05)
+        report()
+if board:
+    # The example's timers, the frame server and the cast task would all keep
+    # running. A soft reset ends them, and it can only take effect out here:
+    # raised inside a timer or a display callback it is printed and dropped.
+    import machine
+
+    machine.soft_reset()
