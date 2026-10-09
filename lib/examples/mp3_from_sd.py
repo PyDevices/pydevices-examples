@@ -9,9 +9,10 @@ display while it plays. It shows one way to put the analyzer in ``spectrum/`` on
 sound: ``analyzer.Spectrum`` is the widget, and ``analyzer.levels_for`` meters
 whatever an audiodev output is playing.
 
-It needs a board with a display, a microSD slot (``board_peripherals.sdcard``)
-and audio, on a firmware with audiodsp (for ``audiomp3``, the audio pump and
-the meter). First played on a Waveshare ESP32-P4-WIFI6-DEV-KIT with a 5" DSI
+It needs a microSD slot (``board_peripherals.sdcard``) and audio, on a
+firmware with audiodsp (for ``audiomp3``, the audio pump and the meter). On a
+board with no display (no board_config.py, only board_peripherals.py) it just
+plays the song, and so it does where the output can't be metered. First played on a Waveshare ESP32-P4-WIFI6-DEV-KIT with a 5" DSI
 display: a 44.1 kHz stereo track, the meter at about 50 frames a second.
 """
 
@@ -24,9 +25,12 @@ if _here + "/spectrum" not in sys.path:
 
 import appdev  # noqa: E402
 import audiomp3  # noqa: E402
-import board_config  # noqa: E402
+
+try:
+    import board_config
+except ImportError:  # a headless board: board_peripherals.py only
+    board_config = None
 import board_peripherals  # noqa: E402
-from analyzer import Spectrum, levels_for  # noqa: E402
 from audiodev import AudioFormat  # noqa: E402
 
 MOUNT = "/sd"
@@ -45,10 +49,20 @@ print("playing", songs[0], "-", song.sample_rate, "Hz,", song.channel_count, "ch
 out = board_peripherals.audio_out(AudioFormat(song.sample_rate, song.channel_count, 16))
 out.play(song, loop=True)  # back to the start when the song ends
 
-meter = Spectrum(board_config.display_drv, levels_for(out))
+meter = None
+display_drv = getattr(board_config, "display_drv", None)
+if display_drv is not None and getattr(out, "pumped", False):
+    from analyzer import Spectrum, levels_for
+
+    meter = Spectrum(display_drv, levels_for(out))
+elif display_drv is not None:
+    print("no spectrum: this output isn't playing through the audio pump")
+
 # The meter presents just the rows it changed on panels that need presenting,
 # so the app's whole-frame refresh is turned off there.
-app = appdev.App(board_config, refresh_period=0 if meter.present_rows else None)
-out.attach(app)
-meter.start(app)
+app = appdev.App(board_config, refresh_period=0 if meter and meter.present_rows else None)
+if hasattr(out, "attach"):  # CircuitPython's I2SOut runs on its own
+    out.attach(app)
+if meter is not None:
+    meter.start(app)
 app.run()
