@@ -159,8 +159,13 @@ class RackKnob:
         self.strip = bytearray(self.w * ROW_H * 2)
         self.fb = FrameBuffer(self.strip, self.w, ROW_H, RGB565)
         display_drv.fill_rect(0, 0, self.w, self.h, BG)
+        # The rows follow the chain that is actually playing: a patch change
+        # returns at once and this is called when the new chain is swapped in.
+        self.live.on_change = lambda _live: self._bind()
         self.live.play(PATCHES[self.patch][1])
-        self._bind()
+        # Every pedalboard on offer is built in the background and kept, so
+        # after the first few seconds a patch change is a swap, not a build.
+        self.live.prefetch([chain for _name, chain in PATCHES])
         app.on(app.events.MOUSEWHEEL, self._on_wheel)
         app.on(app.events.MOUSEBUTTONDOWN, self._on_button)
         # The numbers ride a timer, so they cost the audio nothing and stop
@@ -225,7 +230,9 @@ class RackKnob:
         if self.rows[self.sel] is None:
             self.patch = (self.patch + steps) % len(PATCHES)
             self.live.play(PATCHES[self.patch][1])
-            self._bind()
+            # The PATCH row shows the name straight away; the macro rows
+            # follow when the new chain arrives (on_change).
+            self._draw_row(0)
             return
         index, macro = self.rows[self.sel]
         value = int(self.live.knob(index, macro)) + steps * STEP

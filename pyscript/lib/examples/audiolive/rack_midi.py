@@ -110,7 +110,13 @@ class MidiRack:
         self.live = audiolive.LiveAudio(volume=audiolive.VOLUME)
         self.patch = patch
         # An instrument rather than the looped riff: this one is played.
+        self.live.on_change = lambda live: print(
+            "patch:", PATCHES[self.patch][0],
+            [type(f).NAME for f in live.effects])
         self.live.play(PATCHES[patch][1], source=INSTRUMENT)
+        # Every pedalboard on offer is built in the background and kept, so
+        # after the first few seconds a patch change is a swap, not a build.
+        self.live.prefetch([chain for _name, chain in PATCHES])
         self.synth = self.live.synth
         self.parser = usbif.MidiParser()
         self.counts = {}
@@ -121,12 +127,11 @@ class MidiRack:
         if index == self.patch:
             return
         self.patch = index
-        # The new pedals are built while the old ones are still playing, and
-        # the pump is pointed at the finished chain in one locked move. The
-        # instrument underneath is untouched, so a held note carries through.
+        # The new pedals are built on a thread of their own while the old
+        # ones are still playing, and swapped in with a short fade when they
+        # are ready; on_change prints them then. The instrument underneath is
+        # untouched, so a held note carries through.
         self.live.play(PATCHES[index][1])
-        print("patch:", PATCHES[index][0],
-              [type(f).NAME for f in self.live.effects])
 
     def control_change(self, controller, value):
         where = CC_MAP.get(controller)
