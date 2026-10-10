@@ -12,8 +12,8 @@ take over as the hub later.
 
 ## Run it on a board
 
-The board needs MicroPython with Wi-Fi, a `secrets.py` and pydevices'
-`wifi.py` in `/lib` ([board bring-up](https://github.com/PyDevices/pydevices/blob/main/docs/board-bringup.md)),
+The board needs MicroPython with Wi-Fi, a `secrets.py`, and pydevices'
+`wifi.py`: frozen into the firmware, or copied to `/lib` when it isn't ([board bring-up](https://github.com/PyDevices/pydevices/blob/main/docs/board-bringup.md)),
 and for the Bluetooth door, `bledev` and `aioble` (`mpftp mip -d COM5 aioble`).
 
 ```bash
