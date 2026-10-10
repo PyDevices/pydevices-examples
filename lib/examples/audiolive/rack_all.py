@@ -152,6 +152,9 @@ class AllAtOnce:
         audiolive.DMA_DESC = audiolive.DMA_DESC_GUI
         self.live = audiolive.LiveAudio(volume=audiolive.VOLUME)
         self.patch = 0
+        self.live.on_change = lambda live: print(
+            "patch:", PATCHES[self.patch][0],
+            [type(f).NAME for f in live.effects])
         self.midi_count = 0
         self.synth = None
         self.parser = None
@@ -170,6 +173,9 @@ class AllAtOnce:
         # of ONE I2S channel pair on this board, so they share a clock tree
         # and cannot drift apart.
         self.live.play(PATCHES[0][1], source="input")
+        # Every pedalboard on offer is built in the background and kept, so
+        # after the first few seconds a patch change is a swap, not a build.
+        self.live.prefetch([chain for _name, chain in PATCHES])
         self._build_screen()
         self._start_midi()
 
@@ -339,9 +345,9 @@ class AllAtOnce:
         self.patch = index
         for i, btn in enumerate(self.buttons):
             btn.set_style_bg_color(ACCENT if i == index else PANEL, 0)
+        # Returns at once; the new chain is built off this thread and
+        # announced by on_change when it is playing.
         self.live.play(PATCHES[index][1])
-        print("patch:", PATCHES[index][0],
-              [type(f).NAME for f in self.live.effects])
 
     def _set_source(self, with_synth):
         """Re-make the source: microphone or riff, plus the instrument."""

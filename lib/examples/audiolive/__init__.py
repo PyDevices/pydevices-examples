@@ -232,6 +232,43 @@ PEAK = 8200                      # about -12 dBFS
 # care which firmware it is running on.
 LOCKED = hasattr(audiopump, "lock_stats")
 
+# Firmware whose pump can fade a swap: the old chain's last block fades out
+# and the new chain's first fades in, so a patch change is a 10 ms dip rather
+# than a seam, and a new chain whose first block is slow lands in that dip
+# instead of cutting the speaker off. Older firmware swaps as it always did.
+FADE = audiopump is not None and hasattr(audiopump, "fades")
+
+# A patch change builds a whole Rack: tens of effect nodes, delay lines, a
+# cabinet's impulse. On the P4 that is a couple of hundred milliseconds, and
+# built where the app's loop runs it is a couple of hundred milliseconds of a
+# frozen screen after every tap. So where there are threads it is built on
+# one of its own, while the old chain plays and the screen keeps drawing, and
+# handed back to the app's thread with `micropython.schedule` to be swapped
+# in. Set this False to build in place, as a port with no threads always does.
+try:
+    import _thread
+    import micropython
+    BUILD_OFF_THREAD = hasattr(micropython, "schedule")
+except ImportError:
+    _thread = None
+    BUILD_OFF_THREAD = False
+
+#: Keep every chain once it has been built, so choosing it again is a swap
+#: rather than a build. A kept chain is reset before it plays again, so it
+#: starts clean -- no echo left over from the last time -- but its knobs are
+#: where you left them. It costs a chain's memory per patch: on the P4 that is
+#: nothing to speak of; set it False on a board that is short of RAM.
+KEEP_CHAINS = True
+
+#: The builder thread's stack. Building a Rack goes a few classes deep, and a
+#: port's default thread stack is sized for much less.
+BUILDER_STACK = 32 * 1024
+
+
+def _key(chain):
+    """A chain as something a dict can key on: options are dicts."""
+    return repr(tuple(chain))
+
 
 def _play_voice(mixer, sample, voice, loop):
     """`mixer.play()` as a positional call, so `_safely` can wrap it."""
@@ -341,6 +378,23 @@ class LiveAudio:
         self._starved_peak = 0
         self._retired = None
         self._rack = None
+        #: Called with this object whenever a new chain has been swapped in --
+        #: after play() on a port that builds in place, and later, when the
+        #: build finishes, on one that builds on a thread. `effects` and
+        #: `labels()` describe the new chain from that call on, so it is where
+        #: an app redraws its controls.
+        self.on_change = None
+        # The off-thread build: the newest chain asked for, the generation it
+        # belongs to, whether a builder is running, and what it finished.
+        self._gen = 0
+        self._want = None
+        self._ready = None
+        self._building = False
+        self._lock = _thread.allocate_lock() if _thread is not None else None
+        # Chains already built, by `_key(chain)`, for the source they were
+        # built on; and chains to build ahead, when nothing is asked for.
+        self._kept = {}
+        self._ahead = []
         # True from the moment a pump exists until we tear it down. The pump
         # can stop by itself - a fault takes it out of its loop - and then
         # `audiopump.running()` is False while the task is still registered,
@@ -540,6 +594,8 @@ class LiveAudio:
         self._voices = len(names)
         self.source_name = what
         self._source = mixer
+        # Every kept chain was built on the Mixer this one replaces.
+        self._forget()
         if self.effects or audiopump.running():
             self._rebuild()
         return what
@@ -560,11 +616,18 @@ class LiveAudio:
 
     # --- the chain --------------------------------------------------------
 
-    def play(self, chain=("Overdrive",), source="riff"):
+    def play(self, chain=("Overdrive",), source="riff", wait=None):
         """Build a chain of effects and start (or re-point) the pump.
 
         ``chain`` is what audioeffects.Rack takes: effect names, or
         ``(name, options)`` pairs. An empty chain is a wire.
+
+        While audio is already playing this returns at once: the new chain is
+        built on a thread of its own while the old one keeps playing, and is
+        swapped in when it is ready -- `on_change` says when, and `pending`
+        is True until then. ``wait=True`` builds it here instead, before
+        returning, which is what the first play() and a port with no threads
+        always do.
         """
         if isinstance(chain, str):
             chain = (chain,)
@@ -575,8 +638,105 @@ class LiveAudio:
         self.recover()
         if self._source is None:
             self.source(source)
-        self._rebuild()
+        kept = self._take(self.chain)
+        if kept is not None:
+            # Built before: a reset and a swap, here and now.
+            self._gen += 1
+            kept.reset()
+            self._install(kept)
+            return self.chain
+        if wait is None:
+            wait = not (BUILD_OFF_THREAD and audiopump.running())
+        if wait:
+            self._rebuild()
+        else:
+            self._request()
         return self.chain
+
+    def prefetch(self, chains):
+        """Build these chains ahead, on the builder thread, and keep them.
+
+        Call it once the app is up with every patch it offers, and a patch
+        change becomes a swap instead of a build: no frozen screen and no wait
+        for the new sound. A chain asked for with play() is always built first.
+        Does nothing where chains are not kept or there are no threads.
+        """
+        if not (KEEP_CHAINS and BUILD_OFF_THREAD):
+            return
+        with self._lock:
+            for chain in chains:
+                key = _key(chain)
+                if key not in self._kept and \
+                        all(_key(c) != key for c in self._ahead):
+                    self._ahead.append(tuple(chain))
+            start = not self._building and bool(self._ahead)
+            self._building = self._building or start
+        if start:
+            self._start_builder()
+
+    def _take(self, chain):
+        """A kept chain for this source, out of the cache, or None."""
+        if not KEEP_CHAINS:
+            return None
+        lock = self._lock
+        if lock is not None:
+            lock.acquire()
+        try:
+            entry = self._kept.pop(_key(chain), None)
+        finally:
+            if lock is not None:
+                lock.release()
+        if entry is None:
+            return None
+        source, rack = entry
+        if source is not self._source:
+            rack.deinit()
+            return None
+        return rack
+
+    def _keep(self, rack, chain, source):
+        """Keep a chain that has stopped playing, or release it."""
+        if rack is None:
+            return
+        if not KEEP_CHAINS or source is not self._source:
+            rack.deinit()
+            return
+        key = _key(chain)
+        lock = self._lock
+        if lock is not None:
+            lock.acquire()
+        try:
+            old = self._kept.get(key)
+            self._kept[key] = (source, rack)
+        finally:
+            if lock is not None:
+                lock.release()
+        if old is not None and old[1] is not rack:
+            old[1].deinit()
+
+    def _forget(self):
+        """Release every kept chain: the source they were built on is gone."""
+        kept, self._kept = self._kept, {}
+        self._ahead = []
+        for _source, rack in kept.values():
+            try:
+                rack.deinit()
+            except Exception as exc:
+                print("kept rack deinit:", exc)
+
+    @property
+    def pending(self):
+        """True while a chain asked for has not been swapped in yet."""
+        return self._want is not None or self._ready is not None
+
+    def wait(self, timeout_ms=5000):
+        """Block until the chain asked for is playing. True if it is."""
+        import time
+        end = time.ticks_add(time.ticks_ms(), timeout_ms)
+        while self.pending and time.ticks_diff(end, time.ticks_ms()) > 0:
+            # A sleep lets the scheduled handover run on this thread.
+            time.sleep_ms(1)
+        return not self.pending
 
     def died(self):
         """The reason the audio stopped by itself, or None if it is fine.
@@ -608,6 +768,8 @@ class LiveAudio:
         if why is None:
             return None
         print("audiolive: the audio stopped -", why, "- restarting")
+        self._gen += 1
+        self._forget()
         audiopump.shutdown()
         self._spawned = False
         self._tail = None
@@ -634,7 +796,124 @@ class LiveAudio:
         return why
 
     def _rebuild(self):
-        """Build the new graph, then point the pump at it in one move."""
+        """Build the new graph here, then point the pump at it in one move."""
+        # Anything a builder thread is still making is stale from now on.
+        self._gen += 1
+        # Built BEFORE the swap, not during it. Constructing an effect is tens
+        # of milliseconds - far longer than the DMA cushion - so it must not
+        # happen while the audio is held. The lock covers only the swap, which
+        # is a microsecond.
+        rack = audioeffects.create("Rack", self._source, self.rate,
+                                   chain=self.chain)
+        self._install(rack)
+        gc.collect()
+
+    # --- the off-thread build ---------------------------------------------
+    #
+    # One builder at a time, and the newest request wins: tap three patches
+    # in a row and the middle one is never built to completion, let alone
+    # heard. The builder takes what was asked for, builds it, and only hands
+    # it over if nothing newer was asked for in the meantime; otherwise it
+    # releases what it made and builds the newer one. The handover is
+    # `micropython.schedule`, so the swap and `on_change` run where the app's
+    # own code runs, between its bytecodes, and never in the middle of it.
+
+    def _request(self):
+        with self._lock:
+            self._gen += 1
+            self._want = (self._gen, self._source, self.chain)
+            start = not self._building
+            self._building = True
+        if start:
+            self._start_builder()
+
+    def _start_builder(self):
+        if BUILDER_STACK and hasattr(_thread, "stack_size"):
+            try:
+                _thread.stack_size(BUILDER_STACK)
+            except (ValueError, OSError):
+                pass
+        _thread.start_new_thread(self._build_loop, ())
+
+    def _build_loop(self):
+        # One thread, for as long as there is something to build: what play()
+        # asked for first, then the chains prefetch() queued, one at a time.
+        while True:
+            with self._lock:
+                want = self._want
+                ahead = None
+                if want is None:
+                    if not self._ahead:
+                        self._building = False
+                        return
+                    ahead = self._ahead.pop(0)
+            if ahead is not None:
+                # Ahead of time: build it and keep it, unless it was kept in
+                # the meantime.
+                source = self._source
+                try:
+                    rack = audioeffects.create("Rack", source, self.rate,
+                                               chain=ahead)
+                except Exception as exc:
+                    print("audiolive: prefetch of", ahead, "failed:", exc)
+                    continue
+                with self._lock:
+                    taken = _key(ahead) in self._kept
+                    if not taken:
+                        self._kept[_key(ahead)] = (source, rack)
+                if taken:
+                    rack.deinit()
+                continue
+            gen, source, chain = want
+            try:
+                rack = audioeffects.create("Rack", source, self.rate,
+                                           chain=chain)
+                err = None
+            except Exception as exc:  # reported at the handover, not here
+                rack, err = None, exc
+            with self._lock:
+                handed = self._want is want
+                if handed:
+                    self._want = None
+                    self._ready = (gen, rack, err)
+            if handed:
+                self._schedule_adopt()
+            elif rack is not None:
+                # Something newer was asked for while this was being built.
+                rack.deinit()
+
+    def _schedule_adopt(self):
+        while True:
+            try:
+                micropython.schedule(self._adopt, None)
+                return
+            except RuntimeError:
+                # The scheduler's queue is full; it drains between bytecodes.
+                import time
+                time.sleep_ms(1)
+
+    def _adopt(self, _arg=None):
+        ready, self._ready = self._ready, None
+        if ready is None:
+            return
+        gen, rack, err = ready
+        if gen != self._gen:
+            # stop(), recover() or a build in place has moved on since.
+            if rack is not None:
+                rack.deinit()
+            return
+        if err is not None:
+            print("audiolive: the new chain did not build:", err)
+            return
+        try:
+            self._install(rack)
+        except Exception as exc:
+            # A scheduled callback that raises lands in whatever the app was
+            # doing; say it here instead.
+            print("audiolive: the new chain could not be swapped in:", exc)
+
+    def _install(self, rack):
+        """Point the pump at a built Rack, and let the old one go."""
         # Last swap's chain, released now that many blocks have gone by on
         # the new one. Releasing it *immediately* after the retarget is what
         # a first reading of the lock says you may do -- retarget swaps the
@@ -643,7 +922,9 @@ class LiveAudio:
         # the audio at the first patch change with fault=deinited. Stepped
         # through by hand with a few hundred milliseconds between the two it
         # never fails, so it is a race and not a rule. One generation of lag
-        # costs one spare chain of memory and closes it.
+        # costs one spare chain of memory and closes it. A fading retarget
+        # that returns True is the exception: it has seen the pump stop
+        # pulling the old chain, so that one can go at once.
         retired = getattr(self, "_retired", None)
         if retired is not None:
             try:
@@ -652,23 +933,33 @@ class LiveAudio:
                 print("retired rack deinit:", exc)
             self._retired = None
         old_rack = getattr(self, "_rack", None)
-        # Built BEFORE the swap, not during it. Constructing an effect is tens
-        # of milliseconds - far longer than the DMA cushion - so it must not
-        # happen while the audio is held. The lock covers only the swap, which
-        # is a microsecond.
-        rack = audioeffects.create("Rack", self._source, self.rate,
-                                   chain=self.chain)
+        old_chain = getattr(self, "_rack_chain", None)
+        old_source = getattr(self, "_rack_source", None)
         self._rack = rack
+        self._rack_chain = self.chain
+        self._rack_source = self._source
         self.effects = list(rack.effects)
         tail = self._source if self._bypassed else rack.output
         self._tail = tail
         if audiopump.running():
-            # retarget() swaps the pump's target under the lock. The pump
-            # finishes the block it is in and the next one comes from the new
-            # graph; nothing is ever pulled half-rewired.
-            _safely(audiopump.retarget, tail)
-            # Not deinited here; retired until the next swap. See above.
-            self._retired = old_rack
+            if FADE:
+                released = audiopump.retarget(tail, fade=True)
+            else:
+                # retarget() swaps the pump's target under the lock. The pump
+                # finishes the block it is in and the next one comes from the
+                # new graph; nothing is ever pulled half-rewired.
+                _safely(audiopump.retarget, tail)
+                released = False
+            if old_rack is not None and old_rack is not rack:
+                if KEEP_CHAINS and old_source is self._source:
+                    # Kept, and a kept chain is never released while the
+                    # pump might still be pulling it.
+                    self._keep(old_rack, old_chain, old_source)
+                elif released:
+                    # A fading swap saw the pump let go of it.
+                    old_rack.deinit()
+                else:
+                    self._retired = old_rack
         else:
             gc.collect()
             self._dma_at_start = self._dma()
@@ -683,7 +974,9 @@ class LiveAudio:
                 audiopump.spawn(tail, BLOCKS_FOREVER, self._status,
                                 ring=self._ring, timeout_ms=500)
             self._spawned = True
-        gc.collect()
+        callback = self.on_change
+        if callback is not None:
+            callback(self)
 
     def bypass(self, on=True):
         """Take the whole chain out of circuit, or put it back.
@@ -825,6 +1118,8 @@ class LiveAudio:
         finaliser, and a soft reset runs finalisers on everything - so
         Ctrl-D or a fresh `mpftp run` always leaves the board quiet.
         """
+        self._gen += 1
+        self._forget()
         audiopump.shutdown()
         self._spawned = False
         power = getattr(self._bp, "audio_power", None) if self._bp else None

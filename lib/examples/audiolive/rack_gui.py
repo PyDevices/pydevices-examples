@@ -106,11 +106,16 @@ class RackGUI:
         self.live = audiolive.LiveAudio(volume=audiolive.VOLUME)
         self.patch = 0
         self.slot = 0                     # which effect in the chain has focus
-        self.sliders = []
-        self.slider_labels = []
+        self.rows = []                    # (row, caption, slider, readout)
         self._build_screen()
+        # The sliders follow the chain that is actually playing. A patch
+        # change returns at once and the new chain is swapped in when it has
+        # been built, off this thread; this is called then.
+        self.live.on_change = _guarded(self._on_new_chain)
         self.live.play(PATCHES[self.patch][1])
-        self._bind_sliders()
+        # Every pedalboard on offer is built in the background and kept, so
+        # after the first few seconds a patch change is a swap, not a build.
+        self.live.prefetch([chain for _name, chain in PATCHES])
         # The readout rides an LVGL timer, so it costs the audio nothing and
         # stops by itself when the screen goes away.
         self.timer = lv.timer_create(_guarded(self._on_tick), 500, None)
@@ -217,67 +222,85 @@ class RackGUI:
     # --- sliders follow whichever effect has focus ------------------------
 
     def _bind_sliders(self):
-        """Throw the old sliders away and make one per macro of this effect."""
-        self.slot_row.clean()
-        self.slot_buttons = []
-        for i, fx in enumerate(self.live.effects):
+        """Point the effect buttons and the sliders at the current chain.
+
+        The widgets are made once and kept: a patch change only renames them,
+        moves them and hides the ones the new chain does not need. Throwing
+        them away and making new ones was most of a patch change on the P4 --
+        up to 370 ms of LVGL on the app's thread, where the swap itself is
+        a few milliseconds.
+        """
+        effects = self.live.effects
+        while len(self.slot_buttons) < len(effects):
+            i = len(self.slot_buttons)
             btn = lv.button(self.slot_row)
             btn.set_size(lv.pct(40), lv.pct(100))
-            btn.set_style_bg_color(ACCENT if i == self.slot else DIM, 0)
             lab = lv.label(btn)
-            lab.set_text(type(fx).NAME.upper())
             lab.center()
             btn.add_event_cb(_guarded(self._make_slot_cb(i)),
                              lv.EVENT.CLICKED, None)
-            self.slot_buttons.append(btn)
+            self.slot_buttons.append((btn, lab))
+        for i, (btn, lab) in enumerate(self.slot_buttons):
+            if i < len(effects):
+                btn.remove_flag(lv.obj.FLAG.HIDDEN)
+                btn.set_style_bg_color(ACCENT if i == self.slot else DIM, 0)
+                lab.set_text(type(effects[i]).NAME.upper())
+            else:
+                btn.add_flag(lv.obj.FLAG.HIDDEN)
 
-        self.panel.clean()
-        self.sliders = []
-        self.slider_labels = []
-        labels = self.live.labels(self.slot)
-        for index, name in enumerate(labels[:MAX_SLIDERS]):
-            row = lv.obj(self.panel)
-            row.set_size(lv.pct(100), lv.pct(100 // min(len(labels),
-                                                        MAX_SLIDERS)) - 2)
-            self._flat(row)
-            row.set_flex_flow(lv.FLEX_FLOW.ROW)
-            row.set_flex_align(lv.FLEX_ALIGN.START, lv.FLEX_ALIGN.CENTER,
-                               lv.FLEX_ALIGN.CENTER)
-            row.set_style_pad_column(12, 0)
+        labels = self.live.labels(self.slot)[:MAX_SLIDERS]
+        while len(self.rows) < len(labels):
+            self.rows.append(self._make_row(len(self.rows)))
+        height = lv.pct(100 // max(1, len(labels)) - 2)
+        for index, (row, caption, slider, readout) in enumerate(self.rows):
+            if index >= len(labels):
+                row.add_flag(lv.obj.FLAG.HIDDEN)
+                continue
+            row.remove_flag(lv.obj.FLAG.HIDDEN)
+            row.set_height(height)
+            caption.set_text(labels[index])
+            value = int(self.live.knob(self.slot, index))
+            slider.set_value(value, 0)
+            readout.set_text("%d" % value)
 
-            caption = lv.label(row)
-            caption.set_text(name)
-            caption.set_style_text_color(FG, 0)
-            caption.set_width(lv.pct(28))
+    def _make_row(self, index):
+        row = lv.obj(self.panel)
+        row.set_width(lv.pct(100))
+        self._flat(row)
+        row.set_flex_flow(lv.FLEX_FLOW.ROW)
+        row.set_flex_align(lv.FLEX_ALIGN.START, lv.FLEX_ALIGN.CENTER,
+                           lv.FLEX_ALIGN.CENTER)
+        row.set_style_pad_column(12, 0)
 
-            slider = lv.slider(row)
-            slider.set_flex_grow(1)
-            slider.set_range(0, 127)
-            slider.set_value(int(self.live.knob(self.slot, index)), 0)
-            slider.set_style_bg_color(DIM, lv.PART.MAIN)
-            slider.set_style_bg_color(ACCENT, lv.PART.INDICATOR)
-            slider.set_style_bg_color(FG, lv.PART.KNOB)
-            # The macro moves on every drag event. No park, no queue, no
-            # handshake: audiodsp's control paths take the pump's lock around
-            # their own swap, so the pull either sees the old value or the
-            # new one and never something in between.
-            slider.add_event_cb(_guarded(self._make_knob_cb(index)),
-                                lv.EVENT.VALUE_CHANGED, None)
+        caption = lv.label(row)
+        caption.set_style_text_color(FG, 0)
+        caption.set_width(lv.pct(28))
 
-            readout = lv.label(row)
-            readout.set_text("%d" % slider.get_value())
-            readout.set_style_text_color(DIM, 0)
+        slider = lv.slider(row)
+        slider.set_flex_grow(1)
+        slider.set_range(0, 127)
+        slider.set_style_bg_color(DIM, lv.PART.MAIN)
+        slider.set_style_bg_color(ACCENT, lv.PART.INDICATOR)
+        slider.set_style_bg_color(FG, lv.PART.KNOB)
+        # The macro moves on every drag event. No park, no queue, no
+        # handshake: audiodsp's control paths take the pump's lock around
+        # their own swap, so the pull either sees the old value or the new
+        # one and never something in between.
+        slider.add_event_cb(_guarded(self._make_knob_cb(index)),
+                            lv.EVENT.VALUE_CHANGED, None)
 
-            self.sliders.append(slider)
-            self.slider_labels.append(readout)
+        readout = lv.label(row)
+        readout.set_style_text_color(DIM, 0)
+        return row, caption, slider, readout
 
     # --- what the controls do ---------------------------------------------
 
     def _make_knob_cb(self, index):
         def cb(_e):
-            value = self.sliders[index].get_value()
+            _row, _caption, slider, readout = self.rows[index]
+            value = slider.get_value()
             self.live.knob(self.slot, index, value)
-            self.slider_labels[index].set_text("%d" % value)
+            readout.set_text("%d" % value)
 
         return cb
 
@@ -296,18 +319,20 @@ class RackGUI:
                     btn.add_state(lv.STATE.CHECKED)
                 else:
                     btn.remove_state(lv.STATE.CHECKED)
-            # play() builds the new chain first and only then points the pump
-            # at it, with retarget(). The build is tens of milliseconds and
-            # happens with the audio still running off the old chain; the
-            # swap itself is a microsecond. What you hear is one small lump
-            # where the new effects reset their buffers, not a gap.
+            # play() returns at once. The new chain is built on a thread of
+            # its own while the old one plays and the screen keeps drawing,
+            # and then swapped in with a short fade; _on_new_chain() redraws
+            # the sliders for it when it arrives.
             self.slot = 0
             self.live.play(PATCHES[index][1])
-            self._bind_sliders()
-            if self.bypass_btn.has_state(lv.STATE.CHECKED):
-                self.live.bypass(True)
 
         return cb
+
+    def _on_new_chain(self, _live):
+        self.slot = 0
+        self._bind_sliders()
+        if self.bypass_btn.has_state(lv.STATE.CHECKED):
+            self.live.bypass(True)
 
     def _on_bypass(self, _e):
         self.live.bypass(self.bypass_btn.has_state(lv.STATE.CHECKED))
