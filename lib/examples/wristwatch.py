@@ -616,12 +616,14 @@ def _on_crown(e):
 
 
 _crown_catcher.add_event_cb(_on_crown, lv.EVENT.KEY, None)
-_next_indev = getattr(lv, "indev_get_next", None)
-_indev = _next_indev(None) if _next_indev else None
-while _indev is not None:
-    if _indev.get_type() == lv.INDEV_TYPE.KEYPAD:
+# display_driver keeps each input device's LVGL indev in its user_data, and
+# put the keypad in the default group, where ENTER would press the focused
+# widget. (The bindings have no lv.indev_get_next to walk the indevs with.)
+for _dev in app.devices:
+    _indev = getattr(_dev, "user_data", None)
+    if _indev is not None and _indev.get_type() == lv.INDEV_TYPE.KEYPAD:
         _indev.set_group(_crown_group)
-    _indev = _next_indev(_indev)
+_dev = _indev = None
 
 
 def update_all():
