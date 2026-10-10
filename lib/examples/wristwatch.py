@@ -289,6 +289,7 @@ if ir is not None:
         def cb():
             ir_send(ir, TV_ADDRESS[0], code, address2=TV_ADDRESS[1], repeats=1)
             lbl_ir.set_text("sent %s" % name)
+            print("wristwatch: IR", name)
             if haptic is not None:
                 haptic.play(1)
 
@@ -470,19 +471,20 @@ else:
 # -- the screen, the crown and sleep ---------------------------------------------------
 
 screen = "on"  # on, dim, dark
-_last_input = _ticks()
+_dimmed_at = _ticks()  # when the screen last left "on"
 
 
 def wake_screen():
-    global screen, _last_input
+    global screen
     screen = "on"
-    _last_input = _ticks()
     display_drv.brightness = brightness
     update_all()
 
 
 def screen_off():
-    global screen
+    global screen, _dimmed_at
+    if screen == "on":
+        _dimmed_at = _ticks()
     screen = "dark"
     display_drv.brightness = 0
     if sleep is not None and battery is not None and not getattr(battery, "vbus_present", True):
@@ -533,6 +535,7 @@ _crown_group.add_obj(_crown_catcher)
 
 def _on_crown(e):
     if e.get_key() == lv.KEY.ENTER:
+        print("wristwatch: crown")
         if screen == "on":
             screen_off()
         else:
@@ -556,20 +559,26 @@ def update_all():
 
 def _tick(_t):
     global screen
+    global _dimmed_at
     idle = lv.display_get_default().get_inactive_time()
-    if screen != "on" and idle < 500:
-        wake_screen()  # touched while dim or dark
+    since = _ticks() - _dimmed_at
+    # touched since the screen dimmed (not counting the crown's own release)
+    if screen != "on" and since > 800 and idle + 50 < since:
+        print("wristwatch: woke by touch")
+        wake_screen()
         return
     if features and screen != "on":
         # a gesture while dark (on USB, where the watch doesn't sleep)
         st = accel.interrupt_status()
         if (st & bma423.INT_WRIST_WEAR and wake_on_tilt) or (st & bma423.INT_DOUBLE_TAP and wake_on_tap):
+            print("wristwatch: woke by", "wrist tilt" if st & bma423.INT_WRIST_WEAR else "double tap")
             wake_screen()
             return
     if screen == "dark":
         return
     if screen == "on" and idle > DIM_AFTER_S * 1000:
         screen = "dim"
+        _dimmed_at = _ticks()
         display_drv.brightness = min(brightness, DIM_LEVEL)
     elif screen == "dim" and idle > DARK_AFTER_S * 1000:
         screen_off()
