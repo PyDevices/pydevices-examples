@@ -1,0 +1,49 @@
+{
+  "urls": [
+    [
+      "twatch/__init__.py",
+      "../lib/examples/twatch/__init__.py"
+    ],
+    [
+      "twatch/face.py",
+      "../lib/examples/twatch/face.py"
+    ],
+    [
+      "twatch/home.py",
+      "../lib/examples/twatch/home.py"
+    ],
+    [
+      "twatch/lora.py",
+      "../lib/examples/twatch/lora.py"
+    ],
+    [
+      "twatch/main.py",
+      "../lib/examples/twatch/main.py"
+    ],
+    [
+      "twatch/power.py",
+      "../lib/examples/twatch/power.py"
+    ],
+    [
+      "twatch/remote.py",
+      "../lib/examples/twatch/remote.py"
+    ],
+    [
+      "twatch/services.py",
+      "../lib/examples/twatch/services.py"
+    ],
+    [
+      "twatch/sound.py",
+      "../lib/examples/twatch/sound.py"
+    ],
+    [
+      "twatch/steps.py",
+      "../lib/examples/twatch/steps.py"
+    ],
+    [
+      "twatch/ui.py",
+      "../lib/examples/twatch/ui.py"
+    ]
+  ],
+  "version": "0.0.1"
+}

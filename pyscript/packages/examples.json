@@ -803,6 +803,50 @@
     [
       "tower_climb/tools/playtest.py",
       "github:PyDevices/pydevices-examples/lib/examples/tower_climb/tools/playtest.py"
+    ],
+    [
+      "twatch/__init__.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/__init__.py"
+    ],
+    [
+      "twatch/face.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/face.py"
+    ],
+    [
+      "twatch/home.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/home.py"
+    ],
+    [
+      "twatch/lora.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/lora.py"
+    ],
+    [
+      "twatch/main.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/main.py"
+    ],
+    [
+      "twatch/power.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/power.py"
+    ],
+    [
+      "twatch/remote.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/remote.py"
+    ],
+    [
+      "twatch/services.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/services.py"
+    ],
+    [
+      "twatch/sound.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/sound.py"
+    ],
+    [
+      "twatch/steps.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/steps.py"
+    ],
+    [
+      "twatch/ui.py",
+      "github:PyDevices/pydevices-examples/lib/examples/twatch/ui.py"
     ]
   ],
   "deps": [],
