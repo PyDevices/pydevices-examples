@@ -265,6 +265,10 @@
       "github:PyDevices/pydevices-examples/lib/examples/widgets_locker_kiosk.py"
     ],
     [
+      "wristwatch.py",
+      "github:PyDevices/pydevices-examples/lib/examples/wristwatch.py"
+    ],
+    [
       "alien/__init__.py",
       "github:PyDevices/pydevices-examples/lib/examples/alien/__init__.py"
     ],
