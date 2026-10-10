@@ -481,6 +481,41 @@ else:
 
 # -- the screen, the crown and sleep ---------------------------------------------------
 
+
+class RaiseDetector:
+    """Raise-to-look from the acceleration, in the watch's frame (X toward
+    the hand, Y toward 12 o'clock, Z out of the face).
+
+    The BMA423's own wrist-tilt gesture catches a raise from an arm hanging
+    down, but not a glance from a desk, where the face is already up. This
+    catches both: the watch settles face up and tilted toward you (12 o'clock
+    raised) after being somewhere else within the last ``window_ms``."""
+
+    def __init__(self, window_ms=1500):
+        self.window_ms = window_ms
+        self._away_at = None
+        self._view = 0
+
+    @staticmethod
+    def viewing(x, y, z):
+        return z > 0.6 and y > 0.28 and -0.45 < x < 0.6
+
+    def feed(self, xyz, now):
+        x, y, z = xyz
+        if self.viewing(x, y, z):
+            self._view += 1
+            fresh = self._away_at is not None and now - self._away_at < self.window_ms
+            if self._view == 2 and fresh:
+                return True
+        else:
+            self._view = 0
+            if y < 0.12 or x < -0.6 or z < 0.4:
+                self._away_at = now
+        return False
+
+
+raise_detector = RaiseDetector()
+
 screen = "on"  # on, dim, dark
 _dimmed_at = _ticks()  # when the screen last left "on"
 
@@ -498,6 +533,8 @@ def screen_off():
         _dimmed_at = _ticks()
     screen = "dark"
     display_drv.brightness = 0
+    if features:
+        accel.interrupt_status()  # forget gestures from while the screen was on
     if sleep is not None and battery is not None and not getattr(battery, "vbus_present", True):
         doze()
 
@@ -509,16 +546,41 @@ def _wake_sources():
     return tuple(sources)
 
 
-def _set_gestures():
+def _set_gestures(any_motion=False):
     if features:
         accel.map_interrupts(bma423.INT_WRIST_WEAR, wake_on_tilt)
         accel.map_interrupts(bma423.INT_DOUBLE_TAP, wake_on_tap)
+        # Any motion wakes the watch for a moment to look for a raise the
+        # chip's own gesture misses (a glance from a desk).
+        accel.set_any_motion(any_motion and wake_on_tilt)
+        accel.map_interrupts(bma423.INT_ANY_MOTION, any_motion and wake_on_tilt)
+
+
+def _raised_since_motion():
+    """After an any-motion wake: watch the acceleration for a moment."""
+    raise_detector._away_at = _ticks()  # it was moving, so it wasn't being looked at
+    for _ in range(12):
+        if raise_detector.feed(accel.acceleration, _ticks()):
+            return True
+        time.sleep_ms(100)
+    return False
 
 
 def doze():
     """Light sleep until the crown, a touch or a gesture; then the screen comes back."""
+    _set_gestures(any_motion=True)
+    while True:
+        why = sleep(wake=_wake_sources())
+        if why != "motion":
+            break
+        st = accel.interrupt_status()
+        if st & (bma423.INT_WRIST_WEAR | bma423.INT_DOUBLE_TAP):
+            why = "wrist tilt" if st & bma423.INT_WRIST_WEAR else "double tap"
+            break
+        if _raised_since_motion():
+            why = "raise"
+            break
     _set_gestures()
-    why = sleep(wake=_wake_sources())
     event("woke from sleep by " + why)
     if hasattr(battery, "key_events"):
         battery.key_events()  # the crown press that woke us mustn't also turn the screen off
@@ -579,10 +641,12 @@ def _tick(_t):
         wake_screen()
         return
     if features and screen != "on":
-        # a gesture while dark (on USB, where the watch doesn't sleep)
+        # a gesture while dim or dark (on USB, where the watch doesn't sleep)
         st = accel.interrupt_status()
-        if (st & bma423.INT_WRIST_WEAR and wake_on_tilt) or (st & bma423.INT_DOUBLE_TAP and wake_on_tap):
-            event("woke by " + ("wrist tilt" if st & bma423.INT_WRIST_WEAR else "double tap"))
+        raised = wake_on_tilt and raise_detector.feed(accel.acceleration, _ticks())
+        if (st & bma423.INT_WRIST_WEAR and wake_on_tilt) or (st & bma423.INT_DOUBLE_TAP and wake_on_tap) or raised:
+            what = "wrist tilt" if st & bma423.INT_WRIST_WEAR else "double tap" if st & bma423.INT_DOUBLE_TAP else "raise"
+            event("woke by " + what)
             wake_screen()
             return
     if screen == "dark":
