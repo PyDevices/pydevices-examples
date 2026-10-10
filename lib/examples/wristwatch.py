@@ -102,6 +102,17 @@ wake_on_tilt = features
 wake_on_tap = features
 
 
+EVENTS = []  # the last few things that happened, newest last (read them at the REPL)
+
+
+def event(text):
+    """Note an event without printing: a console nobody reads must never
+    hold the watch up."""
+    EVENTS.append(text)
+    if len(EVENTS) > 40:
+        del EVENTS[0]
+
+
 def _ticks():
     try:
         return time.ticks_ms()
@@ -289,7 +300,7 @@ if ir is not None:
         def cb():
             ir_send(ir, TV_ADDRESS[0], code, address2=TV_ADDRESS[1], repeats=1)
             lbl_ir.set_text("sent %s" % name)
-            print("wristwatch: IR", name)
+            event("IR " + name)
             if haptic is not None:
                 haptic.play(1)
 
@@ -346,7 +357,7 @@ if has_mic:
     btn_mic.add_event_cb(lambda e: toggle_mic(), lv.EVENT.CLICKED, None)
     mic_bar = lv.bar(p_sound)
     mic_bar.set_width(lv.pct(90))
-    mic_bar.set_range(0, 90)
+    mic_bar.set_range(0, 50)  # -50 to 0 dBFS
     lbl_mic = label(p_sound, "", _small, MUTED)
 if not has_speaker and not has_mic:
     missing(p_sound, "no speaker or microphone role")
@@ -376,7 +387,7 @@ def update_mic():
             peak = abs(v)
     rms = math.sqrt(acc / count) if count else 0
     db = 20 * math.log10(rms / 32768) if rms > 0 else -90
-    mic_bar.set_value(int(max(0, 90 + db)), 0)
+    mic_bar.set_value(int(max(0, 50 + db)), 0)
     lbl_mic.set_text("%.0f dBFS" % db)
 
 
@@ -508,7 +519,7 @@ def doze():
     """Light sleep until the crown, a touch or a gesture; then the screen comes back."""
     _set_gestures()
     why = sleep(wake=_wake_sources())
-    print("wristwatch: woke on", why)
+    event("woke from sleep by " + why)
     if hasattr(battery, "key_events"):
         battery.key_events()  # the crown press that woke us mustn't also turn the screen off
     if haptic is not None:
@@ -535,7 +546,7 @@ _crown_group.add_obj(_crown_catcher)
 
 def _on_crown(e):
     if e.get_key() == lv.KEY.ENTER:
-        print("wristwatch: crown")
+        event("crown")
         if screen == "on":
             screen_off()
         else:
@@ -564,14 +575,14 @@ def _tick(_t):
     since = _ticks() - _dimmed_at
     # touched since the screen dimmed (not counting the crown's own release)
     if screen != "on" and since > 800 and idle + 50 < since:
-        print("wristwatch: woke by touch")
+        event("woke by touch")
         wake_screen()
         return
     if features and screen != "on":
         # a gesture while dark (on USB, where the watch doesn't sleep)
         st = accel.interrupt_status()
         if (st & bma423.INT_WRIST_WEAR and wake_on_tilt) or (st & bma423.INT_DOUBLE_TAP and wake_on_tap):
-            print("wristwatch: woke by", "wrist tilt" if st & bma423.INT_WRIST_WEAR else "double tap")
+            event("woke by " + ("wrist tilt" if st & bma423.INT_WRIST_WEAR else "double tap"))
             wake_screen()
             return
     if screen == "dark":
