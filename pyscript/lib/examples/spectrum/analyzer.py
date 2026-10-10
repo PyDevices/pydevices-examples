@@ -87,7 +87,9 @@ class Spectrum:
     - ``bands``: how many bars. Default: half of what ``band_count_for`` gives
       for the panel's width.
     - ``height``: the meter's height in rows. Default: half the panel.
-    - ``y``: the meter's top row. Default: the bottom of the panel.
+    - ``y``: the meter's top row. Default: the bottom of the panel, and
+      ``start()`` clears the rest of the panel first. Given, the meter paints
+      only its own rows and leaves the rest of the panel to you.
     - ``style``: ``"smooth"`` or ``"segmented"``.
     - ``report``: print the frame rate and per-part costs every few seconds.
 
@@ -103,6 +105,7 @@ class Spectrum:
         if bands is None:
             bands = band_count_for(W) // 2
         self.y = H - height if y is None else y
+        self._clear_panel = y is None  # a placed meter leaves the rest alone
         self.view = SpectrumView(W, height, bands=bands, style=style)
         # A class (FakeMusic) or a factory (levels_for) builds the source for
         # this band count; anything else already is one.
@@ -152,10 +155,14 @@ class Spectrum:
             d[1] = y + h
 
     def start(self, app, period_ms=FRAME_MS):
-        """Paint the meter's background and start drawing from ``app``'s timer."""
+        """Paint the meter's background and start drawing from ``app``'s timer.
+
+        A meter placed with ``y=`` paints only its own rows; one at the
+        default place clears the whole panel first.
+        """
         d, view = self.display_drv, self.view
         fill = getattr(d, "fill_rect", None)
-        if fill is not None and view.height < d.height:
+        if fill is not None and self._clear_panel and view.height < d.height:
             fill(0, 0, d.width, d.height, 0)  # clear whatever the panel showed before
         d.blit_rect(view.strip(0, view.height), 0, self.y, view.width, view.height)
         if self.present_rows:
