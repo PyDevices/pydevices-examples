@@ -15,6 +15,9 @@ driver and a source of levels: any object with ``levels(t)`` and ``bands``,
 or a factory that builds one for a band count (``FakeMusic`` is one, and so
 is what ``levels_for`` returns). It draws on a timer from the app it's
 started on, and only the rows that moved reach the panel.
+
+On a board that is usbif's USB sound card, ``levels_for_soundcard()`` takes
+the place of ``levels_for(out)``: the meter reads what the computer plays.
 """
 
 from multimer import ticks_diff, ticks_ms
@@ -56,6 +59,24 @@ def levels_for(audio_out):
         return TapLevels(bands, rate=fmt.rate, channels=fmt.channels)
 
     return tap_levels
+
+
+def levels_for_soundcard():
+    """Levels of what usbif's USB sound card is playing, for ``Spectrum``.
+
+    The meter reads the sound card's pump and does its analysis in C, as
+    ``levels_for`` does for the audio pump. That needs a board whose firmware
+    has usbif's sound card and audiodsp's ``audiometer``; anywhere else this
+    raises ``ValueError`` (or ``ImportError`` without ``audiometer``).
+    """
+    import pump_levels
+
+    if not pump_levels.available():
+        raise ValueError(
+            "levels_for_soundcard() needs a board running usbif's sound card "
+            "pump (pump_levels.available() is False)"
+        )
+    return pump_levels.PumpLevels
 
 
 class Spectrum:
