@@ -28,7 +28,7 @@ stream that a TV and any number of VLC windows can all watch.
 
 The ESP32-P4 is the only board with an H.264 encoder, so on a board both
 Miracast methods and HLS need one. They're proven on the
-[Waveshare ESP32-P4 4" panel](https://github.com/PyDevices/micropython-pydevices/blob/main/docs/newcomers.md#boards-we-build-for).
+[Waveshare ESP32-P4 4" panel](https://github.com/PyDevices/micropython-pydevices/blob/main/docs/reference/boards.md#boards-we-build-for).
 The firmware needs `castif`, `h264enc` and `tsmux`, all in `--modules all`.
 
 ## Miracast to a Roku TV

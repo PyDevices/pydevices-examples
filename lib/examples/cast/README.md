@@ -21,7 +21,7 @@ Windows and to VLC, with the boards and interpreters for each, is in the
 
 It needs P4 firmware that carries `castif`, `h264enc` and `tsmux`, which any
 micropython-pydevices build with `--modules all` (or one naming all three) does; the command for each
-P4 is in its [newcomer's guide](https://github.com/PyDevices/micropython-pydevices/blob/main/docs/newcomers.md#boards-we-build-for).
+P4 is in its [boards list](https://github.com/PyDevices/micropython-pydevices/blob/main/docs/reference/boards.md#boards-we-build-for).
 Anything else lacks the H.264 encoder.
 
 ## Try it

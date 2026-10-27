@@ -58,7 +58,7 @@ Build MicroPython with
 using its `pydevices` variant and every module. That variant freezes the desktop
 board config and, on Windows, `uwin32`, which the Windows display and audio
 backends need. On Windows, build from PowerShell as its
-[Windows steps](https://github.com/PyDevices/micropython-pydevices/blob/main/docs/newcomers.md#on-windows)
+[Windows steps](https://github.com/PyDevices/micropython-pydevices/blob/main/docs/guides/build-on-windows.md)
 say, then run an example from `lib/`:
 
 ```powershell
