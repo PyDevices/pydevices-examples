@@ -1,16 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="PyDevices logo">
-  <defs>
-    <linearGradient id="pd-bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff8a3d"/>
-      <stop offset="1" stop-color="#f54e00"/>
-    </linearGradient>
-  </defs>
-  <rect x="1" y="1" width="62" height="62" rx="16" fill="url(#pd-bg)"/>
-  <g fill="none" stroke="#fff9f4" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="14" y="16" width="36" height="24" rx="3.5"/>
-    <path d="M24 48h16M32 40v8"/>
-  </g>
-  <circle cx="23.5" cy="28" r="2.4" fill="#fff9f4"/>
-  <circle cx="32" cy="28" r="2.4" fill="#fff9f4"/>
-  <circle cx="40.5" cy="28" r="2.4" fill="#fff9f4"/>
+  <!--
+    The PyDevices mark: a square stone, cut and lit from the top left, with a
+    2x4 pin header in its table. Every shape is a filled polygon, so the same
+    list draws it on a board with pygraphics. The table is the deep blue
+    ground, so the mark is opaque and reads on either theme.
+  -->
+<polygon points="62.72,62.72 1.28,62.72 8.71,55.29 55.29,55.29" fill="#7293b1"/>
+<polygon points="1.28,62.72 1.28,1.28 8.71,8.71 8.71,55.29" fill="#e7edf2"/>
+<polygon points="1.28,1.28 62.72,1.28 55.29,8.71 8.71,8.71" fill="#e7edf2"/>
+<polygon points="62.72,1.28 62.72,62.72 55.29,55.29 55.29,8.71" fill="#7293b1"/>
+<polygon points="55.29,55.29 8.71,55.29 16.64,47.36 47.36,47.36" fill="#e7edf2"/>
+<polygon points="8.71,55.29 8.71,8.71 16.64,16.64 16.64,47.36" fill="#7293b1"/>
+<polygon points="8.71,8.71 55.29,8.71 47.36,16.64 16.64,16.64" fill="#7293b1"/>
+<polygon points="55.29,8.71 55.29,55.29 47.36,47.36 47.36,16.64" fill="#e7edf2"/>
+<polygon points="18.34,25.34 23.59,25.34 23.59,30.60 18.34,30.60" fill="#7bb6e0"/>
+<polygon points="18.34,33.40 23.59,33.40 23.59,38.66 18.34,38.66" fill="#7bb6e0"/>
+<polygon points="25.69,25.34 30.95,25.34 30.95,30.60 25.69,30.60" fill="#7bb6e0"/>
+<polygon points="25.69,33.40 30.95,33.40 30.95,38.66 25.69,38.66" fill="#7bb6e0"/>
+<polygon points="33.05,25.34 38.31,25.34 38.31,30.60 33.05,30.60" fill="#7bb6e0"/>
+<polygon points="33.05,33.40 38.31,33.40 38.31,38.66 33.05,38.66" fill="#7bb6e0"/>
+<polygon points="40.41,25.34 45.66,25.34 45.66,30.60 40.41,30.60" fill="#7bb6e0"/>
+<polygon points="40.41,33.40 45.66,33.40 45.66,38.66 40.41,38.66" fill="#7bb6e0"/>
 </svg>
