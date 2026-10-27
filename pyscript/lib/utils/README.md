@@ -47,6 +47,6 @@ nano / micro / touch at a time. See
 [pdwidgets](https://github.com/PyDevices/pdwidgets),
 [palettes](https://github.com/PyDevices/palettes).
 
-Many scripts in `lib/examples/` depend on these modules. They are excluded from
+Many scripts in [`lib/examples/`](../examples/) depend on these modules. They are excluded from
 the MIP packages — install from GitHub only. Some files are third-party ports
 included for convenience; see the file headers for attribution.

@@ -25,7 +25,7 @@ Use `main.py` as committed. On first boot, `mip` downloads PyDevices core + `pyg
 PyDevices MIP index (network required), then runs **testris** — a touch + joystick Tetris demo. You
 should see the game running — drive it with the on-screen touch keypad.
 
-Only `testris.py` is installed from `lib/examples/`; the rest of the example catalog is not fetched.
+Only `testris.py` is installed from [`lib/examples/`](../../lib/examples/); the rest of the example catalog is not fetched.
 To try a different example, edit the `mip.install(PYDEVICES_EXAMPLES + ...)` line in `main.py` to
 point at another script under [`lib/examples/`](../../lib/examples/) and update the `import testris`
 line at the bottom to match.
