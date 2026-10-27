@@ -45,9 +45,8 @@ import lv_test_timer                  # or any app
 The picture is the panel's 720x720 in the middle of the TV's 1280x720, at
 about 24 fps. A P4 with no screen of its own casts the full 1280x720 at 18 fps
 ([`cast/headless_cast.py`](https://github.com/PyDevices/pydevices-examples/blob/main/lib/examples/cast/headless_cast.py)). Sound the
-P4 plays goes with it as 48 kHz audio on the picture's clock. A ten-minute
-drum machine cast drifted about 1 ms, and the drum hits landed with the step
-light.
+P4 plays goes with it as 48 kHz audio on the picture's clock, so a drum
+machine's hits land with its step light.
 
 The P4 also controls the TV over its own network API (ECP, built into every
 Roku, with **Control by mobile apps** on). It can power the TV on, change the
@@ -80,9 +79,9 @@ back.
 **Expect glitches on a busy 2.4 GHz network.** Miracast sends its video over
 UDP, so a packet Wi-Fi loses is gone. Windows draws the damage instead of
 hiding it: a band of smeared or discoloured blocks, or a pink or grey flash,
-until the board sends a fresh keyframe a moment later. In testing, with
-about 0.5 % of packets lost, that was one every two to three seconds, the same
-from the P4 and from CPython and at any bitrate. A quieter channel, or the
+until the board sends a fresh keyframe a moment later. How often depends on
+how many packets the network loses, the same from the P4 and from CPython and at
+any bitrate. A quieter channel, or the
 board and laptop closer to the router, means fewer. `CastDisplay.stats()`
 counts them as `idr_requests`, the keyframes the laptop asked for after a loss.
 
