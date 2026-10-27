@@ -333,6 +333,22 @@ def _at_exit(fn):
         pass
 
 
+def _at_stop(fn):
+    """Call fn when the program stops. Where multimer keeps the program alive
+    past its script body, that's after its keep-alive loop: an atexit hook
+    registered now would run first and close a timer-driven app while it is
+    still running. Otherwise, at exit."""
+    try:
+        from multimer import _hostloop
+
+        if _hostloop.strategy() is not None:
+            _hostloop.on_stop(fn)
+            return
+    except (ImportError, AttributeError):
+        pass
+    _at_exit(fn)
+
+
 def _session_url(url):
     """*url* with a token unique to this session. The channel appends
     ``t=<frame number>`` to every fetch, counting from 1 each session, and the
@@ -839,6 +855,7 @@ class RokuDisplay(FBDisplay):
         self._server = None
         self._png = None
         self._launched = False
+        self._closing = False
         self._shown = 0
         self._t0 = None
         self.key_repeat = key_repeat
@@ -850,6 +867,11 @@ class RokuDisplay(FBDisplay):
 
     def show(self, _timer=None):
         """Encode the current framebuffer to PNG and update the Roku stream."""
+        if self._closing:
+            # A timer ran this show() while close() waits on the TV: launching
+            # now would leave the channel closed and _launched set, so the
+            # next frame server would never be fetched.
+            return
         if self._png is None:
             self._png = _png_encoder()
             self._t0 = _now()
@@ -871,7 +893,7 @@ class RokuDisplay(FBDisplay):
             print("[RokuDisplay] Showing frames from %s" % frame_url)
             self.tv.frames(frame_url)
             self._launched = True
-            _at_exit(self.close)
+            _at_stop(self.close)
 
         if hasattr(self._server, "poll"):
             self._server.poll()
@@ -979,15 +1001,19 @@ class RokuDisplay(FBDisplay):
         app leaves the TV on its home screen rather than frozen on its last
         frame.
         """
-        if self._launched:
-            self._launched = False
-            try:
-                self.tv.close_channel()
-            except OSError:
-                pass
-        if self._server is not None:
-            self._server.close()
-            self._server = None
+        self._closing = True
+        try:
+            if self._launched:
+                self._launched = False
+                try:
+                    self.tv.close_channel()
+                except OSError:
+                    pass
+            if self._server is not None:
+                self._server.close()
+                self._server = None
+        finally:
+            self._closing = False
 
     def _deinit(self):
         """DisplayDriver's cleanup hook, run by quit() and deinit()."""
@@ -1024,6 +1050,7 @@ class RokuDisplayWrapper:
         self._server = None
         self._png = None
         self._launched = False
+        self._closing = False
         print(
             "[RokuDisplayWrapper] Initialized with display %s, stream host %s:%d"
             % (display, self.local_ip, port)
@@ -1031,6 +1058,11 @@ class RokuDisplayWrapper:
 
     def show(self, *args, **kwargs):
         """Invoke underlying display show(), then stream the frame to the Roku TV."""
+        if self._closing:
+            # A timer ran this show() while close() waits on the TV: launching
+            # now would leave the channel closed and _launched set, so the
+            # next frame server would never be fetched.
+            return
         try:
             self.display.show(*args, **kwargs)
         except AttributeError:
@@ -1062,7 +1094,7 @@ class RokuDisplayWrapper:
             print("[RokuDisplayWrapper] Showing frames from %s" % frame_url)
             self.tv.frames(frame_url)
             self._launched = True
-            _at_exit(self.close)
+            _at_stop(self.close)
 
         if hasattr(self._server, "poll"):
             self._server.poll()
@@ -1073,15 +1105,19 @@ class RokuDisplayWrapper:
 
     def close(self):
         """Close the TV's Companion channel, the frame server and the wrapped display."""
-        if self._launched:
-            self._launched = False
-            try:
-                self.tv.close_channel()
-            except OSError:
-                pass
-        if self._server is not None:
-            self._server.close()
-            self._server = None
+        self._closing = True
+        try:
+            if self._launched:
+                self._launched = False
+                try:
+                    self.tv.close_channel()
+                except OSError:
+                    pass
+            if self._server is not None:
+                self._server.close()
+                self._server = None
+        finally:
+            self._closing = False
         if hasattr(self.display, "close"):
             self.display.close()
 
