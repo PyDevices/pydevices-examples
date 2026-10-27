@@ -94,9 +94,10 @@ can use the TV as a display, read its remote, speak through it and play video
 on it.
 
 - **The TV as a display.** `RokuDisplay` is a framebuffer display whose frames
-  show full-screen, sent as PNGs. At 480x270 a desktop gets 6 to 10 frames a
-  second onto the TV, and a P4 about 2. The TV fetching each PNG sets that
-  limit: the program itself draws at 28 to 29.
+  show full-screen, sent as PNGs. At 480x270 a desktop gets 8 to 14 frames a
+  second onto the TV, and a P4 about 2. On a desktop the TV fetching each PNG
+  sets that limit, and the program itself draws at 28 to 29. On a P4 it's the
+  270 to 290 ms each PNG takes to encode.
 - **The remote as input.** All eleven buttons a channel can see arrive as key
   presses and releases, and a held button repeats. testris plays from the
   couch through [`roku/board_config.py`](https://github.com/PyDevices/pydevices-examples/blob/main/lib/examples/roku/board_config.py).
