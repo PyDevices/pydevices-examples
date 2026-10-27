@@ -6,7 +6,7 @@ for testris and for the LVGL `lv_test_timer`.
 
 | Runtime | Companion channel | Miracast to a Roku | Miracast to Windows | HLS |
 |---|---|---|---|---|
-| `python` (Linux) | 12.7, 11.3 | 30, 30 | 30 | plays |
+| `python` (Linux) | 8.2, 9.1 | 30, 30 | 30 | plays |
 | `python.exe` (Windows) | 12.2, 10.6 | 30, 30 | 30 | plays |
 | `micropython` (unix) | 11.8, 7.4 | no H.264 | no H.264 | no H.264 |
 | `micropython.exe` (Windows) | 8.4, 7.7 | no H.264 | no H.264 | no H.264 |
