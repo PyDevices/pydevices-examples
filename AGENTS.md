@@ -8,10 +8,11 @@ docs live in sibling `pydevices`. There is no build step for examples.
 `.site/pyscript/lib` is a symlink to `../../lib`, so editing `lib/` updates the
 PyScript gallery too.
 
-**Docs map** (this repo's `docs/` is small on purpose — see
-[`docs/README.md`](docs/README.md)): [`docs/peterhinch-guis.md`](docs/peterhinch-guis.md)
-(Nano-GUI / Micro-GUI / MicroPython-Touch), [`docs/tft-gui.md`](docs/tft-gui.md)
-(@russhughes TFT GUI stub), [`docs/screenshots/`](docs/screenshots/README.md).
+**Docs map** (the site's source is `docs/`, built with Sphinx; see
+[`docs/index.md`](docs/index.md)): [`docs/guides/use-a-peter-hinch-gui.md`](docs/guides/use-a-peter-hinch-gui.md)
+(Nano-GUI / Micro-GUI / MicroPython-Touch), [`docs/guides/run-the-tft-examples.md`](docs/guides/run-the-tft-examples.md)
+(@russhughes TFT GUI stub), [`docs/reference/screenshots.md`](docs/reference/screenshots.md)
+(images are in `docs/screenshots/`).
 Code-adjacent runbooks: [`tools/README.md`](tools/README.md) (example test
 matrix, PyScript/Playwright debugging, LVGL timer harnesses),
 [`lib/utils/README.md`](lib/utils/README.md), [`scripts/README.md`](scripts/README.md),

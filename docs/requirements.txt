@@ -1,0 +1,4 @@
+# Local preview: use the checkout of .github next to this repository,
+#   pip install -e ../.github/docs-config
+# Read the Docs and CI install the tagged release:
+pydevices-docs @ git+https://github.com/PyDevices/.github@docs-v0.1.0#subdirectory=docs-config

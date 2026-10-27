@@ -37,11 +37,11 @@ instead, and are installed by `pydevices-desktop`.
 | [`lv_encoder_emu.py`](lv_encoder_emu.py) | Desktop-only soft encoder on a secondary surface, standing in for MCU `machine.Encoder` / `rotaryio` (see [`examples/lv_multi_display.py`](../examples/lv_multi_display.py)) |
 | [`tft_text.py`](tft_text.py), [`tft_write.py`](tft_write.py) | @russhughes font rendering |
 | [`png.py`](png.py) | Experimental PNG support |
-| [`color_setup.py`](color_setup.py), [`hardware_setup.py`](hardware_setup.py), [`touch_setup.py`](touch_setup.py), [`fetch_ph_gui.py`](fetch_ph_gui.py) | [Peter Hinch GUI](../../docs/peterhinch-guis.md) integration |
+| [`color_setup.py`](color_setup.py), [`hardware_setup.py`](hardware_setup.py), [`touch_setup.py`](touch_setup.py), [`fetch_ph_gui.py`](fetch_ph_gui.py) | [Peter Hinch GUI](../../docs/guides/use-a-peter-hinch-gui.md) integration |
 
 `gui/` is an upstream Peter Hinch tree fetched on demand and gitignored — one of
 nano / micro / touch at a time. See
-[peterhinch-guis.md](../../docs/peterhinch-guis.md).
+[use-a-peter-hinch-gui.md](../../docs/guides/use-a-peter-hinch-gui.md).
 
 `pdwidgets/` and `palettes/` moved out to their own repositories:
 [pdwidgets](https://github.com/PyDevices/pdwidgets),

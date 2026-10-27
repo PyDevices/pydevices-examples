@@ -17,7 +17,7 @@ the room. Over Wi-Fi, it can:
 
 Every way the examples cast, to a Roku with or without our channel, to
 Windows and to VLC, with the boards and interpreters for each, is in the
-[casting guide](../../../docs/casting.md).
+[casting guide](../../../docs/guides/cast-to-a-tv.md).
 
 It needs P4 firmware that carries `castif`, `h264enc` and `tsmux`, which any
 micropython-pydevices build with `--modules all` (or one naming all three) does; the command for each

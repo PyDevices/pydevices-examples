@@ -1,58 +1,12 @@
-<h1 align="center">PyDevices Examples</h1>
+![A grey box with a yellow ellipse, the word Hello and a green line, drawn in a 320 by 480 window](docs/images/hello_shapes.png)
 
-<h3 align="center">See the portable PyDevices driver stack in action.</h3>
+pydevices-examples is the gallery of runnable programs for OmniPython: the same
+scripts draw on MicroPython-compatible boards, CircuitPython-compatible boards,
+a desktop window, a browser tab and an Android phone.
 
-<p align="center">
-  <a href="https://github.com/PyDevices/pydevices/tree/main/docs">Documentation</a> •
-  <a href="https://PyDevices.github.io/pydevices-examples/pyscript/">PyScript gallery</a> •
-  <a href="https://pydevices.github.io/pydevices/">Product packages</a> •
-  <a href="docs/screenshots/README.md">Screenshots</a>
-</p>
+## Install
 
-| ![paint.py](https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/docs/screenshots/paint.png) | ![tiny_toasters.py](https://raw.githubusercontent.com/PyDevices/pydevices-examples/main/docs/screenshots/tiny_toasters.gif) |
-|:--:|:--:|
-| [`paint.py`](lib/examples/paint.py) | [`tiny_toasters.py`](lib/examples/tiny_toasters/tiny_toasters.py) |
-
-This repository is the examples, integration documentation, and browser gallery
-for the PyDevices driver ecosystem. The reusable product source lives in
-**[pydevices](https://github.com/PyDevices/pydevices)**:
-
-- `displaydev` and `audiodev` provide portable display and audio interfaces.
-- `events`, `keys`, and `multimer` provide shared event, key, and timing primitives.
-- `appdev` is an optional application traffic controller for non-LVGL apps.
-- `board_configs`, `board_peripherals`, and hardware drivers connect those interfaces
-  to real boards and desktop/browser hosts.
-
-Those libraries are designed to work across MicroPython, CircuitPython, and
-CPython on microcontrollers, Linux, Windows, Android, browsers, and notebooks.
-This repo demonstrates that portability; it is not the package source of truth.
-
-An ESP32-P4 can put any of these apps on a TV or a Windows laptop, with sound
-and with the laptop's mouse and keyboard as its input: see
-[Casting from a microcontroller](docs/casting.md).
-
-New here? Read the [newcomer's guide](docs/newcomers.md) for the fastest
-entrypoints, application ownership, and examples-to-product boundary.
-
-> **Alpha quality.** The organization is being prepared for its first external
-> users, so names and APIs may still evolve.
-
-## Try it
-
-The fastest route is the interactive
-**[PyScript gallery](https://PyDevices.github.io/pydevices-examples/pyscript/)**. It runs
-the real examples directly in a modern web browser.
-To start a standalone browser app or offline PWA, use the
-**[pyscript-template](https://github.com/PyDevices/pyscript-template)**; its
-[bigger-app page](https://github.com/PyDevices/pyscript-template/blob/main/docs/packages.md)
-turns piano and the drum machine into installable apps.
-
-To run an example on an Android phone without building anything, install the
-prebuilt Runner and stage the script from this clone with `android.py`; see
-[pydevices' Android page](https://github.com/PyDevices/pydevices/blob/main/docs/android.md#staging-a-script-with-androidpy).
-
-For a desktop clone (`--depth 1` skips the history, which is most of the
-download: about 67 MB instead of 270 MB):
+On a desktop:
 
 ```bash
 git clone --depth 1 https://github.com/PyDevices/pydevices-examples.git
@@ -60,142 +14,47 @@ cd pydevices-examples
 python3 -m venv .venv
 .venv/bin/pip install --index-url https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple/ -r requirements.txt
-cd lib
-../.venv/bin/python examples/pydevices_demo.py
 ```
 
-On Windows, use the equivalent `.venv\Scripts\python.exe` commands.
-
-Examples that import helpers from `lib/utils` (see
-[lib/utils/README.md](lib/utils/README.md)) need `utils/` on the import path.
-Set `PYTHONPATH` before running from `lib/`:
-
-```bash
-cd lib
-PYTHONPATH=.:lib:utils ../.venv/bin/python examples/hello.py
-```
-
-For MicroPython, install unprefixed MIP package names from the PyDevices
-MIP index, then install a board package:
+On a MicroPython-compatible board:
 
 ```python
 import mip
 
-INDEX = "https://PyDevices.github.io/mip"
-mip.install("pydevices", index=INDEX)  # displaydev, appdev, and the rest of lib/
+mip.install("pydevices", index="https://PyDevices.github.io/mip")
 ```
 
-See the
-[pydevices install workflows](https://github.com/PyDevices/pydevices/blob/main/docs/install-workflows.md)
-and [board configs](https://github.com/PyDevices/pydevices/blob/main/docs/board-configs.md)
-for complete device setup.
+## Example
 
-To run the examples on MicroPython on your desktop, build it with
-[micropython-pydevices](https://github.com/PyDevices/micropython-pydevices),
-using its `pydevices` variant and every module. That variant freezes the
-desktop board config and, on Windows, `uwin32`, which the Windows display
-and audio backends need. On Windows, build from PowerShell as its
-[Windows steps](https://github.com/PyDevices/micropython-pydevices/blob/main/docs/newcomers.md#on-windows)
-say, then run an example from `lib/`:
-
-```powershell
-python build_mp.py --port windows --variant pydevices --modules all   # in micropython-pydevices
-cd pydevices-examples\lib
-..\..\micropython-pydevices\builds\windows\pydevices\micropython.exe -X heapsize=64M examples\hello.py
-```
-
-On Linux the same build with `--port unix` gives
-`builds/unix/pydevices/micropython`. `micropython.exe` already has `lib` and
-`utils` on its path, so it needs no `MICROPYPATH`; if you set one on Windows,
-separate the entries with `;`, not `:`.
-
-## App ownership
-
-Board configs describe hardware. They export neutral pieces such as
-`display_drv`, `touch_read`, and `host_read`; they do not create
-an application-level `appdev.App`.
-
-Non-LVGL examples in this repo opt into the optional `appdev` coordinator:
+Save this as `hello_shapes.py` and run `.venv/bin/python hello_shapes.py`:
 
 ```python
 import board_config
-from board_config import display_drv
 import appdev
+import pygraphics
+from palettes import get_palette
 
-app = appdev.App(board_config)
+display = board_config.display_drv
+pal = get_palette()
+w, h = display.width, display.height
+print(f"drawing on a {w}x{h} display")
+
+pygraphics.fill(display, pal.BLACK)
+pygraphics.fill_rect(display, w // 6, h // 3, w * 2 // 3, h // 3, pal.GREY)
+pygraphics.ellipse(display, w // 2, h // 2, w // 4, h // 8, pal.YELLOW, True)
+pygraphics.line(display, 0, 0, w - 1, h - 1, pal.GREEN)
+pygraphics.text(display, "Hello", (w - 40) // 2, h // 2 - 4, pal.BLACK)
+display.show()
+
+app = appdev.App(board_config)  # keeps the window open until you close it
 ```
 
-The app keeps itself alive past the end of the script, so no trailing
-`app.run()` is needed. Call it only when you want the script to block at that
-point, or need a nonzero exit code.
+It opens the window at the top of this page and prints:
 
-LVGL examples use the coordinator bundled with the LVGL binding and do not
-import `appdev`:
-
-```python
-from board_config import display_drv
-from display_driver import app
+```text
+drawing on a 320x480 display
 ```
 
-This separation keeps hardware policy out of board configs and lets applications
-provide a different event loop or traffic controller when appropriate.
+[Docs](https://pydevices-examples.readthedocs.io) · [Examples](https://pydevices.github.io/pydevices-examples/pyscript/) · [Roadmap](ROADMAP.md)
 
-## Package names
-
-Python distributions on TestPyPI use the organization prefix; imports and MIP
-packages remain conventional and unprefixed. `pydevices` ships all of the core
-`lib/` tree as one distribution, and the MIP index publishes it the same way --
-a single `pydevices` package, not one per component.
-
-| TestPyPI distribution | Python import / MIP name |
-|---|---|
-| `pydevices` | `displaydev`, `audiodev`, `appdev`, `events`, `keys`, `multimer`, `boarddev` |
-| `pydevices-pygraphics` | `pygraphics` |
-| `pydevices-palettes` | `palettes` |
-| `pydevices-pdwidgets` | `pdwidgets` |
-| `pydevices-lvgl` | `lvgl` |
-
-## Repository layout
-
-| Path | Purpose |
-|---|---|
-| [`lib/examples/`](lib/examples/) | Portable examples and complete demo applications |
-| [`lib/utils/`](lib/utils/) | Example helpers and third-party GUI adapters |
-| [`.site/pyscript/`](.site/pyscript/) | PyScript gallery and browser demo runners |
-| [`docs/`](docs/) | Peter Hinch GUI integration, the TFT GUI stub, and screenshots |
-| [`tools/`](tools/) | Cross-interpreter example and LVGL test harnesses |
-| [`packages/`](packages/) | GitHub MIP manifests for examples and helpers |
-
-## Related repositories
-
-- [pydevices](https://github.com/PyDevices/pydevices) — canonical product source and core driver package home
-- [mip](https://github.com/PyDevices/mip) — PyDevices MIP index fork
-- [lvgl-bindings](https://github.com/PyDevices/lvgl-bindings) — shared LVGL binding source (LVGL's `display_driver` is in pydevices)
-- [lvgl-micropython](https://github.com/PyDevices/lvgl-micropython),
-  [lvgl-circuitpython](https://github.com/PyDevices/lvgl-circuitpython), and
-  [lvgl-python](https://github.com/PyDevices/lvgl-python) — interpreter-specific LVGL distributions
-- [pygraphics](https://github.com/PyDevices/pygraphics),
-  [palettes](https://github.com/PyDevices/palettes), and
-  [pdwidgets](https://github.com/PyDevices/pdwidgets) — companion packages
-- [android-runner](https://github.com/PyDevices/android-runner) — the prebuilt Runner APK that `android.py` stages examples onto
-- [android-template](https://github.com/PyDevices/android-template) — Android application packaging
-- [pyscript-template](https://github.com/PyDevices/pyscript-template) — standalone PyScript application template
-
-What's planned next is in [ROADMAP.md](ROADMAP.md).
-
-## Development
-
-```bash
-.venv/bin/python -m unittest discover -s tests
-.venv/bin/python -m pytest -s tests -q
-.venv/bin/ruff check lib tests tools scripts
-```
-
-See [AGENTS.md](AGENTS.md) and [tools/README.md](tools/README.md) for the
-cross-interpreter example matrix. Contributions to reusable libraries and hardware
-support belong in pydevices; examples, integrations, and gallery work
-belong here.
-
-## License
-
-MIT. See [LICENSE](LICENSE).
+Made by [PyDevices](https://pydevices.com).
