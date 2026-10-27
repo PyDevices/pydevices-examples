@@ -1,0 +1,36 @@
+# The docs site as Read the Docs builds it: from the repository root, with
+# docs/requirements.txt, and every warning a failure.
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'lib/**'
+      - '.readthedocs.yaml'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'lib/**'
+      - '.readthedocs.yaml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Install docs requirements
+        run: pip install -r docs/requirements.txt
+      - name: Build docs
+        run: sphinx-build -W --keep-going -b html docs _site
