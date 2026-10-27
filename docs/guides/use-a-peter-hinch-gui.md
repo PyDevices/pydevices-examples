@@ -36,7 +36,7 @@ application-owned `appdev` app.
 | Component | Location | Notes |
 |---|---|---|
 | `board_config.py` | pydevices' `board_configs/` | Display plus neutral input capabilities |
-| *setup module* | `lib/utils/` | `color_setup.py`, `hardware_setup.py`, or `touch_setup.py` — see the table above |
+| *setup module* | [`lib/utils/`](https://github.com/PyDevices/pydevices-examples/tree/main/lib/utils) | `color_setup.py`, `hardware_setup.py`, or `touch_setup.py` — see the table above |
 | `fetch_ph_gui.py` | `lib/utils/` | `mip` install into `utils/gui/` plus the desktop compatibility patches |
 | `displaybuf.py` | `lib/utils/` | The `ssd` framebuffer |
 | [`uctypes.py`](https://github.com/PyDevices/pydevices-examples/blob/main/lib/utils/uctypes.py) | `lib/utils/` | CircuitPython shim for the GUIs' `writer.py` |
@@ -57,7 +57,7 @@ where `<name>` is `micropython-nano-gui`, `micropython-micro-gui`, or
 
 ### Examples
 
-Each GUI has a smoke test under `lib/examples/`, and each has a browser gallery
+Each GUI has a smoke test under [`lib/examples/`](https://github.com/PyDevices/pydevices-examples/tree/main/lib/examples), and each has a browser gallery
 loader that fetches the GUI through its setup module:
 
 | GUI | Example | Gallery |

@@ -39,7 +39,7 @@ python tools/screenshot.py hello.py
 python tools/record.py bouncing_balls 10
 ```
 
-Output goes to `docs/screenshots/` and `docs/videos/`.
+Output goes to [`docs/screenshots/`](docs/screenshots/) and [`docs/videos/`](docs/videos/).
 
 ## Build the docs
 

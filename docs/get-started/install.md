@@ -27,7 +27,7 @@ cd lib
 ../.venv/bin/python examples/pydevices_demo.py
 ```
 
-Examples that import helpers from `lib/utils` say so in a `# utils:` comment at
+Examples that import helpers from [`lib/utils`](https://github.com/PyDevices/pydevices-examples/tree/main/lib/utils) say so in a `# utils:` comment at
 the top. They need `utils/` on the import path:
 
 ```bash

@@ -56,6 +56,6 @@ says why the examples build it themselves.
 
 ## Next
 
-Run `lib/examples/pydevices_demo.py` from a clone, then pick another from
+Run [`lib/examples/pydevices_demo.py`](../../lib/examples/pydevices_demo.py) from a clone, then pick another from
 [`lib/examples/`](https://github.com/PyDevices/pydevices-examples/tree/main/lib/examples).
 The [screenshots](../reference/screenshots.md) show what many of them draw.
