@@ -3,83 +3,77 @@
 logo.py
 =======
 
-Draws the PyDevices bus mark using only pydevices-examples's own graphics primitives -- no SVG import or renderer needed.
+Draws the PyDevices mark using only pygraphics primitives -- no SVG import or renderer needed.
 
 It runs anywhere pydevices-examples runs, including microcontrollers.
 
-The mark is the bus: one trunk, three taps, each ending in a pad. It is
-drawn *grounded* -- the mark sits on the site's own background colour the
-way it does on the website header, rather than inside a badge tile. The
-tiled form is only used for platform icons (favicons, avatars), which is
-not what a display is.
-
-Every segment is a rounded rectangle, because that is exactly what a
-stroked line with round caps is: the trunk and taps are 4 units wide with
-a 2-unit radius, so they are drawn the same way the pads are.
+The mark is a square stone cut in two rows of facets, lit from the top left,
+with a 2x4 pin header in its table. Every shape is a filled polygon, so it is
+drawn here exactly the way the SVG describes it.
 
 Coordinates are lifted from assets/img/logo.svg's 64x64 viewBox (in the
 dotgithub repo, which is the master copy) and scaled to whatever display
-this runs on.
+this runs on. The ground is the site's dark background, which also shows
+through the table the way it does on the website header.
 """
 
+from array import array
 from board_config import display_drv
 from displaydev import color565
 import pygraphics
 
 
-# The mark's own bounding box inside the 64x64 viewBox, used to centre it
-# on displays that are not square.
-MARK_X0, MARK_Y0, MARK_X1, MARK_Y1 = 14.0, 9.0, 48.0, 53.5
+# The square's corner at each ring, inset from the 64x64 viewBox's edge:
+# the outer edge, the girdle between the two rows, and the table.
+RINGS = (1.28, 8.71, 16.64)
+
+# The 2x4 pin header in the table: four columns, two rows, square pins.
+PIN_XS = (18.34, 25.69, 33.05, 40.41)
+PIN_YS = (25.34, 33.40)
+PIN = 5.26
 
 
 def main():
-    BG = color565(0x08, 0x0C, 0x10)  # site's dark background (--bg)
-    MARK = color565(0x22, 0xC7, 0xE2)  # site's --accent
+    BG = color565(0x0B, 0x2A, 0x4A)  # site's dark background (--bg)
+    HI = color565(0xE7, 0xED, 0xF2)  # facets facing the light
+    LO = color565(0x72, 0x93, 0xB1)  # facets facing away
+    PINS = color565(0x7B, 0xB6, 0xE0)
 
     pygraphics.fill(display_drv, BG)
 
-    # Fit the mark's own bounding box to the display, not the 64x64 viewBox.
-    # Mapping the whole grid would leave the mark filling barely half the
-    # screen, because the drawing occupies only 34x44.5 of those 64 units --
-    # the badge tile that used to take up the rest is gone.
-    MARGIN = 0.86  # fraction of the display the mark's box may occupy
-    MARK_W, MARK_H = MARK_X1 - MARK_X0, MARK_Y1 - MARK_Y0
-    SCALE = min(display_drv.width * MARGIN / MARK_W, display_drv.height * MARGIN / MARK_H)
-    # Centre that box, not the viewBox: the mark is taller than it is wide and
-    # does not sit dead centre in the grid, so centring the box is what
-    # actually looks centred.
-    LEFT = round((display_drv.width - MARK_W * SCALE) / 2 - MARK_X0 * SCALE)
-    TOP = round((display_drv.height - MARK_H * SCALE) / 2 - MARK_Y0 * SCALE)
+    # The mark is square; fit it to the shorter side and centre it.
+    MARGIN = 0.86  # fraction of the shorter side the mark may occupy
+    SCALE = min(display_drv.width, display_drv.height) * MARGIN / 64
+    LEFT = round((display_drv.width - 64 * SCALE) / 2)
+    TOP = round((display_drv.height - 64 * SCALE) / 2)
 
-    def s(v):
-        return round(v * SCALE)
+    def shape(points, c):
+        """A filled polygon in viewBox units, placed on the display."""
+        coords = array("h", [])
+        for x, y in points:
+            coords.append(round(x * SCALE))
+            coords.append(round(y * SCALE))
+        pygraphics.poly(display_drv, LEFT, TOP, coords, c, True)
 
-    def bar(x, y, w, h, r):
-        """A rounded rect in viewBox units, placed on the display."""
-        x0, y0 = LEFT + s(x), TOP + s(y)
-        # Derive w/h from the difference of two rounded corners rather than
-        # rounding each edge on its own, so segments that should meet stay
-        # met instead of drifting apart by a pixel.
-        x1, y1 = LEFT + s(x + w), TOP + s(y + h)
-        pygraphics.round_rect(display_drv, x0, y0, x1 - x0, y1 - y0, max(1, s(r)), MARK, True)
+    def corners(a):
+        b = 64 - a
+        return ((a, a), (b, a), (b, b), (a, b))
 
-    # Stroke geometry: a 4-unit line with round caps occupies a 4-unit band
-    # that overhangs each endpoint by its 2-unit radius.
-    STROKE, CAP = 4.0, 2.0
+    # Two rows of four trapezoids, one per side of the square. In the outer
+    # row the top and left faces catch the light; the inner row bevels down
+    # into the table, so it faces the other way.
+    for row in range(2):
+        outer, inner = corners(RINGS[row]), corners(RINGS[row + 1])
+        for side in range(4):
+            nxt = (side + 1) % 4
+            lit = side in (0, 3)  # top, left
+            if row == 1:
+                lit = not lit
+            shape((outer[side], outer[nxt], inner[nxt], inner[side]), HI if lit else LO)
 
-    # Trunk: x=19, y=20..49
-    bar(19 - CAP, 20 - CAP, STROKE, (49 - 20) + STROKE, CAP)
-
-    # Three taps: x=19..39, at y=25, 37, 49
-    for tap_y in (25, 37, 49):
-        bar(19 - CAP, tap_y - CAP, (39 - 19) + STROKE, STROKE, CAP)
-
-    # Source pad at the head of the trunk
-    bar(14, 9, 10, 10, 3)
-
-    # Endpoint pads, one per tap
-    for pad_y in (20.5, 32.5, 44.5):
-        bar(39, pad_y, 9, 9, 2.5)
+    for y in PIN_YS:
+        for x in PIN_XS:
+            shape(((x, y), (x + PIN, y), (x + PIN, y + PIN), (x, y + PIN)), PINS)
 
 
 main()
