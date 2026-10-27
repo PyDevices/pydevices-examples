@@ -55,6 +55,6 @@ It opens the window at the top of this page and prints:
 drawing on a 320x480 display
 ```
 
-[Docs](https://pydevices-examples.readthedocs.io) · [Examples](https://pydevices.github.io/pydevices-examples/pyscript/) · [Roadmap](ROADMAP.md)
+[Docs](https://github.com/PyDevices/pydevices-examples/blob/main/docs/index.md) · [Examples](https://pydevices.github.io/pydevices-examples/pyscript/) · [Roadmap](ROADMAP.md)
 
 Made by [PyDevices](https://pydevices.com).

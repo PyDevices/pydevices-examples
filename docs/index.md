@@ -4,43 +4,25 @@ pydevices-examples is the gallery of runnable programs for OmniPython: the
 same scripts draw on a MicroPython-compatible board, a CircuitPython-compatible
 board, a desktop window, a browser tab and an Android phone.
 
-- **[Get started](get-started/install.md)**: clone the examples and run one.
-- **Guides**: cast an app to a TV, use a Peter Hinch GUI, run the TFT examples.
-- **Reference**: package names, how each cast method runs on each runtime, and
-  screenshots of the examples.
-- **[How it works](how-it-works/index.md)**: how an example reaches a screen.
+## Get started
 
-```{toctree}
-:hidden:
-:caption: Get started
+- [Install](get-started/install.md)
+- [Your first program](get-started/first-program.md)
 
-get-started/install
-get-started/first-program
-```
+## Guides
 
-```{toctree}
-:hidden:
-:caption: Guides
+- [Run an example in the browser](guides/run-in-the-browser.md)
+- [Cast an app to a TV](guides/cast-to-a-tv.md)
+- [Use a Peter Hinch GUI](guides/use-a-peter-hinch-gui.md)
+- [Run the TFT examples](guides/run-the-tft-examples.md)
 
-guides/run-in-the-browser
-guides/cast-to-a-tv
-guides/use-a-peter-hinch-gui
-guides/run-the-tft-examples
-```
+## Reference
 
-```{toctree}
-:hidden:
-:caption: Reference
+- [Package names](reference/package-names.md)
+- [Cast methods on each runtime](reference/cast-runtimes.md)
+- [Screenshots](reference/screenshots.md)
 
-reference/package-names
-reference/cast-runtimes
-reference/screenshots
-```
+## How it works
 
-```{toctree}
-:hidden:
-:caption: How it works
-
-how-it-works/index
-how-it-works/casting
-```
+- [How it works](how-it-works/index.md)
+- [How casting works](how-it-works/casting.md)
