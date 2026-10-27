@@ -1,7 +1,7 @@
 # Run an example in the browser
 
 The [PyScript gallery](https://PyDevices.github.io/pydevices-examples/pyscript/)
-runs the real scripts from `lib/examples/` in a modern web browser. Open it,
+runs the real scripts from [`lib/examples/`](../../lib/examples/) in a modern web browser. Open it,
 pick an example and it runs; there is nothing to install. The same example
 that opens a window on your desktop draws on a canvas in the page.
 

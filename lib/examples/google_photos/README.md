@@ -102,7 +102,7 @@ The slideshow interval is `slideshow_s` in the prefs file (default 5).
 
 | Desktop | Microcontroller | Contents |
 |---|---|---|
-| `~/.gphotos_tokens.json` | `/gphotos_tokens.json` | `client_id`, `client_secret`, `refresh_token` (written by `tools/gphotos_auth.py`; read-only on the device) |
+| `~/.gphotos_tokens.json` | `/gphotos_tokens.json` | `client_id`, `client_secret`, `refresh_token` (written by [`tools/gphotos_auth.py`](../../../tools/gphotos_auth.py); read-only on the device) |
 | `~/.gphotos_prefs` | `/gphotos_prefs` | JSON: current session, picked items (without their short-lived URLs), `slideshow_s` |
 | `~/.gphotos_cache/` | `/gphotos_cache/` | `<hash>_<w>x<h>[c].jpg\|png` thumbnails, at most 48 files |
 
