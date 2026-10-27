@@ -260,7 +260,7 @@ class TestGalleryFrame(unittest.TestCase):
         assert 'id="interpreter-toggle"' not in source
         assert "applyThemeToFrames(next)" in theme
         assert 'document.querySelectorAll("iframe")' in theme
-        assert "img/logo.svg" in source
+        assert "img/favicon.ico" in source
 
     def test_interpreter_frame_and_sidebar_follow_content_height(self):
         source = _read(INDEX)
