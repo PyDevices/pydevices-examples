@@ -1,5 +1,7 @@
 ![A grey box with a yellow ellipse, the word Hello and a green line, drawn in a 320 by 480 window](docs/images/hello_shapes.png)
 
+> **This repository has moved.** The apps now live in [PyDevices/gallery](https://github.com/PyDevices/gallery), and the site is at <https://pydevices.github.io/gallery/>. Examples that show one library moved into that library's repo. This repository is archived and kept read-only for its history and issues.
+
 pydevices-examples is the gallery of runnable programs for OmniPython: the same
 scripts draw on MicroPython-compatible boards, CircuitPython-compatible boards,
 a desktop window, a browser tab and an Android phone.
