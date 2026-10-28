@@ -11,7 +11,7 @@ game.
 ## Origins and iteration
 
 The example started as a vertical-scrolling platformer (software camera, no
-hardware rotation), loosely inspired by `bmp565_scroll_sprite.py` and classic
+hardware rotation), loosely inspired by pygraphics' `bmp565_scroll_sprite.py` example and classic
 climbers. Early work focused on:
 
 - Scalable layout from a 320×480 reference (`Layout` in [`tower_climb.py`](tower_climb.py))

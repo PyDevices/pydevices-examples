@@ -4,9 +4,8 @@ What the examples draw, captured from a desktop run, a phone or an installed PWA
 
 | Image | Image | Image |
 |-------|-------|-------|
-| ![bmp565_simpletest.png](../screenshots/bmp565_simpletest.png) | ![bmp565_sprite.gif](../screenshots/bmp565_sprite.gif) | ![chango.png](../screenshots/chango.png) |
-| ![color_test.png](../screenshots/color_test.png) | ![console_advanced_demo.gif](../screenshots/console_advanced_demo.gif) | ![displaybuf_simpletest.png](../screenshots/displaybuf_simpletest.png) |
-| ![fonts.png](../screenshots/fonts.png) | ![framebuf_simpletest.png](../screenshots/framebuf_simpletest.png) | ![noto_fonts.png](../screenshots/noto_fonts.png) |
+| ![chango.png](../screenshots/chango.png) | ![color_test.png](../screenshots/color_test.png) | ![console_advanced_demo.gif](../screenshots/console_advanced_demo.gif) |
+| ![displaybuf_simpletest.png](../screenshots/displaybuf_simpletest.png) | ![fonts.png](../screenshots/fonts.png) | ![noto_fonts.png](../screenshots/noto_fonts.png) |
 | ![paint.png](../screenshots/paint.png) | ![proverbs.png](../screenshots/proverbs.png) | ![testris.png](../screenshots/testris.png) |
 | ![tiny_toasters.gif](../screenshots/tiny_toasters.gif) | ![piano.png](../screenshots/piano.png) | ![google_photos.png](../screenshots/google_photos.png) |
 | ![google_photos_view.png](../screenshots/google_photos_view.png) | ![google_photos_connect.png](../screenshots/google_photos_connect.png) | ![spectrum_800x480.gif](../screenshots/spectrum_800x480.gif) |

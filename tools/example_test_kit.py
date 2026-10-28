@@ -1681,8 +1681,6 @@ def main(argv: list[str] | None = None) -> int:
             "calc_graphics",
             "paint",
             "appdev_simpletest",
-            "graphics_simpletest",
-            "framebuf_simpletest",
             "color_test",
             "chango",
         }

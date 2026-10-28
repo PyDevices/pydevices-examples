@@ -86,7 +86,7 @@ jobs:
         run: |
           cd lib
           fail=0
-          for example in pydevices_demo palettes_demo; do
+          for example in pydevices_demo; do
             echo "== $example =="
             rc=0
             PYTHONPATH=.:lib:utils timeout 10 ../.venv/bin/python "examples/${example}.py" || rc=$?

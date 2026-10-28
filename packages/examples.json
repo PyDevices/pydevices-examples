@@ -17,10 +17,6 @@
       "github:PyDevices/pydevices-examples/lib/examples/appdev_touch_coords.py"
     ],
     [
-      "appdev_touch_test.py",
-      "github:PyDevices/pydevices-examples/lib/examples/appdev_touch_test.py"
-    ],
-    [
       "audio_arpeggio.py",
       "github:PyDevices/pydevices-examples/lib/examples/audio_arpeggio.py"
     ],
@@ -35,22 +31,6 @@
     [
       "audiolive_rack.py",
       "github:PyDevices/pydevices-examples/lib/examples/audiolive_rack.py"
-    ],
-    [
-      "bmp565_scroll.py",
-      "github:PyDevices/pydevices-examples/lib/examples/bmp565_scroll.py"
-    ],
-    [
-      "bmp565_scroll_sprite.py",
-      "github:PyDevices/pydevices-examples/lib/examples/bmp565_scroll_sprite.py"
-    ],
-    [
-      "bmp565_simpletest.py",
-      "github:PyDevices/pydevices-examples/lib/examples/bmp565_simpletest.py"
-    ],
-    [
-      "bmp565_sprite.py",
-      "github:PyDevices/pydevices-examples/lib/examples/bmp565_sprite.py"
     ],
     [
       "bmp565_sprite_transparent.py",
@@ -113,10 +93,6 @@
       "github:PyDevices/pydevices-examples/lib/examples/feathers.py"
     ],
     [
-      "font_list.py",
-      "github:PyDevices/pydevices-examples/lib/examples/font_list.py"
-    ],
-    [
       "font_simpletest.py",
       "github:PyDevices/pydevices-examples/lib/examples/font_simpletest.py"
     ],
@@ -125,20 +101,8 @@
       "github:PyDevices/pydevices-examples/lib/examples/fonts.py"
     ],
     [
-      "framebuf_simpletest.py",
-      "github:PyDevices/pydevices-examples/lib/examples/framebuf_simpletest.py"
-    ],
-    [
-      "graphics_simpletest.py",
-      "github:PyDevices/pydevices-examples/lib/examples/graphics_simpletest.py"
-    ],
-    [
       "hello.py",
       "github:PyDevices/pydevices-examples/lib/examples/hello.py"
-    ],
-    [
-      "joystick_list_select.py",
-      "github:PyDevices/pydevices-examples/lib/examples/joystick_list_select.py"
     ],
     [
       "keypins_simpletest.py",
@@ -189,18 +153,6 @@
       "github:PyDevices/pydevices-examples/lib/examples/paint.py"
     ],
     [
-      "palettes_demo.py",
-      "github:PyDevices/pydevices-examples/lib/examples/palettes_demo.py"
-    ],
-    [
-      "pbm_create_new.py",
-      "github:PyDevices/pydevices-examples/lib/examples/pbm_create_new.py"
-    ],
-    [
-      "pbm_simpletest.py",
-      "github:PyDevices/pydevices-examples/lib/examples/pbm_simpletest.py"
-    ],
-    [
       "piano.py",
       "github:PyDevices/pydevices-examples/lib/examples/piano.py"
     ],
@@ -211,14 +163,6 @@
     [
       "pydevices_demo.py",
       "github:PyDevices/pydevices-examples/lib/examples/pydevices_demo.py"
-    ],
-    [
-      "pygraphics_landscape.py",
-      "github:PyDevices/pydevices-examples/lib/examples/pygraphics_landscape.py"
-    ],
-    [
-      "rotations.py",
-      "github:PyDevices/pydevices-examples/lib/examples/rotations.py"
     ],
     [
       "scroll.py",

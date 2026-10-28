@@ -121,22 +121,6 @@ kind = "async"
 quit = "poll"
 deps = ["core"]
 
-[examples.graphics_simpletest]
-import = "graphics_simpletest"
-script = "examples/graphics_simpletest.py"
-kind = "oneshot"
-quit = "native_exit"
-deps = ["core"]
-oneshot_timeout_s = 20
-
-[examples.framebuf_simpletest]
-import = "framebuf_simpletest"
-script = "examples/framebuf_simpletest.py"
-kind = "oneshot"
-quit = "native_exit"
-deps = ["core"]
-oneshot_timeout_s = 20
-
 [examples.color_test]
 import = "color_test"
 script = "examples/color_test.py"
@@ -222,35 +206,6 @@ kind = "async"
 quit = "poll"
 deps = ["core"]
 
-[examples.bmp565_scroll]
-import = "bmp565_scroll"
-script = "examples/bmp565_scroll.py"
-kind = "loop"
-quit = "poll"
-deps = ["core"]
-
-[examples.bmp565_scroll_sprite]
-import = "bmp565_scroll_sprite"
-script = "examples/bmp565_scroll_sprite.py"
-kind = "loop"
-quit = "poll"
-timeout_s = 70
-deps = ["core"]
-
-[examples.bmp565_simpletest]
-import = "bmp565_simpletest"
-script = "examples/bmp565_simpletest.py"
-kind = "oneshot"
-quit = "native_exit"
-deps = ["core"]
-
-[examples.bmp565_sprite]
-import = "bmp565_sprite"
-script = "examples/bmp565_sprite.py"
-kind = "loop"
-quit = "poll"
-deps = ["core"]
-
 [examples.bmp565_sprite_transparent]
 import = "bmp565_sprite_transparent"
 script = "examples/bmp565_sprite_transparent.py"
@@ -308,25 +263,11 @@ kind = "loop"
 quit = "poll"
 deps = ["core"]
 
-[examples.appdev_touch_test]
-import = "appdev_touch_test"
-script = "examples/appdev_touch_test.py"
-kind = "loop"
-quit = "inject"
-deps = ["core"]
-
 [examples.feathers]
 import = "feathers"
 script = "examples/feathers.py"
 kind = "loop"
 quit = "poll"
-deps = ["core"]
-
-[examples.font_list]
-import = "font_list"
-script = "examples/font_list.py"
-kind = "oneshot"
-quit = "native_exit"
 deps = ["core"]
 
 [examples.font_simpletest]
@@ -349,13 +290,6 @@ script = "examples/hello.py"
 kind = "loop"
 quit = "poll"
 deps = ["utils", "tft_config"]
-
-[examples.joystick_list_select]
-import = "joystick_list_select"
-script = "examples/joystick_list_select.py"
-kind = "loop"
-quit = "inject"
-deps = ["utils"]
 
 [examples.logo]
 import = "logo"
@@ -398,35 +332,6 @@ timeout_s = 240
 # than raising. It also has no urllib/socket/ssl, so mip cannot fetch the GUI
 # there either -- the tree only ever appears via another interpreter.
 skip_interpreters = ["circuitpython"]
-
-[examples.palettes_demo]
-import = "palettes_demo"
-script = "examples/palettes_demo.py"
-kind = "loop"
-quit = "poll"
-deps = ["core"]
-
-[examples.pbm_create_new]
-import = "pbm_create_new"
-script = "examples/pbm_create_new.py"
-kind = "oneshot"
-quit = "native_exit"
-oneshot_timeout_s = 45
-deps = ["core"]
-
-[examples.pbm_simpletest]
-import = "pbm_simpletest"
-script = "examples/pbm_simpletest.py"
-kind = "oneshot"
-quit = "native_exit"
-deps = ["core"]
-
-[examples.rotations]
-import = "rotations"
-script = "examples/rotations.py"
-kind = "loop"
-quit = "poll"
-deps = ["core"]
 
 [examples.scroll]
 import = "scroll"
