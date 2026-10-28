@@ -1,9 +1,0 @@
-{
-  "urls": [
-    [
-      "miracast/board_config.py",
-      "../lib/examples/miracast/board_config.py"
-    ]
-  ],
-  "version": "0.0.1"
-}

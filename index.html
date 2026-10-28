@@ -1,141 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <!-- PYDEVICES-HEAD-TAGS: START -->
-  <title>PyDevices - pydevices-examples</title>
-  <meta name="description" content="Comprehensive example code, direct MicroPython WebAssembly demos, board configurations, and multi-interpreter showcase benchmarks.">
-  <link rel="icon" href="/assets/img/favicon.ico" sizes="16x16 32x32 48x48">
-  <!-- PYDEVICES-HEAD-TAGS: END -->
-    <meta charset="utf-8">
-    <script>try{if(localStorage.getItem('pydevices-theme')==='light'){document.documentElement.setAttribute('data-theme','light');}}catch(e){}</script>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    
-    
-    <link rel="icon" href="img/favicon.ico" sizes="16x16 32x32 48x48">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="/assets/chrome/site.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moved to the PyDevices gallery</title>
+<link rel="canonical" href="https://pydevices.github.io/gallery/">
+<script>
+  // Keep the rest of the path: /pydevices-examples/gallery/x -> /gallery/gallery/x
+  var rest = location.pathname.replace(/^\/pydevices-examples\/?/, "");
+  location.replace("https://pydevices.github.io/gallery/" + rest + location.search + location.hash);
+</script>
+<meta http-equiv="refresh" content="0; url=https://pydevices.github.io/gallery/">
 </head>
 <body>
-  <!-- PYDEVICES-ABOVE-THE-FOLD: START -->
-  <div id="pydevices-site-header"></div>
-
-  <!-- Hero Banner -->
-  <section class="hero wrap has-hero-canvas">
-    <div class="hero-main">
-      <div class="hero-lead">
-        <div class="logo-badge product-mark" style="background: linear-gradient(135deg, var(--tier-1-amber), var(--tier-1-deep)); color: var(--on-accent);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/><circle cx="17" cy="15" r="1.5"/></svg></div>
-        <span class="eyebrow" style="color: var(--tier-1-amber);">pydevices-examples</span>
-      </div>
-      <h1>pydevices-examples — Showcase, demos & WebAssembly gallery.</h1>
-      <p><code>pydevices-examples</code> Comprehensive example code, direct MicroPython WebAssembly demos, board configurations, and multi-interpreter showcase benchmarks.</p>
-      <div class="cta">
-      <a class="btn primary" style="background: var(--github-ink); color: var(--on-accent); border-color: var(--github-ink);" href="https://github.com/PyDevices/pydevices-examples">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-1-2.6c3-.3 6-1.5 6-6.5a5 5 0 0 0-1.4-3.5 4.6 4.6 0 0 0-.1-3.5s-1.1-.3-3.5 1.3a12 12 0 0 0-6 0C6.6 1.7 5.5 2 5.5 2a4.6 4.6 0 0 0-.1 3.5A5 5 0 0 0 4 9c0 5 3 6.2 6 6.5a3.4 3.4 0 0 0-1 2.6V22"/></svg>
-        GitHub Repo
-      </a>
-      <a class="btn" style="border-color: var(--tier-1-amber); color: var(--tier-1-amber);" href="https://pydevices.github.io/pydevices-examples/gallery/">Gallery</a>
-      <a class="btn" style="border-color: var(--tier-1-amber); color: var(--tier-1-amber);" href="https://PyDevices.github.io/mip">MIP Index</a>
-      <a class="btn" style="border-color: var(--tier-1-amber); color: var(--tier-1-amber);" href="https://pydevices.github.io/pydevices/">pydevices Core</a>
-      </div>
-    </div>
-    <div class="hero-canvas-wrap" data-hero-canvas="hero_canvas" data-hero-app="benchmark_deck" data-hero-app-url="https://PyDevices.github.io/assets/apps/benchmark_deck.py">
-      <div class="hero-canvas-square">
-        <div class="hero-canvas-loader">
-          <div class="hero-spinner"></div>
-          <span class="hero-canvas-status">Live Pure-Python Device</span>
-        </div>
-        <canvas id="hero_canvas" width="240" height="240" tabindex="0"></canvas>
-      </div>
-    </div>
-  </section>
-  <!-- PYDEVICES-ABOVE-THE-FOLD: END -->
-
-  <main class="cards wrap">
-        <div class="section-head">
-            <h2>Core app</h2>
-            <span class="hint">board_config + Interpreter — one idiom everywhere</span>
-        </div>
-        <div class="install-block">
-            <pre><code>import board_config
-from board_config import display_drv
-import appdev
-import events
-
-app = appdev.App(board_config)
-app.on(events.MOUSEBUTTONDOWN, on_click)
-app.run()</code></pre>
-        </div>
-        <p class="prose" style="margin-top: 14px;">
-            Import <code>board_config</code>, register handlers, run the loop.
-            Guides and the full platform matrix live in the
-            <a href="https://github.com/PyDevices/pydevices/tree/main/docs">pydevices documentation</a>.
-        </p>
-
-        <div class="section-head" style="margin-top: 36px;">
-            <h2>In the stack</h2>
-            <span class="hint">add-ons live on their own pages</span>
-        </div>
-        <div class="grid">
-            <a class="card" href="https://pydevices.github.io/palettes/">
-                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18"/></svg></span>
-                <h3>palettes</h3>
-                <p>Wheels, cubes, Material swatches, and named colors via <code>get_palette()</code>.</p>
-                <span class="go">palettes Pages <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            </a>
-            <a class="card" href="https://pydevices.github.io/pdwidgets/">
-                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
-                <h3>pdwidgets</h3>
-                <p>Lightweight widgets on top of the PyDevices display stack — buttons, forms, nav, charts.</p>
-                <span class="go">pdwidgets Pages <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            </a>
-            <a class="card" href="https://pydevices.github.io/android-template/">
-                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 18h.01"/></svg></span>
-                <h3>android-template</h3>
-                <p>Native APK companion via python-for-android — distinct from the browser PWA.</p>
-                <span class="go">Android Pages <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-            </a>
-        </div>
-
-        <div class="section-head" style="margin-top: 36px;">
-            <h2>More</h2>
-            <span class="hint">docs, simulation, packages</span>
-        </div>
-        <div class="grid">
-            <a class="card" href="https://github.com/PyDevices/pydevices/tree/main/docs">
-                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 7v13a2 2 0 0 0-2-2H9"/></svg></span>
-                <h3>Documentation</h3>
-                <p>Guides, the board contract, and the driver reference in the pydevices repo.</p>
-            </a>
-            <a class="card" href="pyscript/">
-                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
-                <h3>PyScript Gallery</h3>
-                <p>The same <code>lib/examples/</code> scripts as MCUs and CPython — installable in the browser.</p>
-            </a>
-            <a class="card" href="https://wokwi.com/projects/415770470006384641">
-                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9zM9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg></span>
-                <h3>Wokwi example</h3>
-                <p>ESP32-S3 simulation running PyDevices examples on virtual hardware.</p>
-            </a>
-            <a class="card" href="https://github.com/PyDevices/pydevices-examples">
-                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-1-2.6c3-.3 6-1.5 6-6.5a5 5 0 0 0-1.4-3.5 4.6 4.6 0 0 0-.1-3.5s-1.1-.3-3.5 1.3a12 12 0 0 0-6 0C6.6 1.7 5.5 2 5.5 2a4.6 4.6 0 0 0-.1 3.5A5 5 0 0 0 4 9c0 5 3 6.2 6 6.5a3.4 3.4 0 0 0-1 2.6V22"/></svg></span>
-                <h3>Source on GitHub</h3>
-                <p>Browse the code, file issues, and contribute.</p>
-            </a>
-            <a class="card" href="https://PyDevices.github.io/mip">
-                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg></span>
-                <h3>MIP package index</h3>
-                <p>Install PyDevices packages and add-ons with <code>mip</code> on any *Python.</p>
-            </a>
-            <a class="card" href="https://pydevices.github.io/lvgl-bindings/">
-                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
-                <h3>LVGL bindings</h3>
-                <p>Full widget toolkit via lvgl-bindings and the matching cmod for your interpreter.</p>
-            </a>
-        </div>
-    </main>
-
-  <div id="pydevices-site-footer"></div>
-  <script src="/assets/chrome/site-chrome.js"></script>
+<p>This site has moved to <a href="https://pydevices.github.io/gallery/">pydevices.github.io/gallery</a>.</p>
 </body>
 </html>
